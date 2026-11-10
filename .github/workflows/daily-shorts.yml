@@ -2,9 +2,14 @@ name: Daily Automated YouTube Shorts Publisher
 
 on:
   schedule:
+    # 4 Daily Slots in UTC (IST = UTC + 5:30):
+    # Slot 1: 09:00 AM IST -> 03:30 AM UTC
     - cron: '30 3 * * *'
+    # Slot 2: 02:00 PM IST -> 08:30 AM UTC
     - cron: '30 8 * * *'
+    # Slot 4: 05:00 PM IST -> 11:30 AM UTC
     - cron: '30 11 * * *'
+    # Slot 3: 07:30 PM IST -> 02:00 PM UTC
     - cron: '0 14 * * *'
 
   workflow_dispatch:
@@ -45,8 +50,10 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -59,8 +66,19 @@ jobs:
       - name: Install Node Dependencies
         run: npm install
 
+      - name: Force System FFmpeg with Drawtext
+        run: |
+          which ffmpeg
+          ffmpeg -version | grep -i drawtext || true
+          # Override any local static binary with the full Ubuntu ffmpeg build
+          if [ -d "node_modules/ffmpeg-static" ]; then
+            cp $(which ffmpeg) node_modules/ffmpeg-static/ffmpeg
+          fi
+
       - name: Run Cloud Shorts Publisher
         env:
+          PATH: /usr/bin:${{ env.PATH }}
+          FFMPEG_PATH: /usr/bin/ffmpeg
           TARGET_SLOT: ${{ inputs.slot || 'slot1' }}
           CUSTOM_TOPIC: ${{ inputs.customTopic || '' }}
           UPLOAD_PRIVACY: ${{ inputs.privacy || 'public' }}
