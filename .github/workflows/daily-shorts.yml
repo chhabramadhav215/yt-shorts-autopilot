@@ -1,0 +1,96 @@
+name: Daily Automated YouTube Shorts Publisher
+
+on:
+  schedule:
+    # 4 Daily Slots in UTC (IST = UTC + 5:30):
+    # Slot 1: 09:00 AM IST -> 03:30 AM UTC
+    - cron: '30 3 * * *'
+    # Slot 2: 02:00 PM IST -> 08:30 AM UTC
+    - cron: '30 8 * * *'
+    # Slot 4: 05:00 PM IST -> 11:30 AM UTC
+    - cron: '30 11 * * *'
+    # Slot 3: 07:30 PM IST -> 02:00 PM UTC
+    - cron: '0 14 * * *'
+
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Target Slot to publish'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - slot1
+          - slot2
+          - slot3
+          - slot4
+      customTopic:
+        description: 'Optional custom topic (leave blank for auto)'
+        required: false
+        default: ''
+      privacy:
+        description: 'Upload privacy status'
+        required: true
+        default: 'public'
+        type: choice
+        options:
+          - public
+          - unlisted
+          - private
+
+concurrency:
+  group: youtube-shorts-publishing
+  cancel-in-progress: false
+
+jobs:
+  publish-short:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-freefont-ttf yt-dlp || sudo pip install yt-dlp || true
+
+      - name: Install Node Dependencies
+        run: npm ci || npm install
+
+      - name: Run Cloud Shorts Publisher & Upload to YouTube
+        env:
+          SCHEDULE_CRON: ${{ github.event.schedule }}
+          TARGET_SLOT: ${{ inputs.slot || 'auto' }}
+          CUSTOM_TOPIC: ${{ inputs.customTopic || '' }}
+          UPLOAD_PRIVACY: ${{ inputs.privacy || 'public' }}
+          YOUTUBE_PRIVACY_STATUS: ${{ inputs.privacy || 'public' }}
+          YOUTUBE_CLIENT_SECRET_JSON: ${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_USER_ID: ${{ secrets.TELEGRAM_ALLOWED_USER_ID }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SLOT1_VOICE: ${{ secrets.SLOT1_VOICE || 'hi-IN-SwaraNeural' }}
+          SLOT2_VOICE: ${{ secrets.SLOT2_VOICE || 'hi-IN-MadhurNeural' }}
+          SLOT3_VOICE: ${{ secrets.SLOT3_VOICE || 'hi-IN-MadhurNeural' }}
+          SLOT4_VOICE: ${{ secrets.SLOT4_VOICE || 'hi-IN-MadhurNeural' }}
+        run: node src/cloud_publisher.js
+
+      - name: Keepalive Workflow
+        uses: gautamkrishnar/keepalive-workflow@v2
+        if: always()
+        with:
+          commit_message: "chore: keepalive automatic daily shorts schedule"
+          committer_username: "github-actions[bot]"
+          committer_email: "github-actions[bot]@users.noreply.github.com"
