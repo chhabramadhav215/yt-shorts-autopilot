@@ -141,9 +141,19 @@ async function tryDownloadPexels(query) {
  * @param {string} [params.customTopic] - User custom topic
  * @param {string} [params.clipPath] - Optional direct video clip path
  * @param {string} [params.themeType] - Optional theme type (e.g. 'jokes', 'dance', 'mischief')
+ * @param {string} [params.visualQuery] - Specific context query for dynamic video matching
+ * @param {string[]} [params.altQueries] - Alternative fallback queries for dynamic matching
  * @returns {Promise<{ type: 'video' | 'image', filePath: string }>}
  */
-export async function fetchSlotBackgroundMedia({ slotType, title = '', customTopic = null, clipPath = null, themeType = null }) {
+export async function fetchSlotBackgroundMedia({
+  slotType,
+  title = '',
+  customTopic = null,
+  clipPath = null,
+  themeType = null,
+  visualQuery = null,
+  altQueries = [],
+}) {
   const combinedText = `${customTopic || ''} ${title || ''}`.trim();
 
   // Determine query list & fallback asset per slot
@@ -151,18 +161,35 @@ export async function fetchSlotBackgroundMedia({ slotType, title = '', customTop
   let defaultAsset = null;
 
   if (slotType === 'slot1') {
-    // If a direct clipPath is provided and valid, use it immediately
+    // 1. Build prioritized search queries matching the specific context of the joke
+    const scenarioQueries = [];
+    if (visualQuery) scenarioQueries.push(visualQuery);
+    if (Array.isArray(altQueries)) scenarioQueries.push(...altQueries);
+
+    // Add theme-relevant contextual queries
+    if (themeType === 'dance') {
+      scenarioQueries.push('toddler dancing funny', 'cute baby dancing', 'baby grooving music');
+    } else if (themeType === 'mischief') {
+      scenarioQueries.push('naughty kid smiling', 'cute baby playing', 'toddler mischief funny');
+    } else {
+      scenarioQueries.push('cute baby talking', 'toddler laughing', 'naughty kid', 'cute baby smiling');
+    }
+
+    // 2. Query dynamic Pexels video clips matching the specific context of the generated joke
+    for (const q of scenarioQueries) {
+      const pexelsVideo = await tryDownloadPexels(q);
+      if (pexelsVideo) {
+        logger.success(`Dynamic Pexels vertical video matched for context "${q}": ${path.basename(pexelsVideo.filePath)}`);
+        return pexelsVideo;
+      }
+    }
+
+    // 3. Fallback to curated theme-specific video clips if Pexels is unconfigured or returns nothing
     if (clipPath && fs.existsSync(clipPath)) {
       logger.info(`Using theme clip for Slot 1: ${path.basename(clipPath)}`);
       return { type: 'video', filePath: clipPath };
     }
 
-    // Try Pexels video if API key is provided
-    const pexelQuery = themeType === 'dance' ? 'toddler dancing' : (themeType === 'mischief' ? 'cute baby playing' : 'cute baby laughing');
-    const pexelsVideo = await tryDownloadPexels(pexelQuery);
-    if (pexelsVideo) return pexelsVideo;
-
-    // Use theme-specific curated authentic real baby video
     if (themeType) {
       const themeMp4 = path.join(DEFAULTS_DIR, `slot1_${themeType}.mp4`);
       if (fs.existsSync(themeMp4)) {

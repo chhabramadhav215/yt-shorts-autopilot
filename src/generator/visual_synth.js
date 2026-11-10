@@ -66,6 +66,8 @@ export async function generateVisualBackground({
   clipPath = null,
   epicBadge = '',
   themeType = null,
+  visualQuery = null,
+  altQueries = [],
   customTopic = null,
 }) {
   const roundDur = Math.ceil(duration) + 1;
@@ -118,7 +120,15 @@ export async function generateVisualBackground({
   // SLOTS 1, 2, 3: Dynamic Backgrounds (Royalty-free HD Video / Ken Burns Image)
   // =================================================================
   logger.info(`Fetching dynamic background footage for [${slotType.toUpperCase()}]...`);
-  const media = await fetchSlotBackgroundMedia({ slotType, title: headline || title, customTopic, clipPath, themeType });
+  const media = await fetchSlotBackgroundMedia({
+    slotType,
+    title: headline || title,
+    customTopic,
+    clipPath,
+    themeType,
+    visualQuery,
+    altQueries,
+  });
 
   // -----------------------------------------------------------------
   // 1. VIDEO BACKGROUND (Slot 1 Baby Dance, Slot 3 News, etc.)
@@ -135,11 +145,33 @@ export async function generateVisualBackground({
         .replace(/['":]/g, '')
         .trim()
         .substring(0, 35);
+
       filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
       // Top Party Banner
       filterParts.push(`[v0]drawbox=x=60:y=140:w=960:h=130:color=0x220033@0.85:t=fill[v1]`);
       filterParts.push(`[v1]drawbox=x=60:y=140:w=960:h=130:color=0xff007f:t=6[v2]`);
-      filterParts.push(`[v2]drawtext=text='${safeBadge}':fontcolor=white:fontsize=42:x=(w-text_w)/2:y=182:font='Arial Black'[vout]`);
+      filterParts.push(`[v2]drawtext=text='${safeBadge}':fontcolor=white:fontsize=42:x=(w-text_w)/2:y=182:font='Arial Black'[v_banner]`);
+
+      // 3D Animated Cute Baby Avatar Overlay (Bouncing & Talking synchronized to dialogue)
+      const avatarRest = path.join(config.assetsDir, 'defaults', 'baby_avatar.png');
+      const avatarTalk = path.join(config.assetsDir, 'defaults', 'baby_avatar_talk.png');
+
+      if (fs.existsSync(avatarRest) && fs.existsSync(avatarTalk)) {
+        ffmpegArgs.push('-loop', '1', '-i', avatarRest);
+        ffmpegArgs.push('-loop', '1', '-i', avatarTalk);
+
+        filterParts.push(`[1:v]scale=360:360[a1]`);
+        filterParts.push(`[2:v]scale=360:360[a2]`);
+        // Animated bounce & talking overlay (swapping between smiling and talking expression at 4Hz synced to dialogue)
+        filterParts.push(`[v_banner][a1]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),0)'[t1]`);
+        filterParts.push(`[t1][a2]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),1)'[t2]`);
+        // Narrator Pill Badge
+        filterParts.push(`[t2]drawbox=x=90:y=1330:w=320:h=48:color=0x220033@0.90:t=fill[t3]`);
+        filterParts.push(`[t3]drawbox=x=90:y=1330:w=320:h=48:color=0xff007f:t=3[t4]`);
+        filterParts.push(`[t4]drawtext=text='LITTLE BOSS':fontcolor=0xffcc00:fontsize=26:x=165:y=1341:font='Arial Black'[vout]`);
+      } else {
+        filterParts.push(`[v_banner]copy[vout]`);
+      }
 
     } else if (slotType === 'slot3') {
       // Slot 3 (News Explainer): Dynamic broadcast layout adhering to 15% top & 20% bottom safe zones

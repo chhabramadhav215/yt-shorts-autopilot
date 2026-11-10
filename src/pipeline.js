@@ -87,6 +87,8 @@ export async function generateShortVideo(slot, customTopic = null) {
     clipPath: content.clipPath,
     epicBadge: content.epicBadge,
     themeType: content.themeType,
+    visualQuery: content.visualQuery,
+    altQueries: content.altQueries,
     customTopic,
   });
 

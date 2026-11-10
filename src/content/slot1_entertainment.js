@@ -16,6 +16,8 @@ const JOKES_SCENARIOS = [
     theme: 'jokes',
     badge: 'LITTLE BOSS JOKES 😂',
     englishTitle: 'Wait For The Punchline! 👶😂 Papa vs Mummy | Cute Toddler Joke',
+    visualQuery: 'cute baby talking',
+    altQueries: ['toddler laughing', 'cute baby smiling', 'funny toddler talking'],
     segments: [
       {
         hindi: 'पापा बोलते हैं कि मैं बिल्कुल उनके जैसा दिखता हूँ!',
@@ -40,6 +42,8 @@ const JOKES_SCENARIOS = [
     theme: 'jokes',
     badge: 'LITTLE BOSS JOKES 😂',
     englishTitle: 'Toddler Question Of The Day! 👶🤔 Pure Innocence | Funny Baby Shorts',
+    visualQuery: 'toddler running laughing',
+    altQueries: ['naughty kid smiling', 'cute baby playing', 'toddler running'],
     segments: [
       {
         hindi: 'मम्मी ने मुझसे पूछा कि नए जूतों पर कीचड़ कैसे लग गया?',
@@ -64,6 +68,8 @@ const JOKES_SCENARIOS = [
     theme: 'jokes',
     badge: 'LITTLE BOSS JOKES 😂',
     englishTitle: 'When Grandparents Are Around! 👶🕶️ Savage Toddler Trick',
+    visualQuery: 'naughty kid smiling',
+    altQueries: ['cute baby pretending', 'toddler laughing', 'funny baby expressions'],
     segments: [
       {
         hindi: 'जब भी पापा मुझे चॉकलेट खाने पर डांटते हैं...',
@@ -84,6 +90,58 @@ const JOKES_SCENARIOS = [
     ],
     tags: ['shorts', 'savagetoddler', 'funny', 'dadi', 'babytricks', 'cutebaby', 'viralcomedy'],
   },
+  {
+    theme: 'jokes',
+    badge: 'LITTLE BOSS JOKES 😂',
+    englishTitle: 'Doctor Uncle’s Big Lie! 👶💉 Tiny Injection Mystery',
+    visualQuery: 'cute baby smiling talking',
+    altQueries: ['toddler talking funny', 'cute baby laughing', 'naughty kid'],
+    segments: [
+      {
+        hindi: 'डॉक्टर अंकल बोले बस एक छोटी सी चींटी काटेगी!',
+        english: 'Doctor uncle said it will only pinch like a tiny ant...',
+      },
+      {
+        hindi: 'अरे अंकल, क्या चींटी के पास इतना बड़ा सुई वाला इंजेक्शन होता है?!',
+        english: 'Uncle, do ants carry giant syringes like that?!',
+      },
+      {
+        hindi: 'मुझे तो लगता है वो चींटी किसी डायनासोर के खानदान की थी!',
+        english: 'I think that ant was related to a dinosaur!',
+      },
+      {
+        hindi: 'हंसते-हंसते पेट में दर्द हो गया तो जल्दी से लाइक और सब्सक्राइब करो!',
+        english: 'If you laughed out loud, hit like and subscribe right now!',
+      },
+    ],
+    tags: ['shorts', 'babyhumor', 'doctorjoke', 'cutebaby', 'toddlerjokes', 'viralcomedy', 'laughing'],
+  },
+  {
+    theme: 'jokes',
+    badge: 'LITTLE BOSS JOKES 😂',
+    englishTitle: 'Phone Rules Double Standard! 👶📱 Busted Mummy Papa',
+    visualQuery: 'toddler holding phone laughing',
+    altQueries: ['cute baby talking', 'toddler laughing', 'naughty kid smiling'],
+    segments: [
+      {
+        hindi: 'मम्मी दिन भर बोलती हैं कि फोन देखने से आंखें खराब हो जाती हैं!',
+        english: 'Mummy tells me that looking at phones ruins your eyes...',
+      },
+      {
+        hindi: 'और खुद पूरा दिन इंस्टाग्राम पर रील्स स्क्रॉल करती रहती हैं!',
+        english: 'While she spends all day scrolling Instagram reels!',
+      },
+      {
+        hindi: 'क्या मम्मी की आंखों में स्पेशल फिल्टर लगा हुआ है?',
+        english: 'Does Mummy have a special magic filter on her eyes?!',
+      },
+      {
+        hindi: 'अगर आपके घर भी यही हाल है, तो कमेंट में हंसने वाली इमोजी भेजो!',
+        english: 'If this happens at your home too, drop laughing emojis in comments!',
+      },
+    ],
+    tags: ['shorts', 'phoneaddiction', 'relatablekid', 'cutebaby', 'mummyjokes', 'toddlerlogic', 'viralshorts'],
+  },
 ];
 
 // =====================================================================
@@ -94,6 +152,8 @@ const DANCE_SCENARIOS = [
     theme: 'dance',
     badge: 'BABY DANCE GROOVE 🕺',
     englishTitle: 'DJ Turn The Beat Up! 👶🕺 Little Boss On The Floor | Viral Baby Dance',
+    visualQuery: 'toddler dancing funny',
+    altQueries: ['cute baby dancing', 'baby grooving music', 'toddler dancing happy'],
     segments: [
       {
         hindi: 'अरे डीजे भैया, थोड़ा वॉल्यूम तो बढ़ाओ!',
@@ -118,6 +178,8 @@ const DANCE_SCENARIOS = [
     theme: 'dance',
     badge: 'BABY DANCE GROOVE 🕺',
     englishTitle: 'When The Sunday Music Hits! 👶🔥 Pure Toddler Swag',
+    visualQuery: 'cute baby dancing',
+    altQueries: ['toddler dancing', 'cute baby laughing', 'baby grooving'],
     segments: [
       {
         hindi: 'मुझे किसी ने डांस सिखाया नहीं है!',
@@ -142,6 +204,8 @@ const DANCE_SCENARIOS = [
     theme: 'dance',
     badge: 'BABY DANCE GROOVE 🕺',
     englishTitle: 'Can Anyone Beat This Baby Groove? 👶💃 Unstoppable Energy',
+    visualQuery: 'toddler dancing joy',
+    altQueries: ['baby dancing funny', 'cute baby dancing', 'toddler grooving'],
     segments: [
       {
         hindi: 'रुकिए रुकिए! सब काम छोड़कर पहले ये डांस देखिए!',
@@ -172,6 +236,8 @@ const MISCHIEF_SCENARIOS = [
     theme: 'mischief',
     badge: 'TODDLER LOGIC & MISCHIEF 🍼',
     englishTitle: 'Genius Toddler Logic! 👶🥛 Why Doesn’t Cat Become Tiger?',
+    visualQuery: 'cute baby talking',
+    altQueries: ['toddler thinking funny', 'cute baby drinking', 'naughty kid smiling'],
     segments: [
       {
         hindi: 'मम्मी कहती हैं कि रोज़ दूध पीने से शेर जैसी ताकत आती है।',
@@ -196,6 +262,8 @@ const MISCHIEF_SCENARIOS = [
     theme: 'mischief',
     badge: 'TODDLER LOGIC & MISCHIEF 🍼',
     englishTitle: 'The Ultimate Bedtime Mystery! 👶🛌 Toddler Investigation',
+    visualQuery: 'naughty kid smiling',
+    altQueries: ['cute baby hiding', 'toddler eating sneakily', 'cute baby laughing'],
     segments: [
       {
         hindi: 'पापा-मम्मी मुझे तो नौ बजे सोने भेज देते हैं...',
@@ -220,6 +288,8 @@ const MISCHIEF_SCENARIOS = [
     theme: 'mischief',
     badge: 'TODDLER LOGIC & MISCHIEF 🍼',
     englishTitle: 'Toddler Philosophy 101 👶🧠 Clean Room Dilemma',
+    visualQuery: 'toddler messy room playing',
+    altQueries: ['cute baby playing toys', 'toddler laughing', 'naughty kid'],
     segments: [
       {
         hindi: 'अगर कल सुबह मुझे फिर से सारे खिलौनों से खेलना ही है...',
@@ -295,9 +365,13 @@ export async function generateSlot1Content(customTopic = null) {
   let title = scenario.englishTitle;
   let segments = scenario.segments;
   let badge = scenario.badge;
+  let visualQuery = scenario.visualQuery || 'cute baby talking';
+  let altQueries = scenario.altQueries || ['toddler laughing', 'naughty kid smiling'];
 
   if (customTopic) {
     title = `${customTopic} 👶 Cute Toddler Fun`;
+    visualQuery = `cute baby ${customTopic}`;
+    altQueries = ['cute baby talking', 'toddler laughing', 'naughty kid'];
     segments = [
       {
         hindi: `ज़रा देखिए! ${customTopic} पर यह छोटा बच्चा क्या कमाल कर रहा है!`,
@@ -321,7 +395,7 @@ export async function generateSlot1Content(customTopic = null) {
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'entertainment.mp3');
 
-  // Realistic curated video clip matching the theme
+  // Realistic curated video clip matching the theme (used as reliable fallback)
   const clipPath = path.join(config.assetsDir, 'defaults', `slot1_${theme}.mp4`);
 
   return {
@@ -331,9 +405,11 @@ export async function generateSlot1Content(customTopic = null) {
     description: `${title}\n\nEnjoy the most wholesome and hilarious toddler shorts!\n(Cute kid voiceover in Hindi with bold English Subtitles for global reach).\n\nSubscribe for daily fun, baby jokes, and joyful laughter!`,
     tags: scenario.tags,
     voice: config.voices.slot1 || 'hi-IN-SwaraNeural',
-    pitch: '+25%', // Increased pitch for cute child-like tone
-    rate: '+5%',   // Natural upbeat child cadence
+    pitch: '+38%', // Toddler/child high pitch voice
+    rate: '+6%',   // Upbeat energetic child cadence
     themeType: theme,
+    visualQuery,
+    altQueries,
     clipPath,
     epicBadge: badge,
     voiceScript,
