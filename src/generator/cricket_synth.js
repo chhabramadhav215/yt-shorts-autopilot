@@ -3,6 +3,7 @@ import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import sharp from 'sharp';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
 import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
@@ -32,20 +33,19 @@ function runFFmpeg(args) {
   });
 }
 
-function toFfmpegTextfilePath(filePath) {
-  return filePath.replace(/\\/g, '/').replace(/:/g, '\\:');
+function toHex(col) {
+  if (!col) return '#ffffff';
+  return col.startsWith('0x') ? '#' + col.slice(2) : col;
 }
 
-function escapeFfmpegDrawtext(str) {
+function escapeXml(str) {
   if (!str) return '';
   return String(str)
-    .replace(/\\/g, '') // remove stray backslashes
-    .replace(/[\u2018\u2019\u201B']/g, "\u2019") // convert single quotes/curly apostrophes to unicode right curly apostrophe ’
-    .replace(/[\u201C\u201D\u201F"]/g, '') // strip double quotes
-    .replace(/:/g, '\\:') // escape colons for FFmpeg option separator
-    .replace(/%/g, '\\%') // escape % for FFmpeg format string expansion
-    .replace(/[[\]]/g, '') // strip brackets to prevent filter pad confusion
-    .replace(/;/g, ','); // replace semicolons so filter chains are not broken
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 const TEAM_COLORS = {
@@ -144,12 +144,87 @@ async function fetchPlayerPortrait(playerName) {
 }
 
 /**
+ * Renders the complete Cricket UI layout (top badge, headline card, player title pill,
+ * lower-third stat pill, and live ticker bar) as a transparent 1080x1920 PNG overlay.
+ * Completely eliminates any dependency on FFmpeg drawtext or libfreetype.
+ */
+async function generateCricketOverlayImage({
+  outputPath,
+  headline,
+  primaryPlayer,
+  topic,
+  statBadge,
+  teamTheme,
+}) {
+  const { line1, line2 } = summarizeNewsHeadline(headline);
+  const primaryHex = toHex(teamTheme.primary || '0x003366');
+  const accentHex = toHex(teamTheme.accent || '0xffcc00');
+
+  const badgeText = escapeXml(topic ? toTitleCase(topic).toUpperCase().slice(0, 28) : 'IPL 2026 • CRICKET BUZZ 🏏');
+  const playerText = escapeXml(toTitleCase(primaryPlayer).toUpperCase().slice(0, 22));
+  const statText = escapeXml((statBadge || 'IPL 2026 BUZZ').toUpperCase().slice(0, 48));
+  const tickerText = escapeXml(`LIVE IPL 2026 • ${toTitleCase(headline).slice(0, 75)} • TRADE RUMORS • RECORD BIDS • `);
+
+  const headlineBlock = line2
+    ? `<text x="540" y="415" class="title" fill="${accentHex}">${escapeXml(line1)}</text>
+       <text x="540" y="460" class="sub" fill="#ffffff">${escapeXml(line2)}</text>`
+    : `<text x="540" y="438" class="title-single" fill="${accentHex}">${escapeXml(line1)}</text>`;
+
+  const svg = `
+    <svg width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <style>
+          .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 900; font-size: 38px; text-anchor: middle; }
+          .title-single { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 900; font-size: 42px; text-anchor: middle; }
+          .sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 900; font-size: 38px; text-anchor: middle; }
+          .badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 800; font-size: 28px; fill: #ffffff; text-anchor: middle; }
+          .player { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 800; font-size: 28px; fill: #ffffff; }
+          .stat { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 800; font-size: 26px; fill: #ffffff; text-anchor: middle; }
+          .ticker { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 22px; fill: #ffffff; }
+        </style>
+      </defs>
+
+      <!-- Top Badge (y=295 to 351) -->
+      <rect x="290" y="295" width="500" height="56" rx="8" fill="${primaryHex}" fill-opacity="0.95" stroke="${accentHex}" stroke-width="2" />
+      <text x="540" y="333" class="badge">${badgeText}</text>
+
+      <!-- Headline Card (y=365 to 485) -->
+      <rect x="50" y="365" width="980" height="120" rx="8" fill="#050c1a" fill-opacity="0.95" stroke="${accentHex}" stroke-width="2" stroke-opacity="0.5" />
+      <rect x="50" y="365" width="10" height="120" rx="2" fill="${accentHex}" />
+      ${headlineBlock}
+
+      <!-- Player Frame Name Badge (y=1180 to 1234) -->
+      <rect x="160" y="1180" width="440" height="54" rx="6" fill="${primaryHex}" fill-opacity="0.95" stroke="${accentHex}" stroke-width="2" />
+      <text x="185" y="1217" class="player">${playerText}</text>
+
+      <!-- Lower-Third Stat Pill (y=1245 to 1303) -->
+      <rect x="60" y="1245" width="960" height="58" rx="8" fill="${primaryHex}" fill-opacity="0.95" stroke="${accentHex}" stroke-width="2" />
+      <text x="540" y="1283" class="stat">${statText}</text>
+
+      <!-- Subtitle Area Dark Bed (y=1315 to 1485) -->
+      <rect x="0" y="1315" width="1080" height="170" fill="#000511" fill-opacity="0.85" />
+
+      <!-- Bottom Live Cricket Ticker (y=1495 to 1535) -->
+      <rect x="0" y="1495" width="1080" height="40" fill="#b30000" fill-opacity="0.95" />
+      <rect x="0" y="1495" width="260" height="40" fill="${accentHex}" />
+      <text x="45" y="1523" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-weight="900" font-size="22" fill="#000000">CRICKET BUZZ</text>
+      <text x="280" y="1523" class="ticker">${tickerText}</text>
+    </svg>
+  `;
+
+  await sharp(Buffer.from(svg)).png().toFile(outputPath);
+  return outputPath;
+}
+
+/**
  * Generates the high-impact 9:16 visual background for Slot 5 (IPL & Cricket Buzz)
  * @param {Object} options
  * @param {number} options.duration - Duration in seconds
  * @param {string} options.outputPath - Destination MP4 path
  * @param {string} options.headline - News/Rumor headline
  * @param {string} [options.primaryPlayer] - Name of main cricketer (e.g. Virat Kohli)
+ * @param {string} [options.playerTitle]
+ * @param {string} [options.topic]
  * @param {string} [options.team] - Team code (e.g. RCB, MI, CSK)
  * @param {string} [options.statBadge] - Key stat text
  * @param {string} [options.visualQuery] - Stock query for stadium video
@@ -196,37 +271,17 @@ export async function generateCricketVisualBackground({
   // 2. Fetch player portrait for Ken Burns slow zoom (Guaranteed non-null)
   const playerImagePath = await fetchPlayerPortrait(rawPlayer);
 
-  const { line1, line2 } = summarizeNewsHeadline(rawHeadline);
-
-  // Write text files for all dynamic drawtext overlays to prevent FFmpeg inline quote/colon parsing errors
-  const tempTextDir = path.join(path.dirname(outputPath), 'text_overlays');
-  fs.mkdirSync(tempTextDir, { recursive: true });
-
-  const playerFile = path.join(tempTextDir, 'player.txt');
-  fs.writeFileSync(playerFile, toTitleCase(rawPlayer).toUpperCase().slice(0, 22), 'utf8');
-
-  const badgeFile = path.join(tempTextDir, 'badge.txt');
-  const badgeContent = topic ? toTitleCase(topic).toUpperCase().slice(0, 28) : 'IPL 2026 • CRICKET BUZZ 🏏';
-  fs.writeFileSync(badgeFile, badgeContent, 'utf8');
-
-  const head1File = path.join(tempTextDir, 'headline_1.txt');
-  fs.writeFileSync(head1File, line1 || 'IPL 2026', 'utf8');
-
-  let head2File = null;
-  if (line2) {
-    head2File = path.join(tempTextDir, 'headline_2.txt');
-    fs.writeFileSync(head2File, line2, 'utf8');
-  }
-
-  const statFile = path.join(tempTextDir, 'stat.txt');
-  fs.writeFileSync(statFile, (statBadge || 'IPL 2026 BUZZ').toUpperCase().slice(0, 48), 'utf8');
-
-  const tagFile = path.join(tempTextDir, 'tag.txt');
-  fs.writeFileSync(tagFile, 'CRICKET BUZZ', 'utf8');
-
-  const tickerFile = path.join(tempTextDir, 'ticker.txt');
-  const tickerContent = `LIVE IPL 2026 • ${toTitleCase(rawHeadline).slice(0, 75)} • TRADE RUMORS • RECORD BIDS • `;
-  fs.writeFileSync(tickerFile, tickerContent, 'utf8');
+  // 3. Render transparent PNG overlay containing all UI elements (badges, headline, ticker, pills)
+  // This completely eliminates any FFmpeg drawtext or libfreetype dependency
+  const overlayPngPath = path.join(path.dirname(outputPath), `cricket_overlay_${Date.now()}.png`);
+  await generateCricketOverlayImage({
+    outputPath: overlayPngPath,
+    headline: rawHeadline,
+    primaryPlayer: rawPlayer,
+    topic,
+    statBadge,
+    teamTheme,
+  });
 
   const ffmpegArgs = ['-y', '-stream_loop', '-1', '-i', bgVideoPath];
   const filterParts = [];
@@ -249,12 +304,7 @@ export async function generateCricketVisualBackground({
     filterParts.push(`[${centerNode}][player_kb]overlay=160:480:shortest=1[v_player]`);
 
     // Glowing team border framing the player
-    filterParts.push(`[v_player]drawbox=x=156:y=476:w=768:h=768:color=${teamTheme.accent}:t=6[v_frame]`);
-
-    // Player name badge at corner of player frame (using textfile)
-    filterParts.push(`[v_frame]drawbox=x=160:y=1180:w=440:h=54:color=${teamTheme.primary}@0.95:t=fill[p_b0]`);
-    filterParts.push(`[p_b0]drawbox=x=160:y=1180:w=440:h=54:color=${teamTheme.accent}:t=2[p_b1]`);
-    filterParts.push(`[p_b1]drawtext=textfile='${toFfmpegTextfilePath(playerFile)}':fontcolor=white:fontsize=28:x=185:y=1192[v_center]`);
+    filterParts.push(`[v_player]drawbox=x=156:y=476:w=768:h=768:color=${teamTheme.accent}:t=6[v_center]`);
     centerNode = 'v_center';
   } else {
     // Fallback Stadium Action Center Box
@@ -265,37 +315,10 @@ export async function generateCricketVisualBackground({
     centerNode = 'v_center';
   }
 
-  // Layer 3: Top Badge, Headline, Lower-Third sports news card & ticker
-  // Top Badge: "IPL 2026 • CRICKET BUZZ" (y=295 to 355)
-  filterParts.push(`[${centerNode}]drawbox=x=290:y=295:w=500:h=56:color=${teamTheme.primary}@0.95:t=fill[pill_bg]`);
-  filterParts.push(`[pill_bg]drawbox=x=290:y=295:w=500:h=56:color=${teamTheme.accent}:t=2[pill_border]`);
-  filterParts.push(`[pill_border]drawtext=textfile='${toFfmpegTextfilePath(badgeFile)}':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=310[v_badge]`);
-
-  // 2-Line High-Impact Headline Card (y=365 to 475)
-  filterParts.push(`[v_badge]drawbox=x=50:y=365:w=980:h=120:color=0x050c1a@0.95:t=fill[c0]`);
-  filterParts.push(`[c0]drawbox=x=50:y=365:w=10:h=120:color=${teamTheme.accent}:t=fill[c_accent]`);
-  filterParts.push(`[c_accent]drawbox=x=50:y=365:w=980:h=120:color=${teamTheme.accent}@0.5:t=2[c1]`);
-
-  if (head2File) {
-    filterParts.push(`[c1]drawtext=textfile='${toFfmpegTextfilePath(head1File)}':fontcolor=${teamTheme.accent}:fontsize=36:x=(w-text_w)/2:y=380[c2]`);
-    filterParts.push(`[c2]drawtext=textfile='${toFfmpegTextfilePath(head2File)}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=428[c_head]`);
-  } else {
-    filterParts.push(`[c1]drawtext=textfile='${toFfmpegTextfilePath(head1File)}':fontcolor=${teamTheme.accent}:fontsize=40:x=(w-text_w)/2:y=404[c_head]`);
-  }
-
-  // Sports News Lower-Third Card: Team badge & stat pill (y=1245 to 1305)
-  filterParts.push(`[c_head]drawbox=x=60:y=1245:w=960:h=58:color=${teamTheme.primary}@0.95:t=fill[lt_bg]`);
-  filterParts.push(`[lt_bg]drawbox=x=60:y=1245:w=960:h=58:color=${teamTheme.accent}:t=2[lt_border]`);
-  filterParts.push(`[lt_border]drawtext=textfile='${toFfmpegTextfilePath(statFile)}':fontcolor=white:fontsize=26:x=(w-text_w)/2:y=1260[v_lt]`);
-
-  // Subtitle Area Dark Bed (y=1315 to 1485)
-  filterParts.push(`[v_lt]drawbox=x=0:y=1315:w=1080:h=170:color=0x000511@0.85:t=fill[v_sub_bed]`);
-
-  // Bottom Live Cricket Ticker (y=1495 to 1535, well above bottom safe zone)
-  filterParts.push(`[v_sub_bed]drawbox=x=0:y=1495:w=1080:h=40:color=0xb30000@0.95:t=fill[v_ticker]`);
-  filterParts.push(`[v_ticker]drawbox=x=0:y=1495:w=260:h=40:color=${teamTheme.accent}:t=fill[v_tag_box]`);
-  filterParts.push(`[v_tag_box]drawtext=textfile='${toFfmpegTextfilePath(tagFile)}':fontcolor=black:fontsize=22:x=45:y=1506[v_tag_txt]`);
-  filterParts.push(`[v_tag_txt]drawtext=textfile='${toFfmpegTextfilePath(tickerFile)}':fontcolor=white:fontsize=22:x=w-mod(t*175\\,w+1400):y=1506[vout]`);
+  // Layer 3 (Overlay UI Graphics): Transparent 1080x1920 PNG with all headlines, badges & UI
+  const overlayInputIndex = (playerImagePath && fs.existsSync(playerImagePath)) ? 2 : 1;
+  ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
+  filterParts.push(`[${centerNode}][${overlayInputIndex}:v]overlay=0:0:shortest=1[vout]`);
 
   ffmpegArgs.push(
     '-filter_complex', filterParts.join(';'),
@@ -313,7 +336,7 @@ export async function generateCricketVisualBackground({
     logger.success(`Slot 5 cricket visual rendered: ${outputPath}`);
   } finally {
     try {
-      fs.rmSync(tempTextDir, { recursive: true, force: true });
+      if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
     } catch (_) {}
   }
 
