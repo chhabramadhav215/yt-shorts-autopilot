@@ -13,11 +13,13 @@ output/
 # Temporary Download Cache & Local Binaries
 assets/cache/
 assets/bin/
-
 # Preserve Assets
 !assets/defaults/**
 !assets/clips/**
 !assets/audio/**
+
+# Generated fallback pool cache
+assets/defaults/slot1_pool/
 
 # Logs
 *.log

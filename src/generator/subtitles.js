@@ -166,8 +166,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   for (const cue of subtitleCues) {
     const startCode = formatASSTime(cue.startMs);
     const endCode = formatASSTime(cue.endMs);
-    if (slotType === 'slot5') {
-      // Word-by-word animated sports karaoke highlighting
+    if (slotType === 'slot5' || slotType === 'slot1') {
+      // Dynamic animated karaoke / pop highlighting
       const words = cue.text.split(' ');
       let styledText = '';
       if (words.length >= 2) {

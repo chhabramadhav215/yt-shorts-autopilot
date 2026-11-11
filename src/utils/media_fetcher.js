@@ -6,6 +6,12 @@ import ffmpegStatic from 'ffmpeg-static';
 import { config } from '../config.js';
 import { logger } from './logger.js';
 import { extractNewsVisualQueries } from './text_utils.js';
+import {
+  isPexelsVideoUsed,
+  markPexelsVideoUsed,
+  pickUnusedFallbackClip,
+} from './used_assets.js';
+import { ensureSlot1Pool, getSlot1PoolClips } from './ensure_slot1_pool.js';
 
 const WIKIMEDIA_USER_AGENT = 'YouTubeAutoShortsBot/1.0 (https://youtube.com/@auto-shorts; contact.autoshorts@gmail.com) NodeFetch/3.0';
 
@@ -104,14 +110,21 @@ export async function searchWikimediaCommons(query, maxResults = 6) {
 
 /**
  * Attempts to download Pexels video if API key is configured
+ * Includes random pagination and deduplication to prevent repetitive clips
  * @param {string} query
  * @param {'portrait' | 'all'} [orientation]
+ * @param {Object} [options]
+ * @param {number} [options.page]
+ * @param {number} [options.perPage]
  */
-async function tryDownloadPexels(query, orientation = 'portrait') {
+export async function tryDownloadPexels(query, orientation = 'portrait', options = {}) {
   if (!config.pexelsApiKey) return null;
   try {
     const orientParam = orientation === 'portrait' ? '&orientation=portrait' : '';
-    const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}${orientParam}&per_page=5`;
+    // Pick a random page/offset (1 to 5) to prevent fetching the exact same top clips
+    const page = options.page || (Math.floor(Math.random() * 5) + 1);
+    const perPage = options.perPage || 15;
+    const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}${orientParam}&per_page=${perPage}&page=${page}`;
     const res = await fetch(url, {
       headers: { Authorization: config.pexelsApiKey },
     });
@@ -120,17 +133,26 @@ async function tryDownloadPexels(query, orientation = 'portrait') {
     const videos = data.videos || [];
     if (videos.length === 0) return null;
 
-    const chosen = videos[Math.floor(Math.random() * videos.length)];
+    // Filter out previously used video IDs to prevent consecutive repeats
+    const unusedVideos = videos.filter((v) => !isPexelsVideoUsed(String(v.id)));
+    const candidates = unusedVideos.length > 0 ? unusedVideos : videos;
+
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
     const file = chosen.video_files.find((f) => f.height >= 1080) || chosen.video_files[0];
     if (!file || !file.link) return null;
 
-    const hash = crypto.createHash('md5').update(`pexels_v_${query}_${chosen.id}`).digest('hex');
+    const hash = crypto.createHash('md5').update(`pexels_v_${chosen.id}`).digest('hex');
     const dest = path.join(CACHE_DIR, `pexels_${hash}.mp4`);
-    if (fs.existsSync(dest) && fs.statSync(dest).size > 50000) return { type: 'video', filePath: dest };
+    if (!fs.existsSync(dest) || fs.statSync(dest).size < 50000) {
+      logger.info(`Downloading fresh Pexels video for "${query}" (page ${page}, ID ${chosen.id})...`);
+      await downloadFile(file.link, dest);
+    } else {
+      logger.info(`Using cached Pexels video (ID ${chosen.id}) for "${query}"`);
+    }
 
-    logger.info(`Downloading Pexels video for "${query}" (${orientation})...`);
-    await downloadFile(file.link, dest);
-    return { type: 'video', filePath: dest };
+    // Mark this video ID as used in used_assets.json
+    markPexelsVideoUsed(chosen.id, query);
+    return { type: 'video', filePath: dest, pexelsId: chosen.id };
   } catch (e) {
     logger.warn(`Pexels video fetch failed: ${e.message}`);
     return null;
@@ -198,19 +220,24 @@ export async function fetchSlotBackgroundMedia({
   let defaultAsset = null;
 
   if (slotType === 'slot1') {
-    // 1. Build prioritized search queries matching the specific context of the joke
+    // 1. Build prioritized search queries matching the specific context of the joke/concept
     const scenarioQueries = [];
     if (visualQuery) scenarioQueries.push(visualQuery);
-    if (Array.isArray(altQueries)) scenarioQueries.push(...altQueries);
+    if (Array.isArray(altQueries) && altQueries.length > 0) {
+      // Shuffle altQueries to add variety
+      const shuffledAlt = [...altQueries].sort(() => 0.5 - Math.random());
+      scenarioQueries.push(...shuffledAlt);
+    }
 
     // Add theme-relevant contextual queries
-    if (themeType === 'dance') {
-      scenarioQueries.push('toddler dancing funny', 'cute baby dancing', 'baby grooving music');
-    } else if (themeType === 'mischief') {
-      scenarioQueries.push('naughty kid smiling', 'cute baby playing', 'toddler mischief funny');
-    } else {
-      scenarioQueries.push('cute baby talking', 'toddler laughing', 'naughty kid', 'cute baby smiling');
-    }
+    const contextualPool = themeType === 'dance'
+      ? ['toddler dancing funny', 'cute baby dancing', 'baby grooving music', 'toddler dance happy', 'baby jumping rhythm']
+      : themeType === 'mischief'
+      ? ['naughty kid smiling', 'cute baby playing', 'toddler mischief funny', 'baby funny expressions', 'toddler sneaking']
+      : ['cute baby talking', 'toddler laughing', 'baby tasting lemon', 'baby funny reaction', 'cute baby smiling giggling'];
+
+    const randomContextual = contextualPool.sort(() => 0.5 - Math.random()).slice(0, 2);
+    scenarioQueries.push(...randomContextual);
 
     // 2. Query dynamic Pexels video clips matching the specific context of the generated joke
     for (const q of scenarioQueries) {
@@ -221,23 +248,25 @@ export async function fetchSlotBackgroundMedia({
       }
     }
 
-    // 3. Fallback to curated theme-specific video clips if Pexels is unconfigured or returns nothing
+    // 3. Fallback: Rotate through the pool of at least 8-10 distinct clips
+    await ensureSlot1Pool();
+    const poolClips = getSlot1PoolClips();
+    if (poolClips.length > 0) {
+      const chosenFallback = pickUnusedFallbackClip(poolClips);
+      if (chosenFallback && fs.existsSync(chosenFallback)) {
+        logger.info(`Selected non-repeating fallback clip from Slot 1 pool: ${path.basename(chosenFallback)}`);
+        return { type: 'video', filePath: chosenFallback };
+      }
+    }
+
+    // 4. Emergency fallback to curated theme clip or default baby video
     if (clipPath && fs.existsSync(clipPath)) {
       logger.info(`Using theme clip for Slot 1: ${path.basename(clipPath)}`);
       return { type: 'video', filePath: clipPath };
     }
 
-    if (themeType) {
-      const themeMp4 = path.join(DEFAULTS_DIR, `slot1_${themeType}.mp4`);
-      if (fs.existsSync(themeMp4)) {
-        logger.info(`Using curated real baby video for theme [${themeType}]: ${path.basename(themeMp4)}`);
-        return { type: 'video', filePath: themeMp4 };
-      }
-    }
-
     const defaultMp4 = path.join(DEFAULTS_DIR, 'slot1_baby.mp4');
     if (fs.existsSync(defaultMp4)) {
-      logger.info(`Using curated moving real baby video: slot1_baby.mp4`);
       return { type: 'video', filePath: defaultMp4 };
     }
     defaultAsset = path.join(DEFAULTS_DIR, 'slot1_baby.jpg');
