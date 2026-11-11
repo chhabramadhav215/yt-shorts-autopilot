@@ -2,7 +2,7 @@ name: Daily Automated YouTube Shorts Publisher
 
 on:
   schedule:
-    # 4 Daily Slots in UTC (IST = UTC + 5:30):
+   # 5 Daily Slots in UTC (IST = UTC + 5:30):
     # Slot 1: 09:00 AM IST -> 03:30 AM UTC
     - cron: '30 3 * * *'
     # Slot 2: 02:00 PM IST -> 08:30 AM UTC
@@ -11,7 +11,8 @@ on:
     - cron: '30 11 * * *'
     # Slot 3: 07:30 PM IST -> 02:00 PM UTC
     - cron: '0 14 * * *'
-
+    # Slot 5: 09:00 PM IST -> 03:30 PM UTC (Cricket / IPL Buzz)
+    - cron: '30 15 * * *'
   workflow_dispatch:
     inputs:
       slot:
@@ -24,6 +25,7 @@ on:
           - slot2
           - slot3
           - slot4
+          - slot5
       customTopic:
         description: 'Optional custom topic'
         required: false
