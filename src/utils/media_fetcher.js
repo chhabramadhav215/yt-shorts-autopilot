@@ -26,7 +26,7 @@ const YTDLP_PATH = fs.existsSync(path.join(BIN_DIR, YTDLP_BIN))
 /**
  * Downloads a file safely with proper headers and size validation
  */
-async function downloadFile(url, destPath) {
+export async function downloadFile(url, destPath) {
   const cleanUrl = url.split('?')[0]; // Strip tracking params
   const res = await fetch(cleanUrl, {
     headers: {
@@ -48,7 +48,7 @@ async function downloadFile(url, destPath) {
 /**
  * Searches Wikimedia Commons API for high-resolution images
  */
-async function searchWikimediaCommons(query, maxResults = 6) {
+export async function searchWikimediaCommons(query, maxResults = 6) {
   try {
     const endpoint = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrnamespace=6&gsrlimit=${maxResults}&prop=imageinfo&iiprop=url|mime|size&format=json&origin=*`;
     const res = await fetch(endpoint, {
@@ -497,6 +497,41 @@ export async function fetchSlotBackgroundMedia({
     }
     defaultAsset = path.join(DEFAULTS_DIR, 'slot3_news.jpg');
     return { type: 'image', filePath: defaultAsset, isDefaultFallback: true };
+  } else if (slotType === 'slot5') {
+    // Slot 5: Cricket & IPL Stadium dynamic background footage
+    const stadiumQueries = [];
+    if (visualQuery) stadiumQueries.push(visualQuery);
+    if (secondaryQuery) stadiumQueries.push(secondaryQuery);
+    if (Array.isArray(altQueries)) stadiumQueries.push(...altQueries);
+    stadiumQueries.push(
+      'cricket stadium floodlights',
+      'sports stadium lights night',
+      'stadium crowd cheering',
+      'cricket ground pitch night',
+      'floodlights stadium match'
+    );
+
+    for (const q of stadiumQueries) {
+      let pexelsVideo = await tryDownloadPexels(q, 'portrait');
+      if (!pexelsVideo) {
+        pexelsVideo = await tryDownloadPexels(q, 'all');
+      }
+      if (pexelsVideo) {
+        logger.success(`Matched dynamic Pexels cricket stadium video for Slot 5 "${q}": ${path.basename(pexelsVideo.filePath)}`);
+        return {
+          type: 'video',
+          filePath: pexelsVideo.filePath,
+          isCricketStadium: true,
+        };
+      }
+    }
+
+    const defaultStadium = path.join(DEFAULTS_DIR, 'slot3_news.mp4');
+    return {
+      type: 'video',
+      filePath: fs.existsSync(defaultStadium) ? defaultStadium : path.join(DEFAULTS_DIR, 'slot1_baby.mp4'),
+      isDefaultFallback: true,
+    };
   }
 
   // 1. Try Pexels video if API key configured

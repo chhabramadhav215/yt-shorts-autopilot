@@ -13,6 +13,7 @@ function resolveTargetSlot() {
     if (explicitSlot.includes('2')) return 'slot2';
     if (explicitSlot.includes('3')) return 'slot3';
     if (explicitSlot.includes('4')) return 'slot4';
+    if (explicitSlot.includes('5') || explicitSlot.includes('cric') || explicitSlot.includes('ipl')) return 'slot5';
   }
 
   const cronSchedule = (process.env.SCHEDULE_CRON || '').trim();
@@ -21,6 +22,7 @@ function resolveTargetSlot() {
     if (cronSchedule.includes('30 8')) return 'slot2';
     if (cronSchedule.includes('30 11')) return 'slot4';
     if (cronSchedule.includes('0 14')) return 'slot3';
+    if (cronSchedule.includes('30 15') || cronSchedule.includes('0 16')) return 'slot5';
   }
 
   // Fallback: Resolve by current Indian Standard Time (UTC + 5:30)
@@ -36,7 +38,8 @@ function resolveTargetSlot() {
   if (istHour >= 7 && istHour < 12) return 'slot1';  // 09:00 AM IST window
   if (istHour >= 12 && istHour < 16) return 'slot2'; // 02:00 PM IST window
   if (istHour >= 16 && istHour < 18) return 'slot4'; // 05:00 PM IST window
-  return 'slot3'; // 07:30 PM IST evening/night window
+  if (istHour >= 18 && istHour < 21) return 'slot3'; // 07:30 PM IST evening news window
+  return 'slot5'; // 09:00 PM - 11:30 PM IST night window (IPL & Cricket Buzz)
 }
 
 async function run() {

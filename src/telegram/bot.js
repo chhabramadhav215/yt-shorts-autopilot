@@ -48,7 +48,9 @@ Welcome to your automated channel publisher! Control your daily slots directly f
 • \`/slot2\` - 🕉️ Hindu devotional story with peaceful narration
 • \`/slot4\` - 🏹 Epic Hindu scriptures & wisdom clips (Gita, Mahabharata, Ramayana)
 • \`/slot3\` - 🚨 Viral breaking news / TRP explainer
+• \`/slot5\` - 🏏 IPL & Cricket Buzz (Trades, Auction, Captaincy)
 • \`/news <topic>\` - 📰 Explainer short on any specific custom news topic
+• \`/cricket <topic>\` - 🏏 Cricket short on any player or team
 • \`/custom <topic>\` - 💡 Custom short on any topic
 
 👁️ *Preview Without Uploading:*
@@ -56,6 +58,7 @@ Welcome to your automated channel publisher! Control your daily slots directly f
 • \`/preview slot2\` - Generates Slot 2 video and sends MP4 here
 • \`/preview slot4\` - Generates Slot 4 video and sends MP4 here
 • \`/preview slot3\` - Generates Slot 3 video and sends MP4 here
+• \`/preview slot5\` - Generates Slot 5 video and sends MP4 here
 
 ⚙️ *Settings & Status:*
 • \`/status\` - View YouTube channel status & token validity
@@ -130,6 +133,13 @@ Welcome to your automated channel publisher! Control your daily slots directly f
     triggerUpload(bot, msg.chat.id, 'slot3', customTopic);
   });
 
+  // /slot5 and /cricket command
+  bot.onText(/\/(slot5|cricket|ipl)(?:\s+(.*))?/, async (msg, match) => {
+    if (!isAuthorized(msg)) return handleUnauthorized(msg);
+    const customTopic = match[2] ? match[2].trim() : null;
+    triggerUpload(bot, msg.chat.id, 'slot5', customTopic);
+  });
+
   // /custom command
   bot.onText(/\/custom\s+(.+)/, async (msg, match) => {
     if (!isAuthorized(msg)) return handleUnauthorized(msg);
@@ -146,6 +156,7 @@ Welcome to your automated channel publisher! Control your daily slots directly f
     if (slotInput.includes('2') || slotInput.includes('devo')) slot = 'slot2';
     else if (slotInput.includes('4') || slotInput.includes('scrip') || slotInput.includes('epic') || slotInput.includes('gita')) slot = 'slot4';
     else if (slotInput.includes('3') || slotInput.includes('news')) slot = 'slot3';
+    else if (slotInput.includes('5') || slotInput.includes('cric') || slotInput.includes('ipl')) slot = 'slot5';
 
     bot.sendMessage(msg.chat.id, `🎨 Generating video preview for *${slot.toUpperCase()}*...\nPlease wait ~15-20 seconds.`, { parse_mode: 'Markdown' });
 

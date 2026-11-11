@@ -6,6 +6,7 @@ import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
 import { fetchSlotBackgroundMedia, fetchScriptureClip } from '../utils/media_fetcher.js';
 import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
+import { generateCricketVisualBackground } from './cricket_synth.js';
 
 function escapeFfmpegDrawtext(str) {
   if (!str) return '';
@@ -78,10 +79,29 @@ export async function generateVisualBackground({
   visualQuery = null,
   secondaryQuery = null,
   altQueries = [],
+  primaryPlayer = null,
+  team = null,
+  statBadge = null,
   customTopic = null,
 }) {
   const roundDur = Math.ceil(duration) + 1;
   const totalFrames = roundDur * 30;
+
+  // =================================================================
+  // SLOT 5 (IPL & Cricket Buzz): Dedicated Sports Visual Synth
+  // =================================================================
+  if (slotType === 'slot5') {
+    return generateCricketVisualBackground({
+      duration,
+      outputPath,
+      headline: headline || title,
+      primaryPlayer,
+      team,
+      statBadge,
+      visualQuery,
+      secondaryQuery,
+    });
+  }
 
   // =================================================================
   // SLOT 4 (Epic Hindu Scriptures & Wisdom Clips): 9:16 with BLUR MARGINS

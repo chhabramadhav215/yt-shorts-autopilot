@@ -130,6 +130,10 @@ export function generateAssSubtitles({
     primaryColor = '&H00FFFFFF'; // Crisp White
     fontSize = 66;
     marginV = 540; // Safe zone: centered in subtitle bar (y ≈ 1380), safely clear of bottom 20% UI
+  } else if (slotType === 'slot5') {
+    primaryColor = '&H0000FFFF'; // Electric Sports Yellow
+    fontSize = 70;
+    marginV = 520; // Safe zone: centered in subtitle bed (y ≈ 1400), safely clear of bottom 20% UI
   }
 
   // Generate ASS script header (1080x1920)
@@ -162,7 +166,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   for (const cue of subtitleCues) {
     const startCode = formatASSTime(cue.startMs);
     const endCode = formatASSTime(cue.endMs);
-    ass += `Dialogue: 0,${startCode},${endCode},ShortsDefault,,0,0,0,,{\\b1}${cue.text}{\\b0}\n`;
+    if (slotType === 'slot5') {
+      // Word-by-word animated sports karaoke highlighting
+      const words = cue.text.split(' ');
+      let styledText = '';
+      if (words.length >= 2) {
+        styledText = `{\\c&H0000FFFF&}${words[0]} {\\c&H00FFFFFF&}${words.slice(1).join(' ')}`;
+      } else {
+        styledText = `{\\c&H0000FFFF&}${cue.text}`;
+      }
+      ass += `Dialogue: 0,${startCode},${endCode},ShortsDefault,,0,0,0,,{\\b1}${styledText}{\\b0}\n`;
+    } else {
+      ass += `Dialogue: 0,${startCode},${endCode},ShortsDefault,,0,0,0,,{\\b1}${cue.text}{\\b0}\n`;
+    }
   }
 
   fs.writeFileSync(outputPath, ass, 'utf8');

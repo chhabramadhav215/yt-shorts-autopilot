@@ -11,6 +11,7 @@ export function startScheduler() {
   logger.info(`Slot 2 (Devotional):    "${config.cron.slot2}"`);
   logger.info(`Slot 4 (Epic Scriptures):"${config.cron.slot4}"`);
   logger.info(`Slot 3 (Viral News):    "${config.cron.slot3}"`);
+  logger.info(`Slot 5 (Cricket Buzz):   "${config.cron.slot5}"`);
 
   // 1. Morning Slot 1: Cute Baby Dance / Entertainment
   cron.schedule(
@@ -72,5 +73,20 @@ export function startScheduler() {
     { timezone: config.cron.timezone }
   );
 
-  logger.success('All 4 Daily Shorts schedules are active and armed!');
+  // 5. Prime-Time Night Slot 5: IPL & Cricket Buzz (09:00 PM IST)
+  cron.schedule(
+    config.cron.slot5,
+    async () => {
+      logger.slot('slot5', 'Executing daily prime-time scheduled run: IPL & Cricket Buzz');
+      try {
+        const result = await publishShort('slot5');
+        await notifyTelegramUpload(result);
+      } catch (err) {
+        logger.error('Scheduled Slot 5 error:', err.message);
+      }
+    },
+    { timezone: config.cron.timezone }
+  );
+
+  logger.success('All 5 Daily Shorts schedules are active and armed!');
 }

@@ -7,6 +7,7 @@ import { generateSlot1Content } from './content/slot1_entertainment.js';
 import { generateSlot2Content } from './content/slot2_devotional.js';
 import { generateSlot3Content } from './content/slot3_news.js';
 import { generateSlot4Content } from './content/slot4_scriptures.js';
+import { generateSlot5Content } from './content/slot5_cricket.js';
 import { generateVoiceover } from './generator/tts.js';
 import { generateAssSubtitles } from './generator/subtitles.js';
 import { generateVisualBackground } from './generator/visual_synth.js';
@@ -39,8 +40,10 @@ export async function generateShortVideo(slot, customTopic = null) {
     content = await generateSlot3Content(customTopic);
   } else if (slot === 'slot4') {
     content = await generateSlot4Content(customTopic);
+  } else if (slot === 'slot5') {
+    content = await generateSlot5Content(customTopic);
   } else {
-    throw new Error(`Unknown slot identifier: ${slot}. Use 'slot1', 'slot2', 'slot3', or 'slot4'.`);
+    throw new Error(`Unknown slot identifier: ${slot}. Use 'slot1', 'slot2', 'slot3', 'slot4', or 'slot5'.`);
   }
 
   logger.slot(slot, `Title: "${content.title}"`);
@@ -90,16 +93,20 @@ export async function generateShortVideo(slot, customTopic = null) {
     visualQuery: content.visualQuery,
     secondaryQuery: content.secondaryQuery,
     altQueries: content.altQueries,
+    primaryPlayer: content.primaryPlayer,
+    team: content.team,
+    statBadge: content.statBadge,
     customTopic,
   });
 
   // 5. Final Video Compilation (Clean Dual-Audio mix + subtitles burn)
   const finalVideoPath = path.join(slotDir, 'short_final.mp4');
-  await buildShortVideo({
+  const buildResult = await buildShortVideo({
     visualVideoPath: visualBgPath,
     voiceoverPath: voiceoverResult.audioPath,
     backgroundMusicPath: content.bgMusicPath,
     clipAudioPath: content.clipPath,
+    sfxAudioPath: content.sfxAudioPath,
     subtitlesPath,
     outputPath: finalVideoPath,
     isDualAudio,
@@ -114,6 +121,7 @@ export async function generateShortVideo(slot, customTopic = null) {
     tags: content.tags,
     categoryId: content.categoryId,
     videoPath: finalVideoPath,
+    coverPath: buildResult.coverPath,
     duration: audioDuration,
     slotDir,
   };

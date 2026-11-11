@@ -8,6 +8,7 @@ async function runTest() {
   if (slotArg.includes('2') || slotArg.includes('devo')) slot = 'slot2';
   else if (slotArg.includes('4') || slotArg.includes('scrip') || slotArg.includes('epic') || slotArg.includes('gita')) slot = 'slot4';
   else if (slotArg.includes('3') || slotArg.includes('news')) slot = 'slot3';
+  else if (slotArg.includes('5') || slotArg.includes('cric') || slotArg.includes('ipl')) slot = 'slot5';
 
   const customTopic = process.argv[3] || null;
 

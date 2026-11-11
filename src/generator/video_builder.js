@@ -80,6 +80,7 @@ export async function buildShortVideo({
   voiceoverPath,
   backgroundMusicPath,
   clipAudioPath,
+  sfxAudioPath,
   subtitlesPath,
   outputPath,
   isDualAudio = false,
@@ -128,24 +129,30 @@ export async function buildShortVideo({
     hasAudioTrack2 = true;
   }
 
+  let hasSfx = false;
+  if (sfxAudioPath && fs.existsSync(sfxAudioPath)) {
+    args.push('-i', sfxAudioPath); // [3] Transition whoosh SFX
+    hasSfx = true;
+  }
+
   // Build audio filter complex
   let filterComplex = '';
   const fadeOutStart = Math.max(0, totalDuration - 0.6);
 
   if (isDualAudio && hasAudioTrack2 && introDuration > 0) {
-    // -------------------------------------------------------------
-    // Slot 4 Clean Dual-Audio Flow:
-    // 0:00 to 0:07s: Mute AI voiceover completely. Play ONLY original serial audio at 100% volume
-    // 0:07s onwards: Duck original serial audio to 15% as gentle bed. Bring in Hindi AI commentary at 100% volume
-    // Cuts off cleanly at totalDuration with 0.6s fadeout (never loops back at full volume)
-    // -------------------------------------------------------------
     const delayMs = Math.round(introDuration * 1000);
-
     filterComplex += `[2:a]aresample=44100,aformat=channel_layouts=stereo,volume='if(lt(t,${introDuration}), 1.0, 0.15)':eval=frame,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6[clip_ducked];`;
     filterComplex += `[1:a]aresample=44100,aformat=channel_layouts=stereo,adelay=${delayMs}|${delayMs},volume=1.0[vce];`;
     filterComplex += `[clip_ducked][vce]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout];`;
+  } else if (hasAudioTrack2 && hasSfx) {
+    // Mix Voiceover + BGM + SFX impact
+    const sfxIdx = 3;
+    filterComplex += `[1:a]aresample=44100,aformat=channel_layouts=stereo,volume=1.0[vce];`;
+    filterComplex += `[2:a]aresample=44100,aformat=channel_layouts=stereo,volume=0.18,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6[bgm];`;
+    filterComplex += `[${sfxIdx}:a]aresample=44100,aformat=channel_layouts=stereo,adelay=150|150,volume=0.25[sfx];`;
+    filterComplex += `[vce][bgm][sfx]amix=inputs=3:duration=first:dropout_transition=2:normalize=0[aout];`;
   } else if (hasAudioTrack2) {
-    // Normal BGM mix for Slots 1, 2, 3
+    // Normal BGM mix for Slots 1, 2, 3, 5
     filterComplex += `[1:a]aresample=44100,aformat=channel_layouts=stereo,volume=1.0[vce];`;
     filterComplex += `[2:a]aresample=44100,aformat=channel_layouts=stereo,volume=0.15,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6[bgm];`;
     filterComplex += `[vce][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout];`;
@@ -179,9 +186,26 @@ export async function buildShortVideo({
   const fileSize = fs.statSync(outputPath).size;
   logger.success(`YouTube Short rendered successfully: ${outputPath} (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
 
+  // Auto-generate high-contrast thumbnail/cover frame at 0.1s for Instagram/YouTube
+  const coverPath = path.join(path.dirname(outputPath), 'cover.jpg');
+  try {
+    await runFFmpeg([
+      '-y',
+      '-ss', '00:00:00.100',
+      '-i', outputPath,
+      '-vframes', '1',
+      '-q:v', '2',
+      coverPath,
+    ]);
+    logger.info(`Generated high-contrast cover thumbnail at 0.1s: ${path.basename(coverPath)}`);
+  } catch (e) {
+    // Non-critical cover generation
+  }
+
   return {
     videoPath: outputPath,
     duration: totalDuration,
     fileSize,
+    coverPath: fs.existsSync(coverPath) ? coverPath : null,
   };
 }

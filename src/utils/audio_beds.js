@@ -20,6 +20,8 @@ export async function ensureAudioBeds() {
   const devotionalPath = path.join(audioDir, 'devotional.mp3');
   const newsPath = path.join(audioDir, 'news.mp3');
   const scripturesPath = path.join(audioDir, 'scriptures.mp3');
+  const cricketPath = path.join(audioDir, 'cricket.mp3');
+  const whooshPath = path.join(audioDir, 'whoosh.mp3');
 
   // 1. Upbeat entertainment beat (energetic rhythmic synth)
   if (!fs.existsSync(entertainmentPath)) {
@@ -70,6 +72,32 @@ export async function ensureAudioBeds() {
       '-af', 'volume=0.32, lowpass=f=2800, tremolo=f=0.5:d=0.2',
       '-c:a', 'libmp3lame',
       scripturesPath
+    ]);
+  }
+
+  // 5. High-energy sports beat bed for Slot 5 (Cricket / IPL Buzz)
+  if (!fs.existsSync(cricketPath)) {
+    console.log('Generating cricket sports beat background audio bed...');
+    await runFFmpeg([
+      '-y',
+      '-f', 'lavfi',
+      '-i', 'aevalsrc=sin(140*2*PI*t)*0.22*gte(mod(t\\,0.4)\\,0.2)+sin(280*2*PI*t)*0.12*lte(mod(t\\,0.2)\\,0.1)+sin(560*2*PI*t)*0.08*gte(mod(t\\,0.1)\\,0.05):s=44100:d=45',
+      '-af', 'volume=0.32, highpass=f=90, lowpass=f=4200',
+      '-c:a', 'libmp3lame',
+      cricketPath
+    ]);
+  }
+
+  // 6. Subtle whoosh / transition impact SFX
+  if (!fs.existsSync(whooshPath)) {
+    console.log('Generating whoosh SFX audio bed...');
+    await runFFmpeg([
+      '-y',
+      '-f', 'lavfi',
+      '-i', 'anoisesrc=d=0.6:c=pink:r=44100:a=0.3',
+      '-af', 'volume=0.4, bandpass=f=800:width_type=h:w=600, afade=t=in:ss=0:d=0.25, afade=t=out:st=0.3:d=0.3',
+      '-c:a', 'libmp3lame',
+      whooshPath
     ]);
   }
 
