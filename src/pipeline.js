@@ -12,7 +12,7 @@ import { generateVoiceover } from './generator/tts.js';
 import { generateAssSubtitles } from './generator/subtitles.js';
 import { generateVisualBackground } from './generator/visual_synth.js';
 import { buildShortVideo, getMediaDuration } from './generator/video_builder.js';
-import { uploadShort } from './youtube/uploader.js';
+import { uploadShort, isUploadLimitExceeded } from './youtube/uploader.js';
 
 /**
  * Generates the complete 1080x1920 Short video without uploading
@@ -137,14 +137,31 @@ export async function publishShort(slot, customTopic = null, privacyStatus = nul
   const generated = await generateShortVideo(slot, customTopic);
 
   logger.info(`Uploading Short to YouTube...`);
-  const uploadResult = await uploadShort({
-    videoPath: generated.videoPath,
-    title: generated.title,
-    description: generated.description,
-    tags: generated.tags,
-    categoryId: generated.categoryId,
-    privacyStatus: privacyStatus || config.youtube.privacyStatus,
-  });
+  let uploadResult = null;
+  try {
+    uploadResult = await uploadShort({
+      videoPath: generated.videoPath,
+      title: generated.title,
+      description: generated.description,
+      tags: generated.tags,
+      categoryId: generated.categoryId,
+      privacyStatus: privacyStatus || config.youtube.privacyStatus,
+    });
+  } catch (err) {
+    if (isUploadLimitExceeded(err)) {
+      logger.warn('⚠️ YouTube daily upload limit reached. Skipping YouTube upload and continuing with Instagram and Facebook Reels.');
+      uploadResult = {
+        success: false,
+        skipped: true,
+        reason: 'uploadLimitExceeded',
+        url: 'Skipped (YouTube daily upload limit reached)',
+        title: generated.title,
+        privacyStatus: privacyStatus || config.youtube.privacyStatus,
+      };
+    } else {
+      throw err;
+    }
+  }
 
   return {
     ...generated,

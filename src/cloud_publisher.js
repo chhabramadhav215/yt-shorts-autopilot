@@ -1,4 +1,6 @@
-import { publishShort } from './pipeline.js';
+import { generateShortVideo } from './pipeline.js';
+import { uploadShort, isUploadLimitExceeded } from './youtube/uploader.js';
+import { config } from './config.js';
 import { logger } from './utils/logger.js';
 import { checkYouTubeAuth } from './youtube/client.js';
 import { publishToMetaReels } from './social/meta_publisher.js';
@@ -62,17 +64,57 @@ async function run() {
   }
   logger.success(`Authenticated Channel: "${authStatus.channelTitle}" (ID: ${authStatus.channelId})`);
 
-  // Run full pipeline: content -> TTS -> subtitles -> video synthesis -> YouTube Upload
+  // 1. Run media pipeline: content -> TTS -> subtitles -> video synthesis
   const startTime = Date.now();
-  const result = await publishShort(slot, customTopic, privacyStatus);
+  const generated = await generateShortVideo(slot, customTopic);
+
+  // 2. Wrap YouTube upload in a dedicated try/catch block
+  let uploadResult = null;
+  try {
+    logger.info('Uploading Short to YouTube...');
+    uploadResult = await uploadShort({
+      videoPath: generated.videoPath,
+      title: generated.title,
+      description: generated.description,
+      tags: generated.tags,
+      categoryId: generated.categoryId,
+      privacyStatus: privacyStatus || config.youtube.privacyStatus,
+    });
+  } catch (err) {
+    if (isUploadLimitExceeded(err)) {
+      logger.warn('⚠️ YouTube daily upload limit reached. Skipping YouTube upload and continuing with Instagram and Facebook Reels.');
+      uploadResult = {
+        success: false,
+        skipped: true,
+        reason: 'uploadLimitExceeded',
+        url: 'Skipped (YouTube daily upload limit reached)',
+        title: generated.title,
+        privacyStatus: privacyStatus || config.youtube.privacyStatus,
+      };
+    } else {
+      throw err;
+    }
+  }
+
+  const result = {
+    ...generated,
+    upload: uploadResult,
+  };
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
   console.log('\n-------------------------------------------------------------');
-  logger.success(`🎉 Video Published Successfully to YouTube in ${elapsed}s!`);
-  console.log(`• Slot:         ${result.slotName}`);
-  console.log(`• Title:        ${result.title}`);
-  console.log(`• Privacy:      ${result.upload.privacyStatus.toUpperCase()}`);
-  console.log(`• YouTube URL:  ${result.upload.url}`);
+  if (result.upload?.success) {
+    logger.success(`🎉 Video Published Successfully to YouTube in ${elapsed}s!`);
+    console.log(`• Slot:         ${result.slotName}`);
+    console.log(`• Title:        ${result.title}`);
+    console.log(`• Privacy:      ${result.upload.privacyStatus.toUpperCase()}`);
+    console.log(`• YouTube URL:  ${result.upload.url}`);
+  } else {
+    logger.warn('⚠️ YouTube daily upload limit reached. Skipping YouTube upload and continuing with Instagram and Facebook Reels.');
+    console.log(`• Slot:         ${result.slotName}`);
+    console.log(`• Title:        ${result.title}`);
+    console.log(`• YouTube:      Skipped (YouTube daily upload limit reached)`);
+  }
   console.log('-------------------------------------------------------------\n');
 
   // Immediately publish to Instagram Reels & Facebook Reels if Meta credentials configured
@@ -101,7 +143,7 @@ async function run() {
       let text = `🎬 *Short Published Across Platforms*\n\n` +
         `*Slot:* ${result.slotName}\n` +
         `*Title:* ${result.title}\n` +
-        `*YouTube:* ${result.upload.url}\n`;
+        `*YouTube:* ${result.upload?.url || 'Skipped (YouTube daily upload limit reached)'}\n`;
       if (metaResult?.instagram?.permalink) {
         text += `*Instagram Reel:* ${metaResult.instagram.permalink}\n`;
       }
