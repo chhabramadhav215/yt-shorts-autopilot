@@ -143,6 +143,89 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
 }
 
 /**
+ * Resolves or exchanges for a Facebook Page Access Token using the configured Meta Access Token.
+ * If META_ACCESS_TOKEN is a User Token, calls:
+ *   1. GET /{page_id}?fields=access_token,name
+ *   2. GET /me/accounts?fields=id,name,access_token
+ * @param {string} fbPageId - Target Facebook Page ID
+ * @param {string} userAccessToken - Configured Meta access token
+ * @returns {Promise<{ pageAccessToken: string | null, pageName: string | null, warning: string | null }>}
+ */
+async function resolveFacebookPageAccessToken(fbPageId, userAccessToken) {
+  if (!fbPageId || !userAccessToken) {
+    return {
+      pageAccessToken: null,
+      pageName: null,
+      warning: 'Missing Facebook Page ID or Meta Access Token',
+    };
+  }
+
+  // 1. Try querying GET /{page_id}?fields=access_token,name using userAccessToken
+  try {
+    const directUrl = `${GRAPH_API_BASE}/${fbPageId}?fields=access_token,name&access_token=${encodeURIComponent(userAccessToken)}`;
+    const directRes = await fetch(directUrl);
+    const directData = await directRes.json();
+
+    if (directRes.ok && directData.access_token) {
+      logger.info(
+        `[Facebook Reels] Resolved Page Access Token directly from Page ${directData.name ? `"${directData.name}"` : fbPageId}.`
+      );
+      return {
+        pageAccessToken: directData.access_token,
+        pageName: directData.name || null,
+        warning: null,
+      };
+    }
+  } catch (err) {
+    // Proceed to /me/accounts check
+  }
+
+  // 2. Try querying GET /me/accounts?fields=id,name,access_token using userAccessToken
+  try {
+    const accountsUrl = `${GRAPH_API_BASE}/me/accounts?fields=id,name,access_token&limit=100&access_token=${encodeURIComponent(userAccessToken)}`;
+    const accountsRes = await fetch(accountsUrl);
+    const accountsData = await accountsRes.json();
+
+    if (accountsRes.ok && Array.isArray(accountsData.data)) {
+      const match = accountsData.data.find((p) => String(p.id) === String(fbPageId));
+      if (match && match.access_token) {
+        logger.info(
+          `[Facebook Reels] Resolved Page Access Token from /me/accounts for Page "${match.name}" (ID: ${match.id}).`
+        );
+        return {
+          pageAccessToken: match.access_token,
+          pageName: match.name || null,
+          warning: null,
+        };
+      }
+
+      const availablePages = accountsData.data.map((p) => `"${p.name}" (${p.id})`).join(', ');
+      const warning = `Target Page ID "${fbPageId}" was not found in user's managed pages: [${availablePages || 'None'}].`;
+      logger.warn(`[Facebook Reels] ${warning}`);
+      return {
+        pageAccessToken: null,
+        pageName: null,
+        warning,
+      };
+    } else if (accountsData?.error) {
+      const errMsg = accountsData.error.message || 'Unknown error';
+      logger.warn(
+        `[Facebook Reels] Query to /me/accounts returned error: ${errMsg} [Code #${accountsData.error.code || 'unknown'}]`
+      );
+    }
+  } catch (err) {
+    logger.warn(`[Facebook Reels] Error querying /me/accounts: ${err.message}`);
+  }
+
+  // 3. Fallback: If token cannot be exchanged, try using provided token directly (in case it is already a Page Token)
+  return {
+    pageAccessToken: userAccessToken,
+    pageName: null,
+    warning: 'Could not exchange for Page Access Token via Page node or /me/accounts; attempting direct upload with configured token.',
+  };
+}
+
+/**
  * Publishes a video to Facebook Page Reels via Meta Graph API v20+
  * @param {Object} params
  * @param {string} params.fbPageId - Facebook Page ID
@@ -150,16 +233,19 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
  * @param {string} params.videoPath - Absolute path to local video MP4 file
  * @param {string} params.title - Reel title
  * @param {string} params.caption - Formatted description & hashtags
+ * @param {string} [params.pageName] - Optional name of page for display
  * @returns {Promise<{ id: string, permalink: string }>}
  */
-async function uploadFacebookReel({ fbPageId, accessToken, videoPath, title, caption }) {
+async function uploadFacebookReel({ fbPageId, accessToken, videoPath, title, caption, pageName = null }) {
   if (!fs.existsSync(videoPath)) {
     throw new Error(`Video file not found at ${videoPath}`);
   }
 
   const fileStats = fs.statSync(videoPath);
   const fileSize = fileStats.size;
-  logger.info(`[Facebook Reels] Initializing Reel upload on Page ${fbPageId}...`);
+  logger.info(
+    `[Facebook Reels] Initializing Reel upload on Page ${pageName ? `"${pageName}" (ID: ${fbPageId})` : fbPageId}...`
+  );
 
   // Step 1: Start upload session via /{page-id}/video_reels
   const startEndpoint = `${GRAPH_API_BASE}/${fbPageId}/video_reels`;
@@ -176,7 +262,8 @@ async function uploadFacebookReel({ fbPageId, accessToken, videoPath, title, cap
   const startData = await startRes.json();
   if (!startRes.ok || !startData.video_id || !startData.upload_url) {
     const errMsg = startData?.error?.message || JSON.stringify(startData);
-    throw new Error(`Facebook Reels initialization failed: ${errMsg}`);
+    const errCode = startData?.error?.code ? ` (#${startData.error.code})` : '';
+    throw new Error(`Facebook Reels initialization failed: ${errCode} ${errMsg}`.trim());
   }
 
   const videoId = startData.video_id;
@@ -289,19 +376,35 @@ export async function publishToMetaReels({
 
   // 2. Cross-post to Facebook Page Reels if enabled
   if (fbPageId && enableFbCrossPost) {
+    logger.info(`=== Starting Meta Facebook Page Reels Publishing ===`);
     try {
-      logger.info(`=== Starting Meta Facebook Page Reels Publishing ===`);
-      const fbResult = await uploadFacebookReel({
-        fbPageId,
-        accessToken,
-        videoPath,
-        title,
-        caption,
-      });
-      results.facebook = fbResult;
-      logger.success(`🎉 Facebook Reel live: ${fbResult.permalink}`);
+      const { pageAccessToken, pageName, warning } = await resolveFacebookPageAccessToken(fbPageId, accessToken);
+
+      if (!pageAccessToken) {
+        logger.warn(`[Facebook Reels] Skipping Facebook Reels publishing: ${warning || 'Unable to resolve Page Access Token'}`);
+        results.facebookSkipped = true;
+      } else {
+        const fbResult = await uploadFacebookReel({
+          fbPageId,
+          accessToken: pageAccessToken,
+          videoPath,
+          title,
+          caption,
+          pageName,
+        });
+
+        if (fbResult) {
+          results.facebook = fbResult;
+          logger.success(`🎉 Facebook Reel live: ${fbResult.permalink}`);
+        }
+      }
     } catch (err) {
-      logger.error(`Facebook Reels publishing failed: ${err.message}`);
+      logger.warn(`[Facebook Reels] Could not publish to Facebook Page Reels: ${err.message}`);
+      if (err.message.includes('#200') || err.message.toLowerCase().includes('permission')) {
+        logger.warn(
+          `[Facebook Reels] ℹ Permission Note: Ensure your META_ACCESS_TOKEN was granted 'pages_show_list', 'pages_read_engagement', and 'pages_manage_posts' for Page ID ${fbPageId}, or supply a direct Page Access Token.`
+        );
+      }
       results.facebookError = err.message;
     }
   }
