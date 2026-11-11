@@ -44,11 +44,55 @@ const TEAM_COLORS = {
   DEFAULT: { primary: '0x003366', accent: '0xff9900', name: 'IPL 2026' },
 };
 
+const CRICKET_DEFAULTS_DIR = path.join(config.assetsDir, 'defaults', 'cricket');
+
 /**
- * Downloads high-res player portrait from Wikimedia Commons if not cached
+ * Resolves a local verified player portrait from assets/defaults/cricket/
+ * @param {string} playerName
+ * @returns {string}
+ */
+function getLocalPlayerPortrait(playerName) {
+  const norm = (playerName || '').toLowerCase();
+  const pool = [
+    { match: ['virat', 'kohli', 'king'], file: 'virat_kohli.jpg' },
+    { match: ['rohit', 'sharma', 'hitman'], file: 'rohit_sharma.jpg' },
+    { match: ['dhoni', 'thala', 'msd', 'mahi'], file: 'ms_dhoni.jpg' },
+    { match: ['hardik', 'pandya'], file: 'hardik_pandya.jpg' },
+    { match: ['pant', 'rishabh', 'spiderman'], file: 'rishabh_pant.jpg' },
+    { match: ['bumrah', 'jasprit'], file: 'jasprit_bumrah.jpg' },
+    { match: ['rahul', 'kl'], file: 'kl_rahul.jpg' },
+  ];
+
+  for (const item of pool) {
+    if (item.match.some((m) => norm.includes(m))) {
+      const p = path.join(CRICKET_DEFAULTS_DIR, item.file);
+      if (fs.existsSync(p)) return p;
+    }
+  }
+
+  // General fallbacks
+  const defaultVirat = path.join(CRICKET_DEFAULTS_DIR, 'virat_kohli.jpg');
+  if (fs.existsSync(defaultVirat)) return defaultVirat;
+
+  const defaultAction = path.join(CRICKET_DEFAULTS_DIR, 'cricket_action.jpg');
+  if (fs.existsSync(defaultAction)) return defaultAction;
+
+  return null;
+}
+
+/**
+ * Downloads high-res player portrait from Wikimedia Commons with offline fallback
+ * NEVER returns null - guaranteed to return a valid player portrait file path!
+ * @param {string} playerName
+ * @returns {Promise<string>}
  */
 async function fetchPlayerPortrait(playerName) {
-  if (!playerName) return null;
+  const localPortrait = getLocalPlayerPortrait(playerName);
+
+  if (!playerName) {
+    return localPortrait;
+  }
+
   const CACHE_DIR = path.join(config.assetsDir, 'cache');
   fs.mkdirSync(CACHE_DIR, { recursive: true });
 
@@ -61,7 +105,7 @@ async function fetchPlayerPortrait(playerName) {
 
   try {
     logger.info(`Searching official player portrait for "${playerName}"...`);
-    const results = await searchWikimediaCommons(`${playerName} cricketer portrait photograph`, 4);
+    const results = await searchWikimediaCommons(`${playerName}`, 4);
     if (results.length > 0) {
       results.sort((a, b) => b.width * b.height - a.width * a.height);
       await downloadFile(results[0].url, dest);
@@ -69,10 +113,16 @@ async function fetchPlayerPortrait(playerName) {
       return dest;
     }
   } catch (err) {
-    logger.warn(`Could not download player portrait for ${playerName}: ${err.message}`);
+    logger.warn(`Could not download player portrait for ${playerName}: ${err.message}. Using local cricket pool.`);
   }
 
-  return null;
+  // If Wikimedia API search or download returns null/empty, immediately load matching local portrait
+  if (localPortrait && fs.existsSync(localPortrait)) {
+    logger.info(`Using verified local cricket portrait: ${path.basename(localPortrait)}`);
+    return localPortrait;
+  }
+
+  return localPortrait;
 }
 
 /**
@@ -95,8 +145,8 @@ export async function generateCricketVisualBackground({
   primaryPlayer = 'Virat Kohli',
   team = 'RCB',
   statBadge = 'IPL 2026 BUZZ',
-  visualQuery = 'cricket stadium floodlights',
-  secondaryQuery = 'sports stadium crowd cheering',
+  visualQuery = 'cricket ground',
+  secondaryQuery = 'sports stadium lights',
 }) {
   const roundDur = Math.max(5, Math.ceil(duration));
   const totalFrames = Math.ceil(roundDur * 30);
@@ -108,14 +158,19 @@ export async function generateCricketVisualBackground({
     title: headline,
     visualQuery,
     secondaryQuery,
-    altQueries: ['cricket batsman pitch', 'stadium floodlights night'],
+    altQueries: ['cricket pitch', 'cricket stadium floodlights', 'stadium crowd cheering'],
   });
+
+  const localStadiumFallback = path.join(CRICKET_DEFAULTS_DIR, 'stadium_bg.mp4');
+  const localStadiumLights = path.join(CRICKET_DEFAULTS_DIR, 'stadium_floodlights.mp4');
 
   const bgVideoPath = media?.filePath && fs.existsSync(media.filePath)
     ? media.filePath
-    : path.join(config.assetsDir, 'defaults', 'slot3_news.mp4');
+    : (fs.existsSync(localStadiumFallback)
+        ? localStadiumFallback
+        : (fs.existsSync(localStadiumLights) ? localStadiumLights : path.join(config.assetsDir, 'defaults', 'slot1_dance.mp4')));
 
-  // 2. Fetch player portrait for Ken Burns slow zoom
+  // 2. Fetch player portrait for Ken Burns slow zoom (Guaranteed non-null)
   const playerImagePath = await fetchPlayerPortrait(primaryPlayer);
 
   const { line1, line2 } = summarizeNewsHeadline(headline);
@@ -125,21 +180,21 @@ export async function generateCricketVisualBackground({
   const ffmpegArgs = ['-y', '-stream_loop', '-1', '-i', bgVideoPath];
   const filterParts = [];
 
-  // Base Stadium Background: scale to 1080x1920 with dark gradient vignettes for text clarity
-  filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=10:2[bg_stadium]`);
-  // Top Scrim (y=0 to 520) for Header & Headline
-  filterParts.push(`[bg_stadium]drawbox=x=0:y=0:w=1080:h=520:color=0x000511@0.75:t=fill[scrim_top]`);
-  // Bottom Scrim (y=1120 to 1920) for Lower-Third & Subtitles
-  filterParts.push(`[scrim_top]drawbox=x=0:y=1120:w=1080:h=800:color=0x000511@0.85:t=fill[v_canvas]`);
+  // Layer 1 (Background): Looped stadium video with subtle dark vignette overlay
+  filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=8:2,vignette=PI/4[bg_stadium]`);
+  // Top Scrim (y=0 to 490) for Header & Headline
+  filterParts.push(`[bg_stadium]drawbox=x=0:y=0:w=1080:h=490:color=0x000511@0.75:t=fill[scrim_top]`);
+  // Bottom Scrim (y=1180 to 1920) for Lower-Third & Subtitles
+  filterParts.push(`[scrim_top]drawbox=x=0:y=1180:w=1080:h=740:color=0x000511@0.85:t=fill[v_canvas]`);
 
   let centerNode = 'v_canvas';
 
-  // Center Stage: Player Image with Ken Burns zoom or 16:9 Stadium action frame
+  // Layer 2 (Center Hero): Player portrait inside central card frame with smooth Ken Burns motion
   if (playerImagePath && fs.existsSync(playerImagePath)) {
     ffmpegArgs.push('-loop', '1', '-i', playerImagePath);
 
-    // Smooth Ken Burns slow zoom (scale to 760x760 box at center)
-    filterParts.push(`[1:v]scale=1200:1200:force_original_aspect_ratio=increase,crop=1200:1200,zoompan=z='min(zoom+0.0006,1.15)':d=${totalFrames}:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=760x760:fps=30[player_kb]`);
+    // Smooth Ken Burns slow zoom (zoompan=z='min(zoom+0.0015,1.25)':d=700:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=760x760:fps=30)
+    filterParts.push(`[1:v]scale=1200:1200:force_original_aspect_ratio=increase,crop=1200:1200,zoompan=z='min(zoom+0.0015,1.25)':d=700:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=760x760:fps=30[player_kb]`);
     filterParts.push(`[${centerNode}][player_kb]overlay=160:480:shortest=1[v_player]`);
 
     // Glowing team border framing the player
@@ -147,12 +202,12 @@ export async function generateCricketVisualBackground({
 
     // Player name badge at corner of player frame
     const safePlayer = escapeFfmpegDrawtext(toTitleCase(primaryPlayer).toUpperCase().slice(0, 22));
-    filterParts.push(`[v_frame]drawbox=x=160:y=1180:w=420:h=52:color=${teamTheme.primary}@0.95:t=fill[p_b0]`);
-    filterParts.push(`[p_b0]drawbox=x=160:y=1180:w=420:h=52:color=${teamTheme.accent}:t=2[p_b1]`);
-    filterParts.push(`[p_b1]drawtext=text='${safePlayer}':fontcolor=white:fontsize=26:x=185:y=1192:font='Arial Black'[v_center]`);
+    filterParts.push(`[v_frame]drawbox=x=160:y=1180:w=440:h=54:color=${teamTheme.primary}@0.95:t=fill[p_b0]`);
+    filterParts.push(`[p_b0]drawbox=x=160:y=1180:w=440:h=54:color=${teamTheme.accent}:t=2[p_b1]`);
+    filterParts.push(`[p_b1]drawtext=text='${safePlayer}':fontcolor=white:fontsize=28:x=185:y=1192:font='Arial Black'[v_center]`);
     centerNode = 'v_center';
   } else {
-    // 16:9 Featured Stadium Action Center Box
+    // Fallback Stadium Action Center Box
     filterParts.push(`[0:v]scale=1080:608:force_original_aspect_ratio=increase,crop=1080:608[center_stadium]`);
     filterParts.push(`[${centerNode}][center_stadium]overlay=0:520[v_stadium]`);
     filterParts.push(`[v_stadium]drawbox=x=0:y=518:w=1080:h=3:color=${teamTheme.accent}:t=fill[v_l0]`);
@@ -160,21 +215,22 @@ export async function generateCricketVisualBackground({
     centerNode = 'v_center';
   }
 
+  // Layer 3: Top Badge, Headline, Lower-Third sports news card & ticker
   // Top Badge: "IPL 2026 • CRICKET BUZZ" (y=295 to 355)
   filterParts.push(`[${centerNode}]drawbox=x=290:y=295:w=500:h=56:color=${teamTheme.primary}@0.95:t=fill[pill_bg]`);
   filterParts.push(`[pill_bg]drawbox=x=290:y=295:w=500:h=56:color=${teamTheme.accent}:t=2[pill_border]`);
   filterParts.push(`[pill_border]drawtext=text='IPL 2026 • CRICKET BUZZ 🏏':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=310:font='Arial Black'[v_badge]`);
 
-  // 2-Line High-Impact Headline Card (y=365 to 495)
-  filterParts.push(`[v_badge]drawbox=x=50:y=365:w=980:h=125:color=0x050c1a@0.95:t=fill[c0]`);
-  filterParts.push(`[c0]drawbox=x=50:y=365:w=10:h=125:color=${teamTheme.accent}:t=fill[c_accent]`);
-  filterParts.push(`[c_accent]drawbox=x=50:y=365:w=980:h=125:color=${teamTheme.accent}@0.5:t=2[c1]`);
+  // 2-Line High-Impact Headline Card (y=365 to 475)
+  filterParts.push(`[v_badge]drawbox=x=50:y=365:w=980:h=120:color=0x050c1a@0.95:t=fill[c0]`);
+  filterParts.push(`[c0]drawbox=x=50:y=365:w=10:h=120:color=${teamTheme.accent}:t=fill[c_accent]`);
+  filterParts.push(`[c_accent]drawbox=x=50:y=365:w=980:h=120:color=${teamTheme.accent}@0.5:t=2[c1]`);
 
   if (safeLine2) {
-    filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=${teamTheme.accent}:fontsize=36:x=(w-text_w)/2:y=382:font='Arial Black'[c2]`);
-    filterParts.push(`[c2]drawtext=text='${safeLine2}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=432:font='Arial Black'[c_head]`);
+    filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=${teamTheme.accent}:fontsize=36:x=(w-text_w)/2:y=380:font='Arial Black'[c2]`);
+    filterParts.push(`[c2]drawtext=text='${safeLine2}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=428:font='Arial Black'[c_head]`);
   } else {
-    filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=${teamTheme.accent}:fontsize=40:x=(w-text_w)/2:y=408:font='Arial Black'[c_head]`);
+    filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=${teamTheme.accent}:fontsize=40:x=(w-text_w)/2:y=404:font='Arial Black'[c_head]`);
   }
 
   // Sports News Lower-Third Card: Team badge & stat pill (y=1245 to 1305)
@@ -186,7 +242,7 @@ export async function generateCricketVisualBackground({
   // Subtitle Area Dark Bed (y=1315 to 1485)
   filterParts.push(`[v_lt]drawbox=x=0:y=1315:w=1080:h=170:color=0x000511@0.85:t=fill[v_sub_bed]`);
 
-  // Bottom Live Cricket Ticker (y=1495 to 1535, well above bottom 20% safe zone = 1536px)
+  // Bottom Live Cricket Ticker (y=1495 to 1535, well above bottom safe zone)
   filterParts.push(`[v_sub_bed]drawbox=x=0:y=1495:w=1080:h=40:color=0xb30000@0.95:t=fill[v_ticker]`);
   filterParts.push(`[v_ticker]drawbox=x=0:y=1495:w=260:h=40:color=${teamTheme.accent}:t=fill[v_tag_box]`);
   filterParts.push(`[v_tag_box]drawtext=text='CRICKET BUZZ':fontcolor=black:fontsize=22:x=45:y=1506:font='Arial Black'[v_tag_txt]`);

@@ -13,7 +13,7 @@ import {
 } from './used_assets.js';
 import { ensureSlot1Pool, getSlot1PoolClips } from './ensure_slot1_pool.js';
 
-const WIKIMEDIA_USER_AGENT = 'YouTubeAutoShortsBot/1.0 (https://youtube.com/@auto-shorts; contact.autoshorts@gmail.com) NodeFetch/3.0';
+const WIKIMEDIA_USER_AGENT = 'DailyPulseShorts/1.0 (contact@example.com)';
 
 const CACHE_DIR = path.join(config.assetsDir, 'cache');
 const DEFAULTS_DIR = path.join(config.assetsDir, 'defaults');
@@ -36,7 +36,8 @@ export async function downloadFile(url, destPath) {
   const cleanUrl = url.split('?')[0]; // Strip tracking params
   const res = await fetch(cleanUrl, {
     headers: {
-      'User-Agent': WIKIMEDIA_USER_AGENT,
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Referer': 'https://commons.wikimedia.org/',
       'Accept': 'image/*,video/*,*/*',
     },
   });
@@ -532,12 +533,13 @@ export async function fetchSlotBackgroundMedia({
     if (visualQuery) stadiumQueries.push(visualQuery);
     if (secondaryQuery) stadiumQueries.push(secondaryQuery);
     if (Array.isArray(altQueries)) stadiumQueries.push(...altQueries);
+    // Broad, highly reliable Pexels cricket/stadium queries
     stadiumQueries.push(
+      'cricket ground',
+      'sports stadium lights',
+      'cricket pitch',
       'cricket stadium floodlights',
-      'sports stadium lights night',
-      'stadium crowd cheering',
-      'cricket ground pitch night',
-      'floodlights stadium match'
+      'stadium crowd cheering'
     );
 
     for (const q of stadiumQueries) {
@@ -555,10 +557,24 @@ export async function fetchSlotBackgroundMedia({
       }
     }
 
-    const defaultStadium = path.join(DEFAULTS_DIR, 'slot3_news.mp4');
+    // Persistent local fallback stadium clips from assets/defaults/cricket/
+    const cricketDefaultsDir = path.join(DEFAULTS_DIR, 'cricket');
+    const localStadiumBg = path.join(cricketDefaultsDir, 'stadium_bg.mp4');
+    const localStadiumLights = path.join(cricketDefaultsDir, 'stadium_floodlights.mp4');
+
+    if (fs.existsSync(localStadiumBg)) {
+      logger.info(`Using persistent local cricket stadium background: stadium_bg.mp4`);
+      return { type: 'video', filePath: localStadiumBg, isCricketStadium: true };
+    }
+    if (fs.existsSync(localStadiumLights)) {
+      logger.info(`Using persistent local cricket stadium floodlights: stadium_floodlights.mp4`);
+      return { type: 'video', filePath: localStadiumLights, isCricketStadium: true };
+    }
+
+    const defaultFallback = path.join(DEFAULTS_DIR, 'slot1_dance.mp4');
     return {
       type: 'video',
-      filePath: fs.existsSync(defaultStadium) ? defaultStadium : path.join(DEFAULTS_DIR, 'slot1_baby.mp4'),
+      filePath: fs.existsSync(defaultFallback) ? defaultFallback : path.join(DEFAULTS_DIR, 'slot1_baby.mp4'),
       isDefaultFallback: true,
     };
   }
