@@ -59,11 +59,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install System Dependencies
+      - name: Configure DNS & Verify FFmpeg
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-freefont-ttf
+          sudo sed -i '1i nameserver 8.8.8.8' /etc/resolv.conf || true
+          ffmpeg -version
 
       - name: Install Node Dependencies
         run: npm install
@@ -72,11 +71,9 @@ jobs:
         run: |
           which ffmpeg
           ffmpeg -version | grep -i drawtext || true
-          # Override any local static binary with the full Ubuntu ffmpeg build
           if [ -d "node_modules/ffmpeg-static" ]; then
             cp $(which ffmpeg) node_modules/ffmpeg-static/ffmpeg
           fi
-
       - name: Run Cloud Shorts Publisher
         env:
           PATH: /usr/bin:${{ env.PATH }}
