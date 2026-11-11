@@ -314,8 +314,37 @@ export async function fetchSlotBackgroundMedia({
       }
     }
 
-    // 3. If no video from Pexels, search Pexels for high-res topic photos
-    for (const q of queriesToTry) {
+    // 2b. If topic queries returned 0 results, retry with generic news fallbacks on Pexels
+    const GENERIC_NEWS_FALLBACKS = [
+      'breaking news studio',
+      'geopolitics briefing',
+      'breaking news reporter',
+      'military press conference',
+      'press conference microphones',
+      'geopolitics world map',
+    ];
+
+    logger.warn(`[SLOT 3] Topic queries returned 0 Pexels videos. Retrying with generic news fallbacks: ${GENERIC_NEWS_FALLBACKS.slice(0, 3).map((g) => `"${g}"`).join(', ')}...`);
+
+    for (const gq of GENERIC_NEWS_FALLBACKS) {
+      let pexelsVideo = await tryDownloadPexels(gq, 'portrait');
+      if (!pexelsVideo) {
+        pexelsVideo = await tryDownloadPexels(gq, 'all');
+      }
+      if (pexelsVideo) {
+        logger.success(`Matched generic news fallback Pexels video "${gq}": ${path.basename(pexelsVideo.filePath)}`);
+        return {
+          type: 'video',
+          filePath: pexelsVideo.filePath,
+          isTopicVideo: true,
+          topicQuery: gq,
+        };
+      }
+    }
+
+    // 3. If no video from Pexels, search Pexels for high-res topic photos (topic queries, then generic fallbacks)
+    const photoQueries = [...queriesToTry, ...GENERIC_NEWS_FALLBACKS];
+    for (const q of photoQueries) {
       const pexelsPhoto = await tryDownloadPexelsPhoto(q);
       if (pexelsPhoto) {
         logger.success(`Matched dynamic Pexels photo for News topic "${q}": ${path.basename(pexelsPhoto.filePath)}`);
@@ -429,8 +458,11 @@ export async function fetchSlotBackgroundMedia({
 
     if (!topicImage) {
       // Intelligent fallback: search photo for headline topic (strictly excluding charts/maps/diagrams)
-      const stopWords = new Set(['explained', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'are', 'was', 'were', 'by', 'with', 'from', 'as', 'that', 'this', 'after', 'over', 'into', 'says', 'amid', 'will', 'have', 'been']);
-      const words = combinedText.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
+      const cleanNewsHeadline = combinedText
+        .replace(/^(EXPLAINED|BREAKING UPDATE|BREAKING NEWS|BREAKING|WATCH|JUST IN|ALERT|REPORT|VIRAL):\s*/i, '')
+        .trim();
+      const stopWords = new Set(['explained', 'breaking', 'update', 'watch', 'just', 'news', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'are', 'was', 'were', 'by', 'with', 'from', 'as', 'that', 'this', 'after', 'over', 'into', 'says', 'amid', 'will', 'have', 'been']);
+      const words = cleanNewsHeadline.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
       const searchTopic = words.slice(0, 2).join(' ');
       if (searchTopic) {
         const cacheKey = crypto.createHash('md5').update(`wiki_topic_${searchTopic}`).digest('hex');

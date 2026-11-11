@@ -23,29 +23,87 @@ export function wrapText(text, maxChars = 28) {
 }
 
 /**
- * Auto-summarizes news headlines into a clean, punchy 2-line title (max 50 chars)
- * Never truncates with trailing dots like 'sp...'.
+ * Converts a string to standard, clean Title Case.
+ * Preserves contractions (e.g., "Didn't", "Hegseth's", "We're", "Won't")
+ * and keeps common news acronyms uppercase (e.g., US, UK, UN, BJP, AI, RBI).
+ * Leaves minor words lowercase in the middle of titles.
+ * @param {string} str
+ * @returns {string}
+ */
+export function toTitleCase(str) {
+  if (!str) return '';
+  const minorWords = new Set([
+    'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'from', 'in',
+    'into', 'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'with', 'vs', 'via'
+  ]);
+  const acronyms = new Set([
+    'US', 'USA', 'UK', 'UN', 'EU', 'NATO', 'PM', 'CEO', 'CFO', 'AI', 'IPL',
+    'BCCI', 'ISRO', 'NASA', 'RBI', 'BJP', 'AAP', 'CBI', 'ED', 'FIR', 'LOC',
+    'LAC', 'GDP', 'TRP', 'IMF', 'WHO', 'UAE'
+  ]);
+
+  const words = str.trim().split(/\s+/);
+  return words
+    .map((word, idx) => {
+      // Isolate leading/trailing punctuation (quotes, brackets, colons)
+      const match = word.match(/^([^a-zA-Z0-9]*)([a-zA-Z0-9'’\-]+)([^a-zA-Z0-9]*)$/);
+      if (!match) return word;
+      const [_, leading, core, trailing] = match;
+      if (!core) return word;
+
+      const upperCore = core.toUpperCase();
+      if (acronyms.has(upperCore)) {
+        return `${leading}${upperCore}${trailing}`;
+      }
+
+      const lowerCore = core.toLowerCase();
+      // Keep minor words lowercase in middle of title
+      if (
+        idx > 0 &&
+        idx < words.length - 1 &&
+        minorWords.has(lowerCore) &&
+        !leading.includes(':') &&
+        !leading.includes('"') &&
+        !leading.includes("'")
+      ) {
+        return `${leading}${lowerCore}${trailing}`;
+      }
+
+      // Title case word while preserving contractions (e.g. didn't -> Didn't, hegseth's -> Hegseth's)
+      const titleCased = lowerCore.replace(/(^[a-zA-Z]|[-][a-zA-Z])/g, (c) => c.toUpperCase());
+      return `${leading}${titleCased}${trailing}`;
+    })
+    .join(' ');
+}
+
+/**
+ * Auto-summarizes news headlines into a clean, punchy 2-line title (max 50 chars).
+ * Preserves proper apostrophes and contractions (e.g. "We Didn't Start", "Pete Hegseth's").
+ * Uses standard Title Case instead of flat unpunctuated all-caps.
+ * Strips leading tags like "EXPLAINED:", "WATCH:", "BREAKING UPDATE:".
  * @param {string} rawHeadline
  * @returns {{ line1: string, line2: string, fullSummary: string }}
  */
 export function summarizeNewsHeadline(rawHeadline) {
   if (!rawHeadline) {
-    return { line1: 'BREAKING NEWS', line2: 'LATEST UPDATE', fullSummary: 'BREAKING NEWS UPDATE' };
+    return { line1: 'Breaking News', line2: 'Latest Update', fullSummary: 'Breaking News Update' };
   }
 
+  // 1. Strip leading news tags and broadcast markers
   let text = rawHeadline
-    .replace(/^EXPLAINED:\s*/i, '')
-    .replace(/^WATCH:\s*/i, '')
-    .replace(/^BREAKING:\s*/i, '')
-    .replace(/^JUST IN:\s*/i, '')
+    .replace(/^(EXPLAINED|BREAKING UPDATE|BREAKING NEWS|BREAKING|WATCH|JUST IN|ALERT|REPORT|VIRAL):\s*/i, '')
     .replace(/🚨/g, '')
-    .replace(/['":;%\\#]/g, '')
-    .replace(/\s+[-|]\s+[A-Za-z0-9\s]{2,25}$/, '') // Clean publication like " - The Hindu"
+    .replace(/[\u2018\u2019\u201B]/g, "'") // Normalize single curly quotes
+    .replace(/[\u201C\u201D\u201F]/g, '"') // Normalize double curly quotes
+    .replace(/\s+[-|]\s+[A-Za-z0-9\s.]{2,30}$/, '') // Clean publication like " - The Hindu"
     .replace(/\s*\.\.\.\s*$/, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-  // If text exceeds 50 chars, smart summarize to under 50 chars at a clean word boundary
+  // Convert to standard Title Case
+  text = toTitleCase(text);
+
+  // 2. If text exceeds 50 chars, split at clean clause or word boundary
   if (text.length > 50) {
     const clauseRegex = /\s+(after|as|amid|following|ahead of|over|says|warns)\s+/i;
     const match = text.match(clauseRegex);
@@ -62,12 +120,12 @@ export function summarizeNewsHeadline(rawHeadline) {
     }
   }
 
-  // Remove any trailing dashes or punctuation
-  text = text.replace(/[,;.\-\s]+$/, '').trim();
+  // Remove trailing punctuation except quotes
+  text = text.replace(/[,;\-.\s]+$/, '').trim();
 
   const words = text.split(' ').filter(Boolean);
   if (words.length <= 1) {
-    return { line1: text.toUpperCase(), line2: '', fullSummary: text.toUpperCase() };
+    return { line1: text, line2: '', fullSummary: text };
   }
 
   // Find optimal split point closest to center character count
@@ -85,8 +143,8 @@ export function summarizeNewsHeadline(rawHeadline) {
     }
   }
 
-  const line1 = words.slice(0, bestIdx).join(' ').toUpperCase();
-  const line2 = words.slice(bestIdx).join(' ').toUpperCase();
+  const line1 = words.slice(0, bestIdx).join(' ');
+  const line2 = words.slice(bestIdx).join(' ');
 
   return {
     line1,
@@ -96,99 +154,200 @@ export function summarizeNewsHeadline(rawHeadline) {
 }
 
 /**
- * Extracts 2-3 smart visual search queries from a news headline
- * Maps topics to high-impact visual stock video/photo keywords instead of raw headlines
+ * Uses Gemini API to parse 2-3 broad visual stock video tags from a news headline
+ * @param {string} cleanHeadline
+ * @param {string} apiKey
+ * @returns {Promise<{ primaryQuery: string, secondaryQuery: string, altQueries: string[], source: string } | null>}
+ */
+export async function extractNewsVisualTagsWithGemini(cleanHeadline, apiKey) {
+  if (!apiKey) return null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const prompt = `You are a video stock footage researcher for news YouTube Shorts.
+Given this news headline: "${cleanHeadline}"
+Extract exactly 2 or 3 short, broad stock video search queries (each 2-3 words, describing REAL visual scenes suitable for searching Pexels stock video, e.g. "military press conference", "breaking news reporter", "geopolitics world map", "courtroom gavel justice", "stock market trading", "rocket launch space").
+Rules:
+- NEVER output names of individual people or obscure locations.
+- NEVER output abstract slogans or quotes.
+- Only output real visual scenery / stock video terms.
+- Return ONLY the queries separated by commas.`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 60, temperature: 0.2 },
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const tags = text
+      .split(/[,;\n]/)
+      .map((t) => t.replace(/["'*`.\-]/g, '').trim())
+      .filter((t) => t.length > 2 && t.split(/\s+/).length <= 4);
+
+    if (tags.length >= 2) {
+      return {
+        primaryQuery: tags[0].toLowerCase(),
+        secondaryQuery: tags[1].toLowerCase(),
+        altQueries: tags.slice(2).map((t) => t.toLowerCase()),
+        source: 'gemini',
+      };
+    }
+  } catch (err) {
+    // Non-critical fallback
+  }
+  return null;
+}
+
+/**
+ * Extracts 2-3 broad visual stock video search queries from a news headline using rule-based semantic categorization.
+ * NEVER passes raw headlines or person names to Pexels; always maps to real visual stock footage tags.
  * @param {string} headline
  * @returns {{ primaryQuery: string, secondaryQuery: string, altQueries: string[], detectedCategory: string }}
  */
 export function extractNewsVisualQueries(headline = '') {
-  const text = (headline || '').toLowerCase().replace(/['":;!?,.\-]/g, ' ');
+  // Strip leading broadcast tags before parsing
+  const stripped = (headline || '')
+    .replace(/^(EXPLAINED|BREAKING UPDATE|BREAKING NEWS|BREAKING|WATCH|JUST IN|ALERT|REPORT|VIRAL):\s*/i, '')
+    .replace(/🚨/g, '')
+    .replace(/[\u2018\u2019\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201F]/g, '"')
+    .replace(/\s+[-|]\s+[A-Za-z0-9\s.]{2,30}$/, '')
+    .trim();
 
-  // 1. Semantic category rules for common news topics
+  const text = stripped.toLowerCase().replace(/['":;!?,.\-]/g, ' ');
+
+  // 1. Semantic category rules for news topics
   const categories = [
     {
-      name: 'fireworks',
+      name: 'military_defence',
+      triggers: [
+        'defence', 'defense', 'military', 'army', 'soldier', 'soldiers', 'missile',
+        'fighter jet', 'navy', 'air force', 'hegseth', 'pentagon', 'senate', 'general',
+        'border', 'warfare', 'combat', 'rajnath', 'weapons', 'nato', 'missiles', 'war'
+      ],
+      primary: 'military press conference',
+      secondary: 'breaking news reporter',
+      alts: ['geopolitics world map', 'military army soldiers', 'press conference microphones'],
+    },
+    {
+      name: 'geopolitics_diplomacy',
+      triggers: [
+        'summit', 'treaty', 'diplomat', 'foreign minister', 'un', 'united nations',
+        'sanctions', 'ambassador', 'bilateral', 'geopolitics', 'white house', 'kremlin',
+        'zelensky', 'putin', 'biden', 'trump', 'foreign policy'
+      ],
+      primary: 'geopolitics world map',
+      secondary: 'geopolitics briefing',
+      alts: ['breaking news reporter', 'press conference microphones', 'world politics summit'],
+    },
+    {
+      name: 'politics_government',
+      triggers: [
+        'election', 'elections', 'voting', 'voter', 'parliament', 'lok sabha', 'rajya sabha',
+        'minister', 'cabinet', 'bjp', 'congress', 'opposition', 'rally', 'government',
+        'leader', 'chief minister', 'prime minister', 'modi'
+      ],
+      primary: 'government press briefing',
+      secondary: 'breaking news reporter',
+      alts: ['breaking news studio', 'parliament government building', 'press conference microphones'],
+    },
+    {
+      name: 'court_crime',
+      triggers: [
+        'court', 'supreme court', 'high court', 'judge', 'verdict', 'bail', 'cbi',
+        'police', 'arrest', 'crime', 'justice', 'gavel', 'lawsuit', 'trial', 'hearing',
+        'prosecutor', 'jail', 'custody', 'investigation'
+      ],
+      primary: 'courtroom law gavel justice',
+      secondary: 'police siren emergency flashing lights',
+      alts: ['breaking news reporter', 'press conference microphones'],
+    },
+    {
+      name: 'economy_markets',
+      triggers: [
+        'sensex', 'nifty', 'market', 'stocks', 'stock', 'share market', 'rupee', 'dollar',
+        'inflation', 'gdp', 'economy', 'investors', 'banking', 'rbi', 'budget', 'tariff',
+        'tariffs', 'trade', 'finance', 'tax', 'prices'
+      ],
+      primary: 'stock market trading screen',
+      secondary: 'money finance investment',
+      alts: ['breaking news studio', 'business finance office'],
+    },
+    {
+      name: 'fireworks_festivals',
       triggers: ['firecracker', 'firecrackers', 'cracker', 'crackers', 'firework', 'fireworks', 'diwali', 'deepavali', 'patakhe'],
       primary: 'fireworks night celebration',
       secondary: 'city smoke pollution',
       alts: ['diwali festival lights', 'fireworks display night'],
     },
     {
-      name: 'pollution',
-      triggers: ['pollution', 'smog', 'aqi', 'air quality', 'toxic air', 'stubble', 'haze', 'clean air', 'poisonous air'],
-      primary: 'city smoke air pollution',
-      secondary: 'smog traffic city',
-      alts: ['industrial smoke factory', 'air pollution road'],
-    },
-    {
-      name: 'economy',
-      triggers: ['sensex', 'nifty', 'market', 'stocks', 'stock', 'share market', 'rupee', 'inflation', 'gdp', 'economy', 'investors', 'banking', 'rbi', 'budget'],
-      primary: 'stock market trading screen',
-      secondary: 'money finance investment',
-      alts: ['business stock chart', 'banking finance office'],
-    },
-    {
-      name: 'space',
-      triggers: ['isro', 'nasa', 'rocket', 'satellite', 'spacecraft', 'moon', 'mars', 'chandrayaan', 'gaganyaan', 'orbit', 'astronaut', 'space mission'],
-      primary: 'rocket launch space',
-      secondary: 'satellite orbit earth',
-      alts: ['outer space earth astronomy', 'space shuttle launch'],
-    },
-    {
-      name: 'defence',
-      triggers: ['army', 'military', 'defence', 'defense', 'soldier', 'soldiers', 'missile', 'fighter jet', 'navy', 'air force', 'border', 'combat', 'warfare', 'rajnath'],
-      primary: 'military army soldiers',
-      secondary: 'fighter jet aircraft military',
-      alts: ['defence military combat', 'naval warship ocean'],
-    },
-    {
-      name: 'politics',
-      triggers: ['election', 'elections', 'voting', 'voter', 'parliament', 'lok sabha', 'rajya sabha', 'minister', 'cabinet', 'bjp', 'congress', 'opposition', 'rally', 'summit'],
-      primary: 'parliament government building',
-      secondary: 'political speech press conference',
-      alts: ['crowd election rally voting', 'official government conference'],
-    },
-    {
-      name: 'court',
-      triggers: ['court', 'supreme court', 'high court', 'judge', 'verdict', 'bail', 'cbi', 'police', 'arrest', 'crime', 'justice', 'gavel', 'lawsuit'],
-      primary: 'courtroom law gavel justice',
-      secondary: 'police siren emergency flashing lights',
-      alts: ['supreme court building', 'judge gavel law books'],
-    },
-    {
-      name: 'weather',
-      triggers: ['rain', 'rainfall', 'flood', 'floods', 'monsoon', 'cyclone', 'storm', 'waterlogging', 'earthquake', 'heatwave', 'heavy rains', 'landslide'],
+      name: 'disaster_weather',
+      triggers: [
+        'rain', 'rainfall', 'flood', 'floods', 'monsoon', 'cyclone', 'storm',
+        'waterlogging', 'earthquake', 'heatwave', 'heavy rains', 'landslide', 'tsunami',
+        'pollution', 'smog', 'aqi', 'air quality'
+      ],
       primary: 'storm heavy rain clouds',
       secondary: 'flood water disaster city',
-      alts: ['cyclone storm wind waves', 'lightning storm dark sky'],
+      alts: ['cyclone storm wind waves', 'breaking news reporter'],
     },
     {
-      name: 'cricket',
-      triggers: ['cricket', 'bcci', 'ipl', 'match', 'stadium', 'kohli', 'rohit', 'world cup', 'wicket', 'century', 'icc'],
+      name: 'space_science',
+      triggers: [
+        'isro', 'nasa', 'rocket', 'satellite', 'spacecraft', 'moon', 'mars',
+        'chandrayaan', 'gaganyaan', 'orbit', 'astronaut', 'space mission'
+      ],
+      primary: 'rocket launch space',
+      secondary: 'satellite orbit earth',
+      alts: ['outer space earth astronomy', 'breaking news studio'],
+    },
+    {
+      name: 'sports_cricket',
+      triggers: [
+        'cricket', 'bcci', 'ipl', 'match', 'stadium', 'kohli', 'rohit', 'world cup',
+        'wicket', 'century', 'icc', 'football', 'olympics', 'fifa'
+      ],
       primary: 'cricket stadium floodlights',
       secondary: 'sports stadium crowd cheering',
-      alts: ['sports action match stadium', 'cricket ground batsman'],
+      alts: ['sports action match stadium', 'breaking news reporter'],
     },
     {
-      name: 'technology',
-      triggers: ['ai', 'artificial intelligence', 'tech', 'technology', 'cyber', 'robot', 'hacker', 'software', 'chip', 'semiconductor', 'data center'],
-      primary: 'technology digital network futuristic',
-      secondary: 'data center server room',
-      alts: ['artificial intelligence network', 'cyber security code'],
-    },
-    {
-      name: 'transport',
-      triggers: ['train', 'railway', 'vande bharat', 'metro', 'expressway', 'highway', 'traffic', 'airport', 'flight', 'airline', 'aviation'],
+      name: 'transport_aviation',
+      triggers: [
+        'train', 'railway', 'vande bharat', 'metro', 'expressway', 'highway',
+        'traffic', 'airport', 'flight', 'airline', 'aviation', 'crash'
+      ],
       primary: 'train railway transportation',
       secondary: 'airplane airport runway takeoff',
-      alts: ['highway traffic cars night', 'modern railway station'],
+      alts: ['highway traffic cars night', 'breaking news reporter'],
     },
     {
-      name: 'health',
-      triggers: ['health', 'hospital', 'medical', 'doctor', 'vaccine', 'virus', 'disease', 'surgery', 'patient', 'medicine', 'cancer'],
+      name: 'technology_ai',
+      triggers: [
+        'ai', 'artificial intelligence', 'tech', 'technology', 'cyber', 'robot',
+        'hacker', 'software', 'chip', 'semiconductor', 'data center', 'google', 'meta', 'apple'
+      ],
+      primary: 'technology digital network futuristic',
+      secondary: 'data center server room',
+      alts: ['cyber security code', 'breaking news studio'],
+    },
+    {
+      name: 'health_medical',
+      triggers: [
+        'health', 'hospital', 'medical', 'doctor', 'vaccine', 'virus', 'disease',
+        'surgery', 'patient', 'medicine', 'cancer', 'pandemic'
+      ],
       primary: 'hospital doctor medical healthcare',
       secondary: 'laboratory science research medicine',
-      alts: ['ambulance emergency hospital', 'doctor consultation clinic'],
+      alts: ['breaking news reporter', 'ambulance emergency hospital'],
     },
   ];
 
@@ -203,28 +362,11 @@ export function extractNewsVisualQueries(headline = '') {
     }
   }
 
-  // 2. Generic high-value keyword extraction if no predefined category matched
-  const stopWords = new Set([
-    'explained', 'breaking', 'update', 'watch', 'report', 'just', 'news', 'the', 'a', 'an',
-    'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'are', 'was', 'were', 'by', 'with',
-    'from', 'as', 'that', 'this', 'after', 'over', 'into', 'says', 'amid', 'will', 'have', 'been',
-    'deal', 'said', 'no', 'big', 'not', 'but', 'why', 'how', 'what', 'when', 'who', 'here', 'where',
-    'about', 'more', 'all', 'any', 'could', 'would', 'should', 'today', 'yesterday', 'tomorrow',
-    'people', 'official', 'exclusive', 'special', 'matter', 'issue', 'details', 'points', 'first'
-  ]);
-
-  const cleanWords = text
-    .split(/\s+/)
-    .filter((w) => w.length > 3 && !stopWords.has(w));
-
-  const topWords = cleanWords.slice(0, 3);
-  const primaryQuery = topWords.length >= 2 ? `${topWords.slice(0, 2).join(' ')} footage` : 'breaking news television broadcast';
-  const secondaryQuery = topWords.length >= 1 ? `${topWords[0]} news report` : 'newsroom studio broadcast';
-
+  // 2. Safe generic fallback (NEVER raw headlines or person names)
   return {
-    primaryQuery,
-    secondaryQuery,
-    altQueries: ['breaking news television broadcast', 'newsroom studio anchor desk'],
+    primaryQuery: 'breaking news studio',
+    secondaryQuery: 'geopolitics briefing',
+    altQueries: ['breaking news reporter', 'geopolitics world map', 'press conference microphones'],
     detectedCategory: 'general_news',
   };
 }

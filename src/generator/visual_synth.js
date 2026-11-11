@@ -5,7 +5,16 @@ import path from 'path';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
 import { fetchSlotBackgroundMedia, fetchScriptureClip } from '../utils/media_fetcher.js';
-import { summarizeNewsHeadline } from '../utils/text_utils.js';
+import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
+
+function escapeFfmpegDrawtext(str) {
+  if (!str) return '';
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\u2019") // convert single quotes to typographic curly apostrophe
+    .replace(/:/g, '\\:')
+    .replace(/%/g, '\\%');
+}
 
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
@@ -187,9 +196,9 @@ export async function generateVisualBackground({
       let centerNode = 'v_mid';
 
       if (media.isTopicVideo && fs.existsSync(media.filePath)) {
-        // CASE A: Dynamic moving topic video from Pexels (e.g. fireworks, flood, stock market, etc.)
-        // Full canvas blurred motion background for engaging visual depth
-        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=22:2[bg_blurred]`);
+        // CASE A: Dynamic moving topic video from Pexels (e.g. military press conference, breaking news studio, geopolitics world map)
+        // Full canvas motion background: fills entire 1080x1920 9:16 frame with subtle background blur for visual depth
+        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=14:2[bg_blurred]`);
         // Center: Crystal-clear focused 16:9 topic video
         filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_topic]`);
         filterParts.push(`[bg_blurred][center_topic]overlay=0:${centerTop}[v_base]`);
@@ -198,8 +207,8 @@ export async function generateVisualBackground({
         filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
         filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
 
-        // Topic badge in the corner of the center box
-        const badgeText = (media.topicQuery || 'SPECIAL REPORT').toUpperCase().slice(0, 24);
+        // Topic pill badge in corner (standard Title Case)
+        const badgeText = escapeFfmpegDrawtext(toTitleCase(media.topicQuery || 'Special Report').slice(0, 26));
         filterParts.push(`[v_center]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
         filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
         filterParts.push(`[v_b1]drawtext=text='${badgeText}':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
@@ -207,7 +216,6 @@ export async function generateVisualBackground({
 
       } else if (media.topicImage && fs.existsSync(media.topicImage)) {
         // CASE B: High-impact topic photo / leader portrait animated with Ken Burns pan & zoom
-        // Background: Moving newsroom studio loop with subtle motion blur
         filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=18:2[bg_news]`);
 
         ffmpegArgs.push('-loop', '1', '-i', media.topicImage);
@@ -216,7 +224,7 @@ export async function generateVisualBackground({
         filterParts.push(`[v_leader]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
         filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_l1]`);
 
-        const badgeText = (media.leaderBadge || 'SPECIAL REPORT').toUpperCase().slice(0, 24);
+        const badgeText = escapeFfmpegDrawtext(toTitleCase(media.leaderBadge || 'Special Report').slice(0, 26));
         filterParts.push(`[v_l1]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
         filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
         filterParts.push(`[v_b1]drawtext=text='${badgeText}':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
@@ -224,14 +232,14 @@ export async function generateVisualBackground({
 
       } else {
         // CASE C: Engaging dynamic motion background (blurred newsroom background + clean focused news card layout)
-        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=22:2[bg_blur]`);
+        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=16:2[bg_blur]`);
         filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_studio]`);
         filterParts.push(`[bg_blur][center_studio]overlay=0:${centerTop}[v_base]`);
         filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
         filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_l1]`);
         filterParts.push(`[v_l1]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
         filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
-        filterParts.push(`[v_b1]drawtext=text='NEWS DESK REPORT':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
+        filterParts.push(`[v_b1]drawtext=text='News Desk Report':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
         centerNode = 'v_mid';
       }
 
@@ -245,11 +253,14 @@ export async function generateVisualBackground({
       filterParts.push(`[c0]drawbox=x=50:y=370:w=8:h=130:color=0xffcc00:t=fill[c_accent]`);
       filterParts.push(`[c_accent]drawbox=x=50:y=370:w=980:h=130:color=0xffcc00@0.6:t=2[c1]`);
 
-      if (line2) {
-        filterParts.push(`[c1]drawtext=text='${line1}':fontcolor=0xffcc00:fontsize=38:x=(w-text_w)/2:y=392:font='Arial Black'[c2]`);
-        filterParts.push(`[c2]drawtext=text='${line2}':fontcolor=white:fontsize=38:x=(w-text_w)/2:y=444:font='Arial Black'[c_head]`);
+      const safeLine1 = escapeFfmpegDrawtext(line1);
+      const safeLine2 = escapeFfmpegDrawtext(line2);
+
+      if (safeLine2) {
+        filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=0xffcc00:fontsize=38:x=(w-text_w)/2:y=392:font='Arial Black'[c2]`);
+        filterParts.push(`[c2]drawtext=text='${safeLine2}':fontcolor=white:fontsize=38:x=(w-text_w)/2:y=444:font='Arial Black'[c_head]`);
       } else {
-        filterParts.push(`[c1]drawtext=text='${line1}':fontcolor=0xffcc00:fontsize=42:x=(w-text_w)/2:y=416:font='Arial Black'[c_head]`);
+        filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=0xffcc00:fontsize=42:x=(w-text_w)/2:y=416:font='Arial Black'[c_head]`);
       }
 
       // Dark Semi-Transparent Subtitle Bar (y = 1145 to y = 1490)
@@ -258,7 +269,8 @@ export async function generateVisualBackground({
 
       // Professional Clean Live News Ticker (y = 1495 to 1535, well above bottom 20% safe zone = 1536px)
       filterParts.push(`[v_sub_line]drawbox=x=0:y=1495:w=1080:h=40:color=0xb30000@0.95:t=fill[v_ticker]`);
-      filterParts.push(`[v_ticker]drawtext=text='LIVE DEVELOPMENTS • VERIFIED REPORT • GLOBAL NEWS DESK • IN-DEPTH EXPLAINER • ':fontcolor=white:fontsize=22:x=w-mod(t*180\\,w+1200):y=1505:font='Arial Black'[vout]`);
+      const tickerText = escapeFfmpegDrawtext(toTitleCase(headline || title).slice(0, 70));
+      filterParts.push(`[v_ticker]drawtext=text='LIVE UPDATE • ${tickerText} • ':fontcolor=white:fontsize=22:x=w-mod(t*160\\,w+1200):y=1505:font='Arial Black'[vout]`);
       // Note: y = 1536 to 1920 is 100% CLEAN for YouTube Shorts UI safe zone!
 
     } else {

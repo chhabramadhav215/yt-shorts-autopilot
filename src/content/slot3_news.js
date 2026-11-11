@@ -1,7 +1,13 @@
 import path from 'path';
 import { fetchTrendingNews } from './news_fetcher.js';
 import { config } from '../config.js';
-import { summarizeNewsHeadline, extractNewsVisualQueries } from '../utils/text_utils.js';
+import {
+  summarizeNewsHeadline,
+  extractNewsVisualQueries,
+  extractNewsVisualTagsWithGemini,
+  toTitleCase,
+} from '../utils/text_utils.js';
+import { logger } from '../utils/logger.js';
 
 export async function generateSlot3Content(customTopic = null) {
   let headline = '';
@@ -16,12 +22,34 @@ export async function generateSlot3Content(customTopic = null) {
     source = item.source || 'News Desk';
   }
 
-  const cleanHeadline = headline.replace(/['":]/g, '').trim();
-  const summary = summarizeNewsHeadline(cleanHeadline);
-  const visualQueries = extractNewsVisualQueries(cleanHeadline);
+  // Normalize quotes and whitespace without stripping contractions or apostrophes
+  const cleanHeadline = headline
+    .replace(/[\u2018\u2019\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201F]/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  // Clean, punchy YouTube title (under 60 chars) without mid-word cutoffs or trailing dots
-  const title = `EXPLAINED: ${summary.fullSummary} 🚨`;
+  const summary = summarizeNewsHeadline(cleanHeadline);
+
+  // Extract smart visual queries: try Gemini first if API key configured, otherwise use semantic rules
+  let visualQueries = null;
+  if (config.geminiApiKey) {
+    try {
+      visualQueries = await extractNewsVisualTagsWithGemini(cleanHeadline, config.geminiApiKey);
+      if (visualQueries) {
+        logger.info(`[Slot 3] Gemini extracted visual tags: "${visualQueries.primaryQuery}", "${visualQueries.secondaryQuery}"`);
+      }
+    } catch (e) {
+      // Fallback to local rule-based extractor
+    }
+  }
+
+  if (!visualQueries) {
+    visualQueries = extractNewsVisualQueries(cleanHeadline);
+  }
+
+  // Clean, punchy YouTube title with standard Title Case and contractions preserved
+  const title = `Explained: ${summary.fullSummary} 🚨`.slice(0, 95);
 
   // Structured segments: Hindi Voiceover + English Burned-in Subtitles
   const segments = [
@@ -30,7 +58,7 @@ export async function generateSlot3Content(customTopic = null) {
       english: `Here is the biggest breaking story everyone is talking about today!`,
     },
     {
-      hindi: `बड़ी घटना: ${cleanHeadline}। सूत्रों और मीडिया रिपोर्ट्स के मुताबिक यह मामला तेजी से गरमा रहा है।`,
+      hindi: `बड़ी घटना: ${summary.fullSummary}। सूत्रों और मीडिया रिपोर्ट्स के मुताबिक यह मामला तेजी से गरमा रहा है।`,
       english: `Big incident: ${summary.fullSummary}. According to reports, this situation is developing rapidly.`,
     },
     {
@@ -73,10 +101,11 @@ export async function generateSlot3Content(customTopic = null) {
     slotName: 'News Explainer (Breaking Update)',
     title,
     headline: summary.fullSummary,
+    cleanTitle: summary.fullSummary,
     visualQuery: visualQueries.primaryQuery,
     secondaryQuery: visualQueries.secondaryQuery,
-    altQueries: visualQueries.altQueries,
-    detectedCategory: visualQueries.detectedCategory,
+    altQueries: visualQueries.altQueries || [],
+    detectedCategory: visualQueries.detectedCategory || 'general_news',
     description,
     tags,
     voice: config.voices.slot3,
