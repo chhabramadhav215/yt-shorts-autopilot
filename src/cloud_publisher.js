@@ -1,6 +1,7 @@
 import { publishShort } from './pipeline.js';
 import { logger } from './utils/logger.js';
 import { checkYouTubeAuth } from './youtube/client.js';
+import { publishToMetaReels } from './social/meta_publisher.js';
 
 /**
  * Resolves target slot from CLI args, environment variables, or GitHub Actions schedule cron
@@ -71,15 +72,40 @@ async function run() {
   console.log(`• YouTube URL:  ${result.upload.url}`);
   console.log('-------------------------------------------------------------\n');
 
+  // Immediately publish to Instagram Reels & Facebook Reels if Meta credentials configured
+  let metaResult = null;
+  try {
+    metaResult = await publishToMetaReels({
+      videoPath: result.videoPath,
+      title: result.title,
+      description: result.description,
+      tags: result.tags,
+    });
+    if (metaResult.instagram?.permalink) {
+      console.log(`• Instagram:    ${metaResult.instagram.permalink}`);
+    }
+    if (metaResult.facebook?.permalink) {
+      console.log(`• Facebook:     ${metaResult.facebook.permalink}`);
+    }
+  } catch (err) {
+    logger.warn(`Meta publishing encountered an error: ${err.message}`);
+  }
+
   // Optional: Send Telegram notification if configured
   if (process.env.TELEGRAM_BOT_TOKEN && (process.env.TELEGRAM_ALLOWED_USER_ID || process.env.TELEGRAM_CHAT_ID)) {
     try {
       const chatId = process.env.TELEGRAM_ALLOWED_USER_ID || process.env.TELEGRAM_CHAT_ID;
-      const text = `🎬 *YouTube Short Published (Public)*\n\n` +
+      let text = `🎬 *Short Published Across Platforms*\n\n` +
         `*Slot:* ${result.slotName}\n` +
         `*Title:* ${result.title}\n` +
-        `*Link:* ${result.upload.url}\n` +
-        `*Time:* ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`;
+        `*YouTube:* ${result.upload.url}\n`;
+      if (metaResult?.instagram?.permalink) {
+        text += `*Instagram Reel:* ${metaResult.instagram.permalink}\n`;
+      }
+      if (metaResult?.facebook?.permalink) {
+        text += `*Facebook Reel:* ${metaResult.facebook.permalink}\n`;
+      }
+      text += `*Time:* ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`;
 
       await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: 'POST',

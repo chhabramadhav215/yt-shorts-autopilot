@@ -50,10 +50,17 @@ export const config = {
   },
 
   voices: {
-    slot1: process.env.SLOT1_VOICE || 'hi-IN-SwaraNeural',      // Cute child-like Hindi voice (with +25% pitch)
+    slot1: process.env.SLOT1_VOICE || 'hi-IN-SwaraNeural',      // Cute child-like Hindi voice (with +38% pitch, +6% rate)
     slot2: process.env.SLOT2_VOICE || 'hi-IN-MadhurNeural',      // Peaceful Hindi voice (or hi-IN-SwaraNeural)
     slot3: process.env.SLOT3_VOICE || 'hi-IN-MadhurNeural',      // Fast-paced News Anchor Hindi voice
     slot4: process.env.SLOT4_VOICE || 'hi-IN-MadhurNeural',      // Epic Philosophical Hindi voice
+  },
+
+  meta: {
+    accessToken: process.env.META_ACCESS_TOKEN || '',
+    instagramAccountId: process.env.INSTAGRAM_ACCOUNT_ID || '',
+    facebookPageId: process.env.FACEBOOK_PAGE_ID || '',
+    enableFacebookReels: process.env.ENABLE_FACEBOOK_REELS !== 'false',
   },
 
   pexelsApiKey: process.env.PEXELS_API_KEY || '',
