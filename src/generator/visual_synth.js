@@ -96,6 +96,8 @@ export async function generateVisualBackground({
       outputPath,
       headline: headline || title,
       primaryPlayer,
+      playerTitle: primaryPlayer,
+      topic: customTopic || title,
       team,
       statBadge,
       visualQuery,
