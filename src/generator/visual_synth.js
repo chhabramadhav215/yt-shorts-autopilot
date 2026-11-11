@@ -1,4 +1,4 @@
-import ffmpegStatic from 'ffmpeg-static';
+import { createRequire } from 'module';
 import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -7,6 +7,17 @@ import { logger } from '../utils/logger.js';
 import { fetchSlotBackgroundMedia, fetchScriptureClip } from '../utils/media_fetcher.js';
 import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
 import { generateCricketVisualBackground } from './cricket_synth.js';
+
+const require = createRequire(import.meta.url);
+
+const ffmpegPath = process.env.FFMPEG_PATH || (function() {
+  try {
+    const { execSync } = require('child_process');
+    return execSync('which ffmpeg', { encoding: 'utf8' }).trim();
+  } catch(e) {
+    return require('ffmpeg-static');
+  }
+})();
 
 function escapeFfmpegDrawtext(str) {
   if (!str) return '';
@@ -19,7 +30,7 @@ function escapeFfmpegDrawtext(str) {
 
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
-    execFile(ffmpegStatic, args, (err, stdout, stderr) => {
+    execFile(ffmpegPath, args, (err, stdout, stderr) => {
       if (err) {
         logger.error('FFmpeg visual synth error:', stderr || err.message);
         reject(err);
