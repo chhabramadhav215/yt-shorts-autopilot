@@ -14,7 +14,126 @@ function sleep(ms) {
 }
 
 /**
+ * Checks whether an error from Meta API is retryable (ProcessingFailedError, 5xx, or transient CDN glitch)
+ * @param {any} errOrData
+ * @param {number} [status=0]
+ * @returns {boolean}
+ */
+export function isRetryableMetaError(errOrData, status = 0) {
+  if (status >= 500) return true;
+  const msg = typeof errOrData === 'string'
+    ? errOrData.toLowerCase()
+    : (errOrData?.error?.message || errOrData?.message || JSON.stringify(errOrData || {})).toLowerCase();
+
+  return (
+    status >= 500 ||
+    msg.includes('processingfailed') ||
+    msg.includes('processing_failed') ||
+    msg.includes('failed to process') ||
+    msg.includes('transient') ||
+    msg.includes('try again') ||
+    msg.includes('temporarily') ||
+    msg.includes('timeout') ||
+    msg.includes('econnreset') ||
+    msg.includes('etimedout') ||
+    msg.includes('socket hang up')
+  );
+}
+
+/**
+ * Uploads video binary payload to Meta CDN (rupload.facebook.com) with automatic retry loop
+ * Resets headers (offset: 0, file_size) and buffer cleanly before each retry attempt.
+ * @param {Object} params
+ * @param {string} params.uploadUri - Resumable upload endpoint from container
+ * @param {string} params.videoPath - Path to local MP4 video file
+ * @param {string} params.accessToken - Meta OAuth access token
+ * @param {string} [params.platform='Instagram Reels']
+ * @param {number} [params.maxRetries=3]
+ * @returns {Promise<Object>}
+ */
+export async function uploadVideoBinary({
+  uploadUri,
+  videoPath,
+  accessToken,
+  platform = 'Instagram Reels',
+  maxRetries = 3,
+}) {
+  const fileStats = fs.statSync(videoPath);
+  const fileSize = fileStats.size;
+
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      logger.info(
+        `[${platform}] Uploading video binary to Meta CDN (attempt ${attempt}/${maxRetries}, ${(fileSize / 1024 / 1024).toFixed(2)} MB)...`
+      );
+
+      // Cleanly reset headers and buffer before each transmission
+      const headers = {
+        Authorization: `OAuth ${accessToken}`,
+        offset: '0',
+        file_size: String(fileSize),
+        'Content-Type': 'application/octet-stream',
+      };
+
+      const videoBuffer = fs.readFileSync(videoPath);
+
+      const uploadRes = await fetch(uploadUri, {
+        method: 'POST',
+        headers,
+        body: videoBuffer,
+      });
+
+      let uploadData = {};
+      const responseText = await uploadRes.text();
+      try {
+        uploadData = JSON.parse(responseText);
+      } catch (e) {
+        uploadData = { raw: responseText };
+      }
+
+      const isSuccess = uploadRes.ok && uploadData.success !== false && !uploadData.error;
+
+      if (isSuccess) {
+        logger.success(`[${platform}] Video binary uploaded successfully on attempt ${attempt}.`);
+        return uploadData;
+      }
+
+      const errMsg = uploadData?.error?.message || responseText || `HTTP ${uploadRes.status}`;
+      const isRetryable = isRetryableMetaError(uploadData, uploadRes.status);
+
+      logger.warn(`[${platform}] Binary upload attempt ${attempt} failed (HTTP ${uploadRes.status}): ${errMsg}`);
+      lastError = new Error(`Binary upload failed: ${errMsg}`);
+
+      if (attempt < maxRetries && isRetryable) {
+        const backoffMs = attempt === 1 ? 3000 : 6000;
+        logger.info(`[${platform}] Retrying binary upload in ${backoffMs / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+        await sleep(backoffMs);
+      } else if (!isRetryable) {
+        throw lastError;
+      }
+    } catch (err) {
+      lastError = err;
+      const isRetryable = isRetryableMetaError(err.message);
+      if (attempt < maxRetries && isRetryable) {
+        const backoffMs = attempt === 1 ? 3000 : 6000;
+        logger.warn(
+          `[${platform}] Binary upload error on attempt ${attempt}: ${err.message}. Retrying in ${backoffMs / 1000}s...`
+        );
+        await sleep(backoffMs);
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError || new Error(`[${platform}] Binary upload failed after ${maxRetries} attempts.`);
+}
+
+/**
  * Publishes a video to Instagram Reels via Meta Graph API v20+
+ * Automatically recreates container upon ProcessingFailedError or 5xx.
  * @param {Object} params
  * @param {string} params.igAccountId - Instagram Business/Creator Account ID
  * @param {string} params.accessToken - Meta User/Page Access Token
@@ -29,117 +148,150 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
 
   const fileStats = fs.statSync(videoPath);
   const fileSize = fileStats.size;
-  logger.info(`[Instagram Reels] Initializing upload container for ${path.basename(videoPath)} (${(fileSize / 1024 / 1024).toFixed(2)} MB)...`);
+  const maxContainerAttempts = 3;
 
-  // Step 1: Initialize container via /media (with media_type=REELS, upload_type=resumable)
-  const initEndpoint = `${GRAPH_API_BASE}/${igAccountId}/media`;
-  const initBody = new URLSearchParams({
-    media_type: 'REELS',
-    upload_type: 'resumable',
-    caption,
-    share_to_feed: 'true',
-    access_token: accessToken,
-  });
+  for (let containerAttempt = 1; containerAttempt <= maxContainerAttempts; containerAttempt++) {
+    try {
+      logger.info(
+        `[Instagram Reels] Initializing upload container (attempt ${containerAttempt}/${maxContainerAttempts}) for ${path.basename(videoPath)} (${(fileSize / 1024 / 1024).toFixed(2)} MB)...`
+      );
 
-  const initRes = await fetch(initEndpoint, {
-    method: 'POST',
-    body: initBody,
-  });
+      // Step 1: Initialize container via /media (with media_type=REELS, upload_type=resumable)
+      const initEndpoint = `${GRAPH_API_BASE}/${igAccountId}/media`;
+      const initBody = new URLSearchParams({
+        media_type: 'REELS',
+        upload_type: 'resumable',
+        caption,
+        share_to_feed: 'true',
+        access_token: accessToken,
+      });
 
-  const initData = await initRes.json();
-  if (!initRes.ok || !initData.id || !initData.uri) {
-    const errMsg = initData?.error?.message || JSON.stringify(initData);
-    throw new Error(`Instagram container initialization failed: ${errMsg}`);
-  }
+      const initRes = await fetch(initEndpoint, {
+        method: 'POST',
+        body: initBody,
+      });
 
-  const containerId = initData.id;
-  const uploadUri = initData.uri;
-  logger.success(`[Instagram Reels] Container created: ${containerId}`);
+      const initData = await initRes.json();
+      if (!initRes.ok || !initData.id || !initData.uri) {
+        const errMsg = initData?.error?.message || JSON.stringify(initData);
+        if (containerAttempt < maxContainerAttempts && isRetryableMetaError(initData, initRes.status)) {
+          const backoffMs = containerAttempt === 1 ? 3000 : 6000;
+          logger.warn(`[Instagram Reels] Container initialization failed: ${errMsg}. Recreating container in ${backoffMs / 1000}s...`);
+          await sleep(backoffMs);
+          continue;
+        }
+        throw new Error(`Instagram container initialization failed: ${errMsg}`);
+      }
 
-  // Step 2: Upload binary video payload to uploadUri
-  logger.info(`[Instagram Reels] Uploading video binary to Meta CDN...`);
-  const videoBuffer = fs.readFileSync(videoPath);
+      const containerId = initData.id;
+      const uploadUri = initData.uri;
+      logger.success(`[Instagram Reels] Container created: ${containerId}`);
 
-  const uploadRes = await fetch(uploadUri, {
-    method: 'POST',
-    headers: {
-      Authorization: `OAuth ${accessToken}`,
-      offset: '0',
-      file_size: String(fileSize),
-      'Content-Type': 'application/octet-stream',
-    },
-    body: videoBuffer,
-  });
+      // Step 2: Upload binary video payload to uploadUri with 3 retries (3s, 6s backoff)
+      await uploadVideoBinary({
+        uploadUri,
+        videoPath,
+        accessToken,
+        platform: 'Instagram Reels',
+        maxRetries: 3,
+      });
 
-  const uploadData = await uploadRes.json();
-  if (!uploadRes.ok || uploadData.success === false) {
-    const errMsg = uploadData?.error?.message || JSON.stringify(uploadData);
-    throw new Error(`Instagram binary upload failed: ${errMsg}`);
-  }
-  logger.success(`[Instagram Reels] Video binary uploaded successfully.`);
+      // Step 3: Poll container status until FINISHED
+      logger.info(`[Instagram Reels] Waiting for Meta video processing (container ${containerId})...`);
+      const statusEndpoint = `${GRAPH_API_BASE}/${containerId}?fields=status_code,status&access_token=${accessToken}`;
+      let isReady = false;
+      const maxAttempts = 30; // 30 * 5s = 150 seconds max
+      let needContainerRecreate = false;
 
-  // Step 3: Poll container status until FINISHED
-  logger.info(`[Instagram Reels] Waiting for Meta video processing (container ${containerId})...`);
-  const statusEndpoint = `${GRAPH_API_BASE}/${containerId}?fields=status_code,status&access_token=${accessToken}`;
-  let isReady = false;
-  const maxAttempts = 30; // 30 * 5s = 150 seconds max
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        await sleep(5000);
+        const statusRes = await fetch(statusEndpoint);
+        const statusData = await statusRes.json();
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await sleep(5000);
-    const statusRes = await fetch(statusEndpoint);
-    const statusData = await statusRes.json();
+        const statusCode = statusData.status_code || '';
+        logger.info(`[Instagram Reels] Processing status (attempt ${attempt}/${maxAttempts}): ${statusCode || 'CHECKING'}`);
 
-    const statusCode = statusData.status_code || '';
-    logger.info(`[Instagram Reels] Processing status (attempt ${attempt}/${maxAttempts}): ${statusCode || 'CHECKING'}`);
+        if (statusCode === 'FINISHED') {
+          isReady = true;
+          break;
+        } else if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
+          const errDetails = statusData.status || statusData?.error?.message || statusCode;
+          const isRetryable = isRetryableMetaError(errDetails);
+          if (containerAttempt < maxContainerAttempts && isRetryable) {
+            const backoffMs = containerAttempt === 1 ? 3000 : 6000;
+            logger.warn(
+              `[Instagram Reels] Container ${containerId} processing returned ${statusCode} (${errDetails}). Recreating upload container (attempt ${containerAttempt + 1}/${maxContainerAttempts}) after ${backoffMs / 1000}s...`
+            );
+            await sleep(backoffMs);
+            needContainerRecreate = true;
+            break;
+          }
+          throw new Error(`Instagram container processing failed with status: ${errDetails}`);
+        }
+      }
 
-    if (statusCode === 'FINISHED') {
-      isReady = true;
-      break;
-    } else if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
-      const errDetails = statusData.status || statusData?.error?.message || statusCode;
-      throw new Error(`Instagram container processing failed with status: ${errDetails}`);
+      if (needContainerRecreate) {
+        continue;
+      }
+
+      if (!isReady) {
+        if (containerAttempt < maxContainerAttempts) {
+          logger.warn(`[Instagram Reels] Container processing timed out. Recreating upload container...`);
+          await sleep(3000);
+          continue;
+        }
+        throw new Error(`Instagram container processing timed out after 150 seconds.`);
+      }
+
+      // Step 4: Trigger media publish
+      logger.info(`[Instagram Reels] Publishing container ${containerId}...`);
+      const publishEndpoint = `${GRAPH_API_BASE}/${igAccountId}/media_publish`;
+      const publishBody = new URLSearchParams({
+        creation_id: containerId,
+        access_token: accessToken,
+      });
+
+      const pubRes = await fetch(publishEndpoint, {
+        method: 'POST',
+        body: publishBody,
+      });
+
+      const pubData = await pubRes.json();
+      if (!pubRes.ok || !pubData.id) {
+        const errMsg = pubData?.error?.message || JSON.stringify(pubData);
+        throw new Error(`Instagram media publish failed: ${errMsg}`);
+      }
+
+      const mediaId = pubData.id;
+      logger.success(`[Instagram Reels] Published successfully! Media ID: ${mediaId}`);
+
+      // Step 5: Retrieve permalink
+      let permalink = `https://www.instagram.com/reel/`;
+      try {
+        const permalinkRes = await fetch(`${GRAPH_API_BASE}/${mediaId}?fields=permalink&access_token=${accessToken}`);
+        const permalinkData = await permalinkRes.json();
+        if (permalinkData.permalink) {
+          permalink = permalinkData.permalink;
+        }
+      } catch (e) {
+        // Non-critical fallback
+      }
+
+      return { id: mediaId, permalink };
+    } catch (err) {
+      if (containerAttempt < maxContainerAttempts && isRetryableMetaError(err.message)) {
+        const backoffMs = containerAttempt === 1 ? 3000 : 6000;
+        logger.warn(
+          `[Instagram Reels] Transient error during container attempt ${containerAttempt}: ${err.message}. Recreating container in ${backoffMs / 1000}s...`
+        );
+        await sleep(backoffMs);
+      } else {
+        throw err;
+      }
     }
   }
 
-  if (!isReady) {
-    throw new Error(`Instagram container processing timed out after 150 seconds.`);
-  }
-
-  // Step 4: Trigger media publish
-  logger.info(`[Instagram Reels] Publishing container ${containerId}...`);
-  const publishEndpoint = `${GRAPH_API_BASE}/${igAccountId}/media_publish`;
-  const publishBody = new URLSearchParams({
-    creation_id: containerId,
-    access_token: accessToken,
-  });
-
-  const pubRes = await fetch(publishEndpoint, {
-    method: 'POST',
-    body: publishBody,
-  });
-
-  const pubData = await pubRes.json();
-  if (!pubRes.ok || !pubData.id) {
-    const errMsg = pubData?.error?.message || JSON.stringify(pubData);
-    throw new Error(`Instagram media publish failed: ${errMsg}`);
-  }
-
-  const mediaId = pubData.id;
-  logger.success(`[Instagram Reels] Published successfully! Media ID: ${mediaId}`);
-
-  // Step 5: Retrieve permalink
-  let permalink = `https://www.instagram.com/reel/`;
-  try {
-    const permalinkRes = await fetch(`${GRAPH_API_BASE}/${mediaId}?fields=permalink&access_token=${accessToken}`);
-    const permalinkData = await permalinkRes.json();
-    if (permalinkData.permalink) {
-      permalink = permalinkData.permalink;
-    }
-  } catch (e) {
-    // Non-critical fallback
-  }
-
-  return { id: mediaId, permalink };
+  throw new Error(`[Instagram Reels] Publishing failed after ${maxContainerAttempts} container attempts.`);
 }
 
 /**
@@ -270,27 +422,14 @@ async function uploadFacebookReel({ fbPageId, accessToken, videoPath, title, cap
   const uploadUrl = startData.upload_url;
   logger.success(`[Facebook Reels] Session started. Video ID: ${videoId}`);
 
-  // Step 2: Upload video binary to uploadUrl
-  logger.info(`[Facebook Reels] Uploading video binary to Facebook...`);
-  const videoBuffer = fs.readFileSync(videoPath);
-
-  const uploadRes = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `OAuth ${accessToken}`,
-      offset: '0',
-      file_size: String(fileSize),
-      'Content-Type': 'application/octet-stream',
-    },
-    body: videoBuffer,
+  // Step 2: Upload video binary to uploadUrl with automatic retry
+  await uploadVideoBinary({
+    uploadUri: uploadUrl,
+    videoPath,
+    accessToken,
+    platform: 'Facebook Reels',
+    maxRetries: 3,
   });
-
-  const uploadData = await uploadRes.json();
-  if (!uploadRes.ok || uploadData.success === false) {
-    const errMsg = uploadData?.error?.message || JSON.stringify(uploadData);
-    throw new Error(`Facebook binary upload failed: ${errMsg}`);
-  }
-  logger.success(`[Facebook Reels] Binary upload completed.`);
 
   // Step 3: Finish and publish Reel
   logger.info(`[Facebook Reels] Publishing Reel ${videoId}...`);
