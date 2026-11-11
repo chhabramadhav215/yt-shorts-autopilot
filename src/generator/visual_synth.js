@@ -67,6 +67,7 @@ export async function generateVisualBackground({
   epicBadge = '',
   themeType = null,
   visualQuery = null,
+  secondaryQuery = null,
   altQueries = [],
   customTopic = null,
 }) {
@@ -127,6 +128,7 @@ export async function generateVisualBackground({
     clipPath,
     themeType,
     visualQuery,
+    secondaryQuery,
     altQueries,
   });
 
@@ -177,10 +179,64 @@ export async function generateVisualBackground({
       // Slot 3 (News Explainer): Dynamic broadcast layout adhering to 15% top & 20% bottom safe zones
       const { line1, line2 } = summarizeNewsHeadline(headline || title);
 
-      filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
+      // Center Visual Section: 16:9 Edge-to-Edge (1080x608, y = 520 to 1128)
+      const centerTop = 520;
+      const centerBottom = 1128;
+      const centerH = centerBottom - centerTop; // 608px (exact 16:9 ratio)
+
+      let centerNode = 'v_mid';
+
+      if (media.isTopicVideo && fs.existsSync(media.filePath)) {
+        // CASE A: Dynamic moving topic video from Pexels (e.g. fireworks, flood, stock market, etc.)
+        // Full canvas blurred motion background for engaging visual depth
+        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=22:2[bg_blurred]`);
+        // Center: Crystal-clear focused 16:9 topic video
+        filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_topic]`);
+        filterParts.push(`[bg_blurred][center_topic]overlay=0:${centerTop}[v_base]`);
+
+        // Gold border lines framing the center 16:9 box
+        filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
+        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
+
+        // Topic badge in the corner of the center box
+        const badgeText = (media.topicQuery || 'SPECIAL REPORT').toUpperCase().slice(0, 24);
+        filterParts.push(`[v_center]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
+        filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
+        filterParts.push(`[v_b1]drawtext=text='${badgeText}':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
+        centerNode = 'v_mid';
+
+      } else if (media.topicImage && fs.existsSync(media.topicImage)) {
+        // CASE B: High-impact topic photo / leader portrait animated with Ken Burns pan & zoom
+        // Background: Moving newsroom studio loop with subtle motion blur
+        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=18:2[bg_news]`);
+
+        ffmpegArgs.push('-loop', '1', '-i', media.topicImage);
+        filterParts.push(`[1:v]scale=1440:810:force_original_aspect_ratio=increase,crop=1440:810,zoompan=z='min(zoom+0.0006,1.10)':d=${totalFrames}:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=1080x${centerH}:fps=30[leader_kb]`);
+        filterParts.push(`[bg_news][leader_kb]overlay=0:${centerTop}:shortest=1[v_leader]`);
+        filterParts.push(`[v_leader]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
+        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_l1]`);
+
+        const badgeText = (media.leaderBadge || 'SPECIAL REPORT').toUpperCase().slice(0, 24);
+        filterParts.push(`[v_l1]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
+        filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
+        filterParts.push(`[v_b1]drawtext=text='${badgeText}':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
+        centerNode = 'v_mid';
+
+      } else {
+        // CASE C: Engaging dynamic motion background (blurred newsroom background + clean focused news card layout)
+        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=22:2[bg_blur]`);
+        filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_studio]`);
+        filterParts.push(`[bg_blur][center_studio]overlay=0:${centerTop}[v_base]`);
+        filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
+        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_l1]`);
+        filterParts.push(`[v_l1]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
+        filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
+        filterParts.push(`[v_b1]drawtext=text='NEWS DESK REPORT':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
+        centerNode = 'v_mid';
+      }
 
       // Top Breaking Pill (y = 295 to 355, safely below top 15% safe zone = 288px)
-      filterParts.push(`[v0]drawbox=x=330:y=295:w=420:h=56:color=0xcc0000@0.95:t=fill[pill_bg]`);
+      filterParts.push(`[${centerNode}]drawbox=x=330:y=295:w=420:h=56:color=0xcc0000@0.95:t=fill[pill_bg]`);
       filterParts.push(`[pill_bg]drawbox=x=330:y=295:w=420:h=56:color=0xffcc00:t=2[pill_border]`);
       filterParts.push(`[pill_border]drawtext=text='BREAKING UPDATE':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=310:font='Arial Black'[v_badge]`);
 
@@ -196,38 +252,8 @@ export async function generateVisualBackground({
         filterParts.push(`[c1]drawtext=text='${line1}':fontcolor=0xffcc00:fontsize=42:x=(w-text_w)/2:y=416:font='Arial Black'[c_head]`);
       }
 
-      let lastNode = 'c_head';
-
-      // Center Visual Section: 16:9 Edge-to-Edge (1080x608, y = 520 to 1128)
-      const centerTop = 520;
-      const centerBottom = 1128;
-      const centerH = centerBottom - centerTop; // 608px (exact 16:9 ratio)
-
-      if (media.topicImage && fs.existsSync(media.topicImage)) {
-        // High-impact leader portrait animated with subtle Ken Burns pan/zoom to fill 16:9 box edge-to-edge
-        ffmpegArgs.push('-loop', '1', '-i', media.topicImage);
-        filterParts.push(`[1:v]scale=1440:810:force_original_aspect_ratio=increase,crop=1440:810,zoompan=z='min(zoom+0.0006,1.10)':d=${totalFrames}:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=1080x${centerH}:fps=30[leader_kb]`);
-        filterParts.push(`[${lastNode}][leader_kb]overlay=0:${centerTop}:shortest=1[v_leader]`);
-        filterParts.push(`[v_leader]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
-        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_l1]`);
-
-        if (media.leaderBadge) {
-          filterParts.push(`[v_l1]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
-          filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
-          filterParts.push(`[v_b1]drawtext=text='${media.leaderBadge}':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_boxed]`);
-          lastNode = 'v_boxed';
-        } else {
-          lastNode = 'v_l1';
-        }
-      } else {
-        // Dynamic moving newsroom studio video fills the frame edge-to-edge
-        filterParts.push(`[${lastNode}]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_c0]`);
-        filterParts.push(`[v_c0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_c1]`);
-        lastNode = 'v_c1';
-      }
-
       // Dark Semi-Transparent Subtitle Bar (y = 1145 to y = 1490)
-      filterParts.push(`[${lastNode}]drawbox=x=0:y=1145:w=1080:h=345:color=0x071126@0.85:t=fill[v_sub_bar]`);
+      filterParts.push(`[c_head]drawbox=x=0:y=1145:w=1080:h=345:color=0x071126@0.85:t=fill[v_sub_bar]`);
       filterParts.push(`[v_sub_bar]drawbox=x=0:y=1145:w=1080:h=2:color=0xffcc00@0.4:t=fill[v_sub_line]`);
 
       // Professional Clean Live News Ticker (y = 1495 to 1535, well above bottom 20% safe zone = 1536px)

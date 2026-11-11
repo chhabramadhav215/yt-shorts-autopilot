@@ -5,6 +5,7 @@ import { execFile } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { config } from '../config.js';
 import { logger } from './logger.js';
+import { extractNewsVisualQueries } from './text_utils.js';
 
 const WIKIMEDIA_USER_AGENT = 'YouTubeAutoShortsBot/1.0 (https://youtube.com/@auto-shorts; contact.autoshorts@gmail.com) NodeFetch/3.0';
 
@@ -103,11 +104,14 @@ async function searchWikimediaCommons(query, maxResults = 6) {
 
 /**
  * Attempts to download Pexels video if API key is configured
+ * @param {string} query
+ * @param {'portrait' | 'all'} [orientation]
  */
-async function tryDownloadPexels(query) {
+async function tryDownloadPexels(query, orientation = 'portrait') {
   if (!config.pexelsApiKey) return null;
   try {
-    const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&orientation=portrait&per_page=5`;
+    const orientParam = orientation === 'portrait' ? '&orientation=portrait' : '';
+    const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}${orientParam}&per_page=5`;
     const res = await fetch(url, {
       headers: { Authorization: config.pexelsApiKey },
     });
@@ -120,15 +124,47 @@ async function tryDownloadPexels(query) {
     const file = chosen.video_files.find((f) => f.height >= 1080) || chosen.video_files[0];
     if (!file || !file.link) return null;
 
-    const hash = crypto.createHash('md5').update(`pexels_${query}_${chosen.id}`).digest('hex');
+    const hash = crypto.createHash('md5').update(`pexels_v_${query}_${chosen.id}`).digest('hex');
     const dest = path.join(CACHE_DIR, `pexels_${hash}.mp4`);
     if (fs.existsSync(dest) && fs.statSync(dest).size > 50000) return { type: 'video', filePath: dest };
 
-    logger.info(`Downloading Pexels vertical video for "${query}"...`);
+    logger.info(`Downloading Pexels video for "${query}" (${orientation})...`);
     await downloadFile(file.link, dest);
     return { type: 'video', filePath: dest };
   } catch (e) {
-    logger.warn(`Pexels fetch failed: ${e.message}`);
+    logger.warn(`Pexels video fetch failed: ${e.message}`);
+    return null;
+  }
+}
+
+/**
+ * Attempts to download high-res Pexels photo if API key is configured
+ */
+async function tryDownloadPexelsPhoto(query) {
+  if (!config.pexelsApiKey) return null;
+  try {
+    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5`;
+    const res = await fetch(url, {
+      headers: { Authorization: config.pexelsApiKey },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const photos = data.photos || [];
+    if (photos.length === 0) return null;
+
+    const chosen = photos[Math.floor(Math.random() * photos.length)];
+    const imgUrl = chosen.src?.large2x || chosen.src?.large || chosen.src?.original;
+    if (!imgUrl) return null;
+
+    const hash = crypto.createHash('md5').update(`pexels_p_${query}_${chosen.id}`).digest('hex');
+    const dest = path.join(CACHE_DIR, `pexels_${hash}.jpg`);
+    if (fs.existsSync(dest) && fs.statSync(dest).size > 20000) return { type: 'image', filePath: dest };
+
+    logger.info(`Downloading Pexels photo for "${query}"...`);
+    await downloadFile(imgUrl, dest);
+    return { type: 'image', filePath: dest };
+  } catch (e) {
+    logger.warn(`Pexels photo fetch failed: ${e.message}`);
     return null;
   }
 }
@@ -152,6 +188,7 @@ export async function fetchSlotBackgroundMedia({
   clipPath = null,
   themeType = null,
   visualQuery = null,
+  secondaryQuery = null,
   altQueries = [],
 }) {
   const combinedText = `${customTopic || ''} ${title || ''}`.trim();
@@ -242,10 +279,56 @@ export async function fetchSlotBackgroundMedia({
       defaultAsset = path.join(DEFAULTS_DIR, 'slot2_shiva.jpg');
     }
   } else if (slotType === 'slot3') {
-    // Slot 3: Dynamic newsroom video background + high-impact leader/topic photo
+    // Slot 3: Dynamic newsroom video background + smart topic footage / leader photo
     const newsVideo = path.join(DEFAULTS_DIR, 'slot3_news.mp4');
 
-    // Detect high-impact leaders or institutions mentioned in headline
+    // 1. Build smart search queries (extracting broad visual terms rather than raw headline)
+    const queriesToTry = [];
+    if (visualQuery) queriesToTry.push(visualQuery);
+    if (secondaryQuery) queriesToTry.push(secondaryQuery);
+    if (Array.isArray(altQueries)) queriesToTry.push(...altQueries);
+
+    if (queriesToTry.length === 0) {
+      const extracted = extractNewsVisualQueries(combinedText);
+      queriesToTry.push(extracted.primaryQuery, extracted.secondaryQuery, ...(extracted.altQueries || []));
+    }
+
+    logger.info(`[SLOT 3] Smart news visual queries to search: ${queriesToTry.slice(0, 3).map((q) => `"${q}"`).join(', ')}`);
+
+    // 2. Query dynamic Pexels video clips matching the specific context of the news topic
+    for (const q of queriesToTry) {
+      // First try portrait orientation
+      let pexelsVideo = await tryDownloadPexels(q, 'portrait');
+      // If no portrait video, try any orientation (landscape fits into center 16:9 box or blurred canvas)
+      if (!pexelsVideo) {
+        pexelsVideo = await tryDownloadPexels(q, 'all');
+      }
+      if (pexelsVideo) {
+        logger.success(`Matched dynamic Pexels video for News topic "${q}": ${path.basename(pexelsVideo.filePath)}`);
+        return {
+          type: 'video',
+          filePath: pexelsVideo.filePath,
+          isTopicVideo: true,
+          topicQuery: q,
+        };
+      }
+    }
+
+    // 3. If no video from Pexels, search Pexels for high-res topic photos
+    for (const q of queriesToTry) {
+      const pexelsPhoto = await tryDownloadPexelsPhoto(q);
+      if (pexelsPhoto) {
+        logger.success(`Matched dynamic Pexels photo for News topic "${q}": ${path.basename(pexelsPhoto.filePath)}`);
+        return {
+          type: 'video',
+          filePath: fs.existsSync(newsVideo) ? newsVideo : pexelsPhoto.filePath,
+          topicImage: pexelsPhoto.filePath,
+          leaderBadge: q.toUpperCase().slice(0, 24),
+        };
+      }
+    }
+
+    // 4. Detect high-impact leaders or institutions mentioned in headline
     const textLower = combinedText.toLowerCase();
     let leaderQuery = null;
     let leaderBadge = null;
@@ -372,11 +455,16 @@ export async function fetchSlotBackgroundMedia({
       }
     }
 
-    if (fs.existsSync(newsVideo)) {
-      logger.info(`Using curated moving newsroom video: slot3_news.mp4`);
+    if (topicImage) {
       return { type: 'video', filePath: newsVideo, topicImage, leaderBadge };
     }
+
+    if (fs.existsSync(newsVideo)) {
+      logger.info(`Using curated dynamic newsroom video: slot3_news.mp4`);
+      return { type: 'video', filePath: newsVideo, isDefaultFallback: true };
+    }
     defaultAsset = path.join(DEFAULTS_DIR, 'slot3_news.jpg');
+    return { type: 'image', filePath: defaultAsset, isDefaultFallback: true };
   }
 
   // 1. Try Pexels video if API key configured

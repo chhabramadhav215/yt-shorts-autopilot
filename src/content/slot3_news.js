@@ -1,7 +1,7 @@
 import path from 'path';
 import { fetchTrendingNews } from './news_fetcher.js';
 import { config } from '../config.js';
-import { summarizeNewsHeadline } from '../utils/text_utils.js';
+import { summarizeNewsHeadline, extractNewsVisualQueries } from '../utils/text_utils.js';
 
 export async function generateSlot3Content(customTopic = null) {
   let headline = '';
@@ -18,6 +18,7 @@ export async function generateSlot3Content(customTopic = null) {
 
   const cleanHeadline = headline.replace(/['":]/g, '').trim();
   const summary = summarizeNewsHeadline(cleanHeadline);
+  const visualQueries = extractNewsVisualQueries(cleanHeadline);
 
   // Clean, punchy YouTube title (under 60 chars) without mid-word cutoffs or trailing dots
   const title = `EXPLAINED: ${summary.fullSummary} 🚨`;
@@ -72,6 +73,10 @@ export async function generateSlot3Content(customTopic = null) {
     slotName: 'News Explainer (Breaking Update)',
     title,
     headline: summary.fullSummary,
+    visualQuery: visualQueries.primaryQuery,
+    secondaryQuery: visualQueries.secondaryQuery,
+    altQueries: visualQueries.altQueries,
+    detectedCategory: visualQueries.detectedCategory,
     description,
     tags,
     voice: config.voices.slot3,
