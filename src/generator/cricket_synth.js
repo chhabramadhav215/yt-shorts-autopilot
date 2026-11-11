@@ -21,6 +21,10 @@ function runFFmpeg(args) {
   });
 }
 
+function toFfmpegTextfilePath(filePath) {
+  return filePath.replace(/\\/g, '/').replace(/:/g, '\\:');
+}
+
 function escapeFfmpegDrawtext(str) {
   if (!str) return '';
   return String(str)
@@ -182,14 +186,42 @@ export async function generateCricketVisualBackground({
   const playerImagePath = await fetchPlayerPortrait(rawPlayer);
 
   const { line1, line2 } = summarizeNewsHeadline(rawHeadline);
-  const safeLine1 = escapeFfmpegDrawtext(line1);
-  const safeLine2 = escapeFfmpegDrawtext(line2);
+
+  // Write text files for all dynamic drawtext overlays to prevent FFmpeg inline quote/colon parsing errors
+  const tempTextDir = path.join(path.dirname(outputPath), 'text_overlays');
+  fs.mkdirSync(tempTextDir, { recursive: true });
+
+  const playerFile = path.join(tempTextDir, 'player.txt');
+  fs.writeFileSync(playerFile, toTitleCase(rawPlayer).toUpperCase().slice(0, 22), 'utf8');
+
+  const badgeFile = path.join(tempTextDir, 'badge.txt');
+  const badgeContent = topic ? toTitleCase(topic).toUpperCase().slice(0, 28) : 'IPL 2026 • CRICKET BUZZ 🏏';
+  fs.writeFileSync(badgeFile, badgeContent, 'utf8');
+
+  const head1File = path.join(tempTextDir, 'headline_1.txt');
+  fs.writeFileSync(head1File, line1 || 'IPL 2026', 'utf8');
+
+  let head2File = null;
+  if (line2) {
+    head2File = path.join(tempTextDir, 'headline_2.txt');
+    fs.writeFileSync(head2File, line2, 'utf8');
+  }
+
+  const statFile = path.join(tempTextDir, 'stat.txt');
+  fs.writeFileSync(statFile, (statBadge || 'IPL 2026 BUZZ').toUpperCase().slice(0, 48), 'utf8');
+
+  const tagFile = path.join(tempTextDir, 'tag.txt');
+  fs.writeFileSync(tagFile, 'CRICKET BUZZ', 'utf8');
+
+  const tickerFile = path.join(tempTextDir, 'ticker.txt');
+  const tickerContent = `LIVE IPL 2026 • ${toTitleCase(rawHeadline).slice(0, 75)} • TRADE RUMORS • RECORD BIDS • `;
+  fs.writeFileSync(tickerFile, tickerContent, 'utf8');
 
   const ffmpegArgs = ['-y', '-stream_loop', '-1', '-i', bgVideoPath];
   const filterParts = [];
 
-  // Layer 1 (Background): Looped stadium video with subtle dark vignette overlay
-  filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=8:2,vignette=PI/4[bg_stadium]`);
+  // Layer 1 (Background): Looped stadium video with subtle dark vignette overlay (gblur for smooth performance)
+  filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12,vignette=PI/4[bg_stadium]`);
   // Top Scrim (y=0 to 490) for Header & Headline
   filterParts.push(`[bg_stadium]drawbox=x=0:y=0:w=1080:h=490:color=0x000511@0.75:t=fill[scrim_top]`);
   // Bottom Scrim (y=1180 to 1920) for Lower-Third & Subtitles
@@ -208,11 +240,10 @@ export async function generateCricketVisualBackground({
     // Glowing team border framing the player
     filterParts.push(`[v_player]drawbox=x=156:y=476:w=768:h=768:color=${teamTheme.accent}:t=6[v_frame]`);
 
-    // Player name badge at corner of player frame
-    const safePlayer = escapeFfmpegDrawtext(toTitleCase(rawPlayer).toUpperCase().slice(0, 22));
+    // Player name badge at corner of player frame (using textfile)
     filterParts.push(`[v_frame]drawbox=x=160:y=1180:w=440:h=54:color=${teamTheme.primary}@0.95:t=fill[p_b0]`);
     filterParts.push(`[p_b0]drawbox=x=160:y=1180:w=440:h=54:color=${teamTheme.accent}:t=2[p_b1]`);
-    filterParts.push(`[p_b1]drawtext=text='${safePlayer}':fontcolor=white:fontsize=28:x=185:y=1192[v_center]`);
+    filterParts.push(`[p_b1]drawtext=textfile='${toFfmpegTextfilePath(playerFile)}':fontcolor=white:fontsize=28:x=185:y=1192[v_center]`);
     centerNode = 'v_center';
   } else {
     // Fallback Stadium Action Center Box
@@ -225,28 +256,26 @@ export async function generateCricketVisualBackground({
 
   // Layer 3: Top Badge, Headline, Lower-Third sports news card & ticker
   // Top Badge: "IPL 2026 • CRICKET BUZZ" (y=295 to 355)
-  const badgeText = topic ? escapeFfmpegDrawtext(toTitleCase(topic).toUpperCase().slice(0, 28)) : 'IPL 2026 • CRICKET BUZZ 🏏';
   filterParts.push(`[${centerNode}]drawbox=x=290:y=295:w=500:h=56:color=${teamTheme.primary}@0.95:t=fill[pill_bg]`);
   filterParts.push(`[pill_bg]drawbox=x=290:y=295:w=500:h=56:color=${teamTheme.accent}:t=2[pill_border]`);
-  filterParts.push(`[pill_border]drawtext=text='${badgeText}':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=310[v_badge]`);
+  filterParts.push(`[pill_border]drawtext=textfile='${toFfmpegTextfilePath(badgeFile)}':fontcolor=white:fontsize=28:x=(w-text_w)/2:y=310[v_badge]`);
 
   // 2-Line High-Impact Headline Card (y=365 to 475)
   filterParts.push(`[v_badge]drawbox=x=50:y=365:w=980:h=120:color=0x050c1a@0.95:t=fill[c0]`);
   filterParts.push(`[c0]drawbox=x=50:y=365:w=10:h=120:color=${teamTheme.accent}:t=fill[c_accent]`);
   filterParts.push(`[c_accent]drawbox=x=50:y=365:w=980:h=120:color=${teamTheme.accent}@0.5:t=2[c1]`);
 
-  if (safeLine2) {
-    filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=${teamTheme.accent}:fontsize=36:x=(w-text_w)/2:y=380[c2]`);
-    filterParts.push(`[c2]drawtext=text='${safeLine2}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=428[c_head]`);
+  if (head2File) {
+    filterParts.push(`[c1]drawtext=textfile='${toFfmpegTextfilePath(head1File)}':fontcolor=${teamTheme.accent}:fontsize=36:x=(w-text_w)/2:y=380[c2]`);
+    filterParts.push(`[c2]drawtext=textfile='${toFfmpegTextfilePath(head2File)}':fontcolor=white:fontsize=36:x=(w-text_w)/2:y=428[c_head]`);
   } else {
-    filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=${teamTheme.accent}:fontsize=40:x=(w-text_w)/2:y=404[c_head]`);
+    filterParts.push(`[c1]drawtext=textfile='${toFfmpegTextfilePath(head1File)}':fontcolor=${teamTheme.accent}:fontsize=40:x=(w-text_w)/2:y=404[c_head]`);
   }
 
   // Sports News Lower-Third Card: Team badge & stat pill (y=1245 to 1305)
-  const safeStat = escapeFfmpegDrawtext(statBadge.toUpperCase().slice(0, 48));
   filterParts.push(`[c_head]drawbox=x=60:y=1245:w=960:h=58:color=${teamTheme.primary}@0.95:t=fill[lt_bg]`);
   filterParts.push(`[lt_bg]drawbox=x=60:y=1245:w=960:h=58:color=${teamTheme.accent}:t=2[lt_border]`);
-  filterParts.push(`[lt_border]drawtext=text='${safeStat}':fontcolor=white:fontsize=26:x=(w-text_w)/2:y=1260[v_lt]`);
+  filterParts.push(`[lt_border]drawtext=textfile='${toFfmpegTextfilePath(statFile)}':fontcolor=white:fontsize=26:x=(w-text_w)/2:y=1260[v_lt]`);
 
   // Subtitle Area Dark Bed (y=1315 to 1485)
   filterParts.push(`[v_lt]drawbox=x=0:y=1315:w=1080:h=170:color=0x000511@0.85:t=fill[v_sub_bed]`);
@@ -254,9 +283,8 @@ export async function generateCricketVisualBackground({
   // Bottom Live Cricket Ticker (y=1495 to 1535, well above bottom safe zone)
   filterParts.push(`[v_sub_bed]drawbox=x=0:y=1495:w=1080:h=40:color=0xb30000@0.95:t=fill[v_ticker]`);
   filterParts.push(`[v_ticker]drawbox=x=0:y=1495:w=260:h=40:color=${teamTheme.accent}:t=fill[v_tag_box]`);
-  filterParts.push(`[v_tag_box]drawtext=text='CRICKET BUZZ':fontcolor=black:fontsize=22:x=45:y=1506[v_tag_txt]`);
-  const tickerText = escapeFfmpegDrawtext(toTitleCase(rawHeadline).slice(0, 75));
-  filterParts.push(`[v_tag_txt]drawtext=text='LIVE IPL 2026 • ${tickerText} • TRADE RUMORS • RECORD BIDS • ':fontcolor=white:fontsize=22:x=w-mod(t*175\\,w+1400):y=1506[vout]`);
+  filterParts.push(`[v_tag_box]drawtext=textfile='${toFfmpegTextfilePath(tagFile)}':fontcolor=black:fontsize=22:x=45:y=1506[v_tag_txt]`);
+  filterParts.push(`[v_tag_txt]drawtext=textfile='${toFfmpegTextfilePath(tickerFile)}':fontcolor=white:fontsize=22:x=w-mod(t*175\\,w+1400):y=1506[vout]`);
 
   ffmpegArgs.push(
     '-filter_complex', filterParts.join(';'),
@@ -269,8 +297,14 @@ export async function generateCricketVisualBackground({
   );
 
   logger.info(`Rendering Slot 5 cricket visual background (${roundDur}s)...`);
-  await runFFmpeg(ffmpegArgs);
-  logger.success(`Slot 5 cricket visual rendered: ${outputPath}`);
+  try {
+    await runFFmpeg(ffmpegArgs);
+    logger.success(`Slot 5 cricket visual rendered: ${outputPath}`);
+  } finally {
+    try {
+      fs.rmSync(tempTextDir, { recursive: true, force: true });
+    } catch (_) {}
+  }
 
   // Auto-generate high-contrast thumbnail/cover frame at 0.1s for Instagram/YouTube
   const coverPath = path.join(path.dirname(outputPath), 'cover.jpg');
