@@ -42,71 +42,128 @@ export function generateAssSubtitles({
 }) {
   let subtitleCues = [];
 
-  // 1. Try to extract sentence boundaries from Hindi TTS metadata
+  // 1. Extract word and sentence boundaries from TTS metadata
+  let wordBoundaries = [];
   let sentenceBoundaries = [];
   if (metadataPath && fs.existsSync(metadataPath)) {
     try {
       const raw = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
       const entries = raw.Metadata || [];
       for (const item of entries) {
-        if (item.Type === 'SentenceBoundary' && item.Data?.Duration > 0) {
-          const startMs = item.Data.Offset / 10000;
-          const durMs = item.Data.Duration / 10000;
+        if (item.Type === 'WordBoundary' && item.Data?.Duration > 0) {
+          wordBoundaries.push({
+            startMs: item.Data.Offset / 10000,
+            endMs: (item.Data.Offset + item.Data.Duration) / 10000,
+            text: item.Data?.text?.Text || '',
+          });
+        } else if (item.Type === 'SentenceBoundary' && item.Data?.Duration > 0) {
           sentenceBoundaries.push({
-            startMs,
-            endMs: startMs + durMs,
+            startMs: item.Data.Offset / 10000,
+            endMs: (item.Data.Offset + item.Data.Duration) / 10000,
             text: item.Data?.text?.Text || '',
           });
         }
       }
     } catch (e) {
-      logger.warn(`Failed to parse metadata sentence boundaries: ${e.message}`);
+      logger.warn(`Failed to parse metadata boundaries: ${e.message}`);
     }
   }
 
-  // 2. Align English text across time (incorporating timeOffsetMs for Dual-Audio)
-  if (segments && segments.length > 0 && sentenceBoundaries.length >= segments.length) {
-    // Exact segment-to-sentence mapping
+  // Exact voiceover duration in milliseconds (scaled to real media duration)
+  const totalMs = Math.max(
+    Math.round((audioDuration || 0) * 1000),
+    wordBoundaries[wordBoundaries.length - 1]?.endMs || 0,
+    sentenceBoundaries[sentenceBoundaries.length - 1]?.endMs || 0,
+    5000
+  );
+
+  // 2. Segment-aware subtitle cue alignment (100% audio sync with zero early cutoff)
+  if (segments && segments.length > 0) {
+    const segmentWeights = segments.map((s) => {
+      const hindiWords = (s.hindi || '').trim().split(/\s+/).filter(Boolean);
+      return Math.max(hindiWords.length, 1);
+    });
+    const totalWeight = segmentWeights.reduce((a, b) => a + b, 0);
+
+    let segmentTimeSpans = [];
+    if (wordBoundaries.length >= totalWeight * 0.6 && wordBoundaries.length > 0) {
+      let currentWordIdx = 0;
+      for (let i = 0; i < segments.length; i++) {
+        const weight = segmentWeights[i];
+        const count = Math.max(1, Math.round((weight / totalWeight) * wordBoundaries.length));
+        const startIdx = currentWordIdx;
+        const endIdx = (i === segments.length - 1)
+          ? wordBoundaries.length - 1
+          : Math.min(wordBoundaries.length - 1, currentWordIdx + count - 1);
+
+        const startMs = wordBoundaries[startIdx]?.startMs ?? (i === 0 ? 0 : segmentTimeSpans[i - 1].endMs);
+        const endMs = (i === segments.length - 1)
+          ? totalMs
+          : (wordBoundaries[endIdx]?.endMs ?? Math.round(((startIdx + count) / wordBoundaries.length) * totalMs));
+
+        segmentTimeSpans.push({ startMs, endMs: Math.max(startMs + 400, endMs) });
+        currentWordIdx = endIdx + 1;
+      }
+    } else {
+      let curMs = 0;
+      for (let i = 0; i < segments.length; i++) {
+        const weight = segmentWeights[i];
+        const dur = Math.round((weight / totalWeight) * totalMs);
+        const startMs = curMs;
+        const endMs = (i === segments.length - 1) ? totalMs : (startMs + dur);
+        segmentTimeSpans.push({ startMs, endMs });
+        curMs = endMs;
+      }
+    }
+
     for (let i = 0; i < segments.length; i++) {
-      const boundary = sentenceBoundaries[i];
-      const englishSentence = segments[i].english.trim();
-      const words = englishSentence.split(/\s+/).filter(Boolean);
+      const span = segmentTimeSpans[i];
+      const text = (segments[i].english || segments[i].hindi || '').trim();
+      const words = text.replace(/[#*`_~]/g, ' ').split(/\s+/).filter(Boolean);
       if (words.length === 0) continue;
 
-      const sentenceDur = boundary.endMs - boundary.startMs;
       const chunkSize = 3;
       const numChunks = Math.ceil(words.length / chunkSize);
-      const chunkDur = sentenceDur / (numChunks || 1);
+      const spanDur = span.endMs - span.startMs;
+      const chunkDur = spanDur / numChunks;
 
       for (let c = 0; c < numChunks; c++) {
         const chunkWords = words.slice(c * chunkSize, (c + 1) * chunkSize);
-        const chunkStart = timeOffsetMs + boundary.startMs + (c * chunkDur);
-        const chunkEnd = Math.min(timeOffsetMs + boundary.endMs, chunkStart + chunkDur);
+        const chunkStart = timeOffsetMs + span.startMs + Math.round(c * chunkDur);
+        const isVeryLastCue = (i === segments.length - 1 && c === numChunks - 1);
+        const chunkEnd = isVeryLastCue
+          ? (timeOffsetMs + totalMs)
+          : (timeOffsetMs + span.startMs + Math.round((c + 1) * chunkDur));
+
         subtitleCues.push({
           startMs: chunkStart,
-          endMs: chunkEnd,
+          endMs: Math.max(chunkStart + 350, chunkEnd),
           text: chunkWords.join(' ').toUpperCase(),
         });
       }
     }
-  } else {
-    // Proportional word timing based on total English text & audio duration
+  }
+
+  // Fallback if segments was empty
+  if (subtitleCues.length === 0) {
     const cleanEnglish = (englishText || '').replace(/[#*`_~]/g, ' ').trim();
     const words = cleanEnglish.split(/\s+/).filter(Boolean);
 
     if (words.length > 0) {
       const chunkSize = 3;
       const numChunks = Math.ceil(words.length / chunkSize);
-      const totalMs = Math.max(audioDuration, 5) * 1000;
       const chunkDur = totalMs / (numChunks || 1);
 
       for (let c = 0; c < numChunks; c++) {
         const chunkWords = words.slice(c * chunkSize, (c + 1) * chunkSize);
-        const chunkStart = timeOffsetMs + (c * chunkDur);
-        const chunkEnd = Math.min(timeOffsetMs + totalMs, chunkStart + chunkDur);
+        const chunkStart = timeOffsetMs + Math.round(c * chunkDur);
+        const chunkEnd = (c === numChunks - 1)
+          ? (timeOffsetMs + totalMs)
+          : (timeOffsetMs + Math.round((c + 1) * chunkDur));
+
         subtitleCues.push({
           startMs: chunkStart,
-          endMs: chunkEnd,
+          endMs: Math.max(chunkStart + 350, chunkEnd),
           text: chunkWords.join(' ').toUpperCase(),
         });
       }
@@ -173,7 +230,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
   for (const cue of subtitleCues) {
     const startCode = formatASSTime(cue.startMs);
     const endCode = formatASSTime(cue.endMs);
-    if (slotType === 'slot5' || slotType === 'slot1') {
+    if (slotType === 'slot5' || slotType === 'slot1' || slotType === 'slot3') {
       // Dynamic animated karaoke / pop highlighting
       const words = cue.text.split(' ');
       let styledText = '';

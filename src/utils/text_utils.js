@@ -103,21 +103,34 @@ export function summarizeNewsHeadline(rawHeadline) {
   // Convert to standard Title Case
   text = toTitleCase(text);
 
-  // 2. If text exceeds 50 chars, split at clean clause or word boundary
-  if (text.length > 50) {
-    const clauseRegex = /\s+(after|as|amid|following|ahead of|over|says|warns)\s+/i;
-    const match = text.match(clauseRegex);
-    if (match && match.index && match.index >= 18 && match.index <= 48) {
-      text = text.substring(0, match.index).trim();
+  // 2. If text exceeds 56 chars, split at clean clause, colon, or word boundary
+  if (text.length > 56) {
+    // Check if there is an explicit colon or dash separating main topic
+    const colonMatch = text.match(/^(.*?)(?::|—|–|-)\s*(.*)$/);
+    if (colonMatch && colonMatch[1].length >= 20 && colonMatch[1].length <= 54) {
+      text = colonMatch[1].trim();
     } else {
-      const sub = text.substring(0, 48);
-      const lastSpace = sub.lastIndexOf(' ');
-      if (lastSpace > 20) {
-        text = sub.substring(0, lastSpace).trim();
+      const clauseRegex = /\s+(?:after|as|amid|following|ahead of|over|says|warns)\s+/i;
+      const match = text.match(clauseRegex);
+      if (match && match.index && match.index >= 20 && match.index <= 54) {
+        text = text.substring(0, match.index).trim();
       } else {
-        text = sub.trim();
+        const sub = text.substring(0, 54);
+        const lastSpace = sub.lastIndexOf(' ');
+        if (lastSpace > 24) {
+          text = sub.substring(0, lastSpace).trim();
+        } else {
+          text = sub.trim();
+        }
       }
     }
+  }
+
+  // Strip any dangling prepositions, conjunctions, or incomplete connectors
+  // Never end abruptly on words like "to", "threat to", "for", "with", "in", "after"
+  const danglingConnectors = /\s+(?:to|of|in|for|on|with|at|by|from|and|or|as|that|is|are|after|amid|over|into|about|under|than|the|a|an)\s*$/i;
+  while (danglingConnectors.test(text)) {
+    text = text.replace(danglingConnectors, '').trim();
   }
 
   // Remove trailing punctuation except quotes
