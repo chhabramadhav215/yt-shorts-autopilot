@@ -148,17 +148,24 @@ PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: ShortsDefault,Arial Black,${fontSize},${primaryColor},&H000000FF,${outlineColor},${backColor},-1,0,0,0,100,100,0,0,1,7,3,2,60,60,${marginV},1
-Style: ShlokStyle,Arial,58,&H002BD7FF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,70,70,580,1
+Style: ShortsDefault,Noto Sans,${fontSize},${primaryColor},&H000000FF,${outlineColor},${backColor},-1,0,0,0,100,100,0,0,1,7,3,2,60,60,${marginV},1
+Style: ShlokStyle,Noto Sans Devanagari,58,&H002BD7FF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,70,70,580,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
 
-  // For Slot 4 Dual-Audio: Display the Sanskrit/Hindi Shloka on screen during the first 5-10s
+  // For Slot 4 Dual-Audio: Display the Sanskrit/Hindi/Hinglish Shloka on screen during the first 5-10s
   if (shlokIntroText && timeOffsetMs >= 2000) {
     const shlokEndMs = Math.max(1000, timeOffsetMs - 300);
-    const cleanShlok = shlokIntroText.replace(/\n+/g, ' \\N ');
+    let cleanShlok = shlokIntroText.replace(/[{}]/g, '').trim();
+    if (cleanShlok.includes('\n')) {
+      cleanShlok = cleanShlok.replace(/\n+/g, ' \\N ');
+    } else if (cleanShlok.length > 45 && cleanShlok.includes(' ')) {
+      const words = cleanShlok.split(/\s+/);
+      const mid = Math.ceil(words.length / 2);
+      cleanShlok = `${words.slice(0, mid).join(' ')} \\N ${words.slice(mid).join(' ')}`;
+    }
     ass += `Dialogue: 0,0:00:00.60,${formatASSTime(shlokEndMs)},ShlokStyle,,0,0,0,,{\\b1}${cleanShlok}{\\b0}\n`;
   }
 

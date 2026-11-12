@@ -1,9 +1,32 @@
 import ffmpegStatic from 'ffmpeg-static';
 import ffprobeStatic from 'ffprobe-static';
+import { createRequire } from 'module';
 import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger.js';
+
+const require = createRequire(import.meta.url);
+
+const ffmpegPath = process.env.FFMPEG_PATH || (function() {
+  try {
+    const { execSync } = require('child_process');
+    const cmd = process.platform === 'win32' ? 'where ffmpeg' : 'which ffmpeg';
+    return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim().split(/\r?\n/)[0];
+  } catch(e) {
+    return ffmpegStatic;
+  }
+})();
+
+const ffprobePath = process.env.FFPROBE_PATH || (function() {
+  try {
+    const { execSync } = require('child_process');
+    const cmd = process.platform === 'win32' ? 'where ffprobe' : 'which ffprobe';
+    return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim().split(/\r?\n/)[0];
+  } catch(e) {
+    return ffprobeStatic.path;
+  }
+})();
 
 /**
  * Gets exact duration in seconds of an audio or video file
@@ -11,7 +34,7 @@ import { logger } from '../utils/logger.js';
 export function getMediaDuration(filePath) {
   return new Promise((resolve, reject) => {
     execFile(
-      ffprobeStatic.path,
+      ffprobePath,
       [
         '-v', 'error',
         '-show_entries', 'format=duration',
@@ -34,7 +57,7 @@ export function hasAudioStream(filePath) {
   return new Promise((resolve) => {
     if (!filePath || !fs.existsSync(filePath)) return resolve(false);
     execFile(
-      ffprobeStatic.path,
+      ffprobePath,
       [
         '-v', 'error',
         '-select_streams', 'a',
@@ -52,7 +75,7 @@ export function hasAudioStream(filePath) {
 
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
-    execFile(ffmpegStatic, args, (err, stdout, stderr) => {
+    execFile(ffmpegPath, args, (err, stdout, stderr) => {
       if (err) {
         logger.error('FFmpeg builder error:', stderr || err.message);
         reject(err);
@@ -93,10 +116,13 @@ export async function buildShortVideo({
 
   logger.info(`Building final YouTube Short (${totalDuration.toFixed(1)}s, DualAudio: ${isDualAudio})...`);
 
-  // Prepare subtitle filter path for Windows FFmpeg
+  // Prepare subtitle filter path for Windows/Linux FFmpeg
   let subtitleFilter = '';
   if (subtitlesPath && fs.existsSync(subtitlesPath)) {
-    const escapedSubPath = subtitlesPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+    const escapedSubPath = subtitlesPath
+      .replace(/\\/g, '/')
+      .replace(/:/g, '\\:')
+      .replace(/'/g, "'\\\\''");
     subtitleFilter = `subtitles='${escapedSubPath}'`;
   }
 
@@ -135,29 +161,36 @@ export async function buildShortVideo({
     hasSfx = true;
   }
 
-  // Build audio filter complex
+  // Build audio filter complex with strict format matching before amix
   let filterComplex = '';
   const fadeOutStart = Math.max(0, totalDuration - 0.6);
+  const safeAudioFmt = 'aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo';
 
-  if (isDualAudio && hasAudioTrack2 && introDuration > 0) {
+  if (isDualAudio && hasAudioTrack2) {
     const delayMs = Math.round(introDuration * 1000);
-    filterComplex += `[2:a]aresample=44100,aformat=channel_layouts=stereo,volume='if(lt(t,${introDuration}), 1.0, 0.15)':eval=frame,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6[clip_ducked];`;
-    filterComplex += `[1:a]aresample=44100,aformat=channel_layouts=stereo,adelay=${delayMs}|${delayMs},volume=1.0[vce];`;
+    const duckingFilter = introDuration > 0
+      ? `volume='if(lt(t,${introDuration}), 1.0, 0.15)':eval=frame`
+      : `volume=0.20`;
+
+    filterComplex += `[2:a]aresample=44100,${safeAudioFmt},${duckingFilter},atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6,${safeAudioFmt}[clip_ducked];`;
+    filterComplex += delayMs > 0
+      ? `[1:a]aresample=44100,${safeAudioFmt},adelay=${delayMs}|${delayMs},volume=1.0,${safeAudioFmt}[vce];`
+      : `[1:a]aresample=44100,${safeAudioFmt},volume=1.0,${safeAudioFmt}[vce];`;
     filterComplex += `[clip_ducked][vce]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout];`;
   } else if (hasAudioTrack2 && hasSfx) {
     // Mix Voiceover + BGM + SFX impact
     const sfxIdx = 3;
-    filterComplex += `[1:a]aresample=44100,aformat=channel_layouts=stereo,volume=1.0[vce];`;
-    filterComplex += `[2:a]aresample=44100,aformat=channel_layouts=stereo,volume=0.18,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6[bgm];`;
-    filterComplex += `[${sfxIdx}:a]aresample=44100,aformat=channel_layouts=stereo,adelay=150|150,volume=0.25[sfx];`;
+    filterComplex += `[1:a]aresample=44100,${safeAudioFmt},volume=1.0,${safeAudioFmt}[vce];`;
+    filterComplex += `[2:a]aresample=44100,${safeAudioFmt},volume=0.18,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6,${safeAudioFmt}[bgm];`;
+    filterComplex += `[${sfxIdx}:a]aresample=44100,${safeAudioFmt},adelay=150|150,volume=0.25,${safeAudioFmt}[sfx];`;
     filterComplex += `[vce][bgm][sfx]amix=inputs=3:duration=first:dropout_transition=2:normalize=0[aout];`;
   } else if (hasAudioTrack2) {
     // Normal BGM mix for Slots 1, 2, 3, 5
-    filterComplex += `[1:a]aresample=44100,aformat=channel_layouts=stereo,volume=1.0[vce];`;
-    filterComplex += `[2:a]aresample=44100,aformat=channel_layouts=stereo,volume=0.15,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6[bgm];`;
+    filterComplex += `[1:a]aresample=44100,${safeAudioFmt},volume=1.0,${safeAudioFmt}[vce];`;
+    filterComplex += `[2:a]aresample=44100,${safeAudioFmt},volume=0.15,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6,${safeAudioFmt}[bgm];`;
     filterComplex += `[vce][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout];`;
   } else {
-    filterComplex += `[1:a]aresample=44100,aformat=channel_layouts=stereo,volume=1.0[aout];`;
+    filterComplex += `[1:a]aresample=44100,${safeAudioFmt},volume=1.0[aout];`;
   }
 
   // Build video filter

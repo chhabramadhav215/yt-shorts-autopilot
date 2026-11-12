@@ -14,7 +14,8 @@ const require = createRequire(import.meta.url);
 const ffmpegPath = process.env.FFMPEG_PATH || (function() {
   try {
     const { execSync } = require('child_process');
-    return execSync('which ffmpeg', { encoding: 'utf8' }).trim();
+    const cmd = process.platform === 'win32' ? 'where ffmpeg' : 'which ffmpeg';
+    return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim().split(/\r?\n/)[0];
   } catch(e) {
     return require('ffmpeg-static');
   }

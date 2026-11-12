@@ -75,7 +75,7 @@ export async function generateShortVideo(slot, customTopic = null) {
     fallbackText: content.englishSubtitles || content.voiceScript,
     audioDuration,
     timeOffsetMs: Math.round(introDuration * 1000),
-    shlokIntroText: content.shlokSanskrit || '',
+    shlokIntroText: content.shlokEnglish || content.shlokSanskrit || '',
   });
 
   // 4. Generate 1080x1920 Visual Background (with blur margins for clips)
