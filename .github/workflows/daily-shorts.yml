@@ -63,6 +63,12 @@ jobs:
       - name: Install Node Dependencies
         run: npm install
 
+      - name: Install Devanagari & Emoji Fonts for Subtitles
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-color-emoji
+          fc-cache -fv
+
       - name: Override Static FFmpeg with System Binary
         run: |
           SYS_FFMPEG=$(which ffmpeg)
