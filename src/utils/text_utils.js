@@ -206,6 +206,14 @@ Rules:
   return null;
 }
 
+function matchesTrigger(text, trig) {
+  if (trig.includes(' ')) {
+    return text.includes(trig);
+  }
+  const regex = new RegExp(`\\b${trig.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  return regex.test(text);
+}
+
 /**
  * Extracts 2-3 broad visual stock video search queries from a news headline using rule-based semantic categorization.
  * NEVER passes raw headlines or person names to Pexels; always maps to real visual stock footage tags.
@@ -226,6 +234,39 @@ export function extractNewsVisualQueries(headline = '') {
 
   // 1. Semantic category rules for news topics
   const categories = [
+    {
+      name: 'environment_pollution',
+      triggers: [
+        'cpcb', 'pollution', 'smog', 'aqi', 'air quality', 'delhi smog', 'stubble',
+        'emission', 'emissions', 'clean air', 'greenhouse', 'toxic air', 'mask', 'haze',
+        'delhi pollution', 'delhi aqi', 'delhi air'
+      ],
+      primary: 'air pollution smog city',
+      secondary: 'city skyline aerial',
+      alts: ['breaking news studio', 'traffic city haze', 'industrial smoke pollution'],
+    },
+    {
+      name: 'politics_government',
+      triggers: [
+        'parliament', 'lok sabha', 'rajya sabha', 'election', 'elections', 'voting',
+        'minister', 'cabinet', 'bjp', 'congress', 'opposition', 'government',
+        'prime minister', 'modi', 'chief minister', 'rahul gandhi', 'policy', 'bill', 'session'
+      ],
+      primary: 'indian parliament building',
+      secondary: 'government press briefing',
+      alts: ['breaking news studio', 'breaking news reporter', 'press conference microphones'],
+    },
+    {
+      name: 'economy_markets',
+      triggers: [
+        'sensex', 'nifty', 'market', 'stocks', 'stock', 'share market', 'rupee', 'dollar',
+        'inflation', 'gdp', 'economy', 'investors', 'banking', 'rbi', 'budget', 'tariff',
+        'tariffs', 'trade', 'finance', 'tax', 'prices', 'gold', 'cryptocurrency', 'bitcoin'
+      ],
+      primary: 'stock market trading screen',
+      secondary: 'financial district city skyline',
+      alts: ['money finance investment', 'breaking news studio'],
+    },
     {
       name: 'military_defence',
       triggers: [
@@ -249,17 +290,6 @@ export function extractNewsVisualQueries(headline = '') {
       alts: ['breaking news reporter', 'press conference microphones', 'world politics summit'],
     },
     {
-      name: 'politics_government',
-      triggers: [
-        'election', 'elections', 'voting', 'voter', 'parliament', 'lok sabha', 'rajya sabha',
-        'minister', 'cabinet', 'bjp', 'congress', 'opposition', 'rally', 'government',
-        'leader', 'chief minister', 'prime minister', 'modi'
-      ],
-      primary: 'government press briefing',
-      secondary: 'breaking news reporter',
-      alts: ['breaking news studio', 'parliament government building', 'press conference microphones'],
-    },
-    {
       name: 'court_crime',
       triggers: [
         'court', 'supreme court', 'high court', 'judge', 'verdict', 'bail', 'cbi',
@@ -269,17 +299,6 @@ export function extractNewsVisualQueries(headline = '') {
       primary: 'courtroom law gavel justice',
       secondary: 'police siren emergency flashing lights',
       alts: ['breaking news reporter', 'press conference microphones'],
-    },
-    {
-      name: 'economy_markets',
-      triggers: [
-        'sensex', 'nifty', 'market', 'stocks', 'stock', 'share market', 'rupee', 'dollar',
-        'inflation', 'gdp', 'economy', 'investors', 'banking', 'rbi', 'budget', 'tariff',
-        'tariffs', 'trade', 'finance', 'tax', 'prices'
-      ],
-      primary: 'stock market trading screen',
-      secondary: 'money finance investment',
-      alts: ['breaking news studio', 'business finance office'],
     },
     {
       name: 'fireworks_festivals',
@@ -292,8 +311,7 @@ export function extractNewsVisualQueries(headline = '') {
       name: 'disaster_weather',
       triggers: [
         'rain', 'rainfall', 'flood', 'floods', 'monsoon', 'cyclone', 'storm',
-        'waterlogging', 'earthquake', 'heatwave', 'heavy rains', 'landslide', 'tsunami',
-        'pollution', 'smog', 'aqi', 'air quality'
+        'waterlogging', 'earthquake', 'heatwave', 'heavy rains', 'landslide', 'tsunami'
       ],
       primary: 'storm heavy rain clouds',
       secondary: 'flood water disaster city',
@@ -325,8 +343,8 @@ export function extractNewsVisualQueries(headline = '') {
         'train', 'railway', 'vande bharat', 'metro', 'expressway', 'highway',
         'traffic', 'airport', 'flight', 'airline', 'aviation', 'crash'
       ],
-      primary: 'train railway transportation',
-      secondary: 'airplane airport runway takeoff',
+      primary: 'city traffic night highway',
+      secondary: 'train railway transportation',
       alts: ['highway traffic cars night', 'breaking news reporter'],
     },
     {
@@ -352,7 +370,7 @@ export function extractNewsVisualQueries(headline = '') {
   ];
 
   for (const cat of categories) {
-    if (cat.triggers.some((trig) => text.includes(trig))) {
+    if (cat.triggers.some((trig) => matchesTrigger(text, trig))) {
       return {
         primaryQuery: cat.primary,
         secondaryQuery: cat.secondary,
@@ -362,11 +380,11 @@ export function extractNewsVisualQueries(headline = '') {
     }
   }
 
-  // 2. Safe generic fallback (NEVER raw headlines or person names)
+  // 2. Safe guaranteed generic fallback (broad broadcast terms)
   return {
     primaryQuery: 'breaking news studio',
-    secondaryQuery: 'geopolitics briefing',
-    altQueries: ['breaking news reporter', 'geopolitics world map', 'press conference microphones'],
+    secondaryQuery: 'city skyline aerial',
+    altQueries: ['breaking news reporter', 'world news broadcast', 'press conference microphones'],
     detectedCategory: 'general_news',
   };
 }

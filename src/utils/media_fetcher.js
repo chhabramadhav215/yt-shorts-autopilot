@@ -13,7 +13,7 @@ import {
 } from './used_assets.js';
 import { ensureSlot1Pool, getSlot1PoolClips } from './ensure_slot1_pool.js';
 
-const WIKIMEDIA_USER_AGENT = 'DailyPulseShorts/1.0 (contact@example.com)';
+const WIKIMEDIA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 const CACHE_DIR = path.join(config.assetsDir, 'cache');
 const DEFAULTS_DIR = path.join(config.assetsDir, 'defaults');
@@ -517,16 +517,62 @@ export async function fetchSlotBackgroundMedia({
       }
     }
 
-    if (topicImage) {
-      return { type: 'video', filePath: newsVideo, topicImage, leaderBadge };
+    const newsDefaultsDir = path.join(DEFAULTS_DIR, 'news');
+    const localNewsroomMp4 = path.join(newsDefaultsDir, 'newsroom_bg.mp4');
+    const localCityTrafficMp4 = path.join(newsDefaultsDir, 'city_traffic.mp4');
+    const localTechGlobeMp4 = path.join(newsDefaultsDir, 'tech_globe.mp4');
+    const defaultNewsMp4 = path.join(DEFAULTS_DIR, 'slot3_news.mp4');
+    const activeNewsVideo = fs.existsSync(localNewsroomMp4) ? localNewsroomMp4 : (fs.existsSync(defaultNewsMp4) ? defaultNewsMp4 : null);
+
+    const localDelhiSmogJpg = path.join(newsDefaultsDir, 'delhi_smog.jpg');
+    const localParliamentJpg = path.join(newsDefaultsDir, 'parliament_building.jpg');
+    const localCityTrafficJpg = path.join(newsDefaultsDir, 'city_traffic.jpg');
+    const localTechGlobeJpg = path.join(newsDefaultsDir, 'tech_globe.jpg');
+    const localNewsroomJpg = path.join(newsDefaultsDir, 'newsroom_studio.jpg');
+    const defaultNewsJpg = path.join(DEFAULTS_DIR, 'slot3_news.jpg');
+
+    if (topicImage && fs.existsSync(topicImage)) {
+      return {
+        type: 'video',
+        filePath: activeNewsVideo || defaultNewsJpg,
+        topicImage,
+        leaderBadge: leaderBadge || 'SPECIAL REPORT',
+      };
     }
 
-    if (fs.existsSync(newsVideo)) {
-      logger.info(`Using curated dynamic newsroom video: slot3_news.mp4`);
-      return { type: 'video', filePath: newsVideo, isDefaultFallback: true };
+    // 5. Guaranteed Local Visual Fallback Pool (Context-aware selection)
+    if (/delhi|pollution|smog|aqi|cpcb|air|emission/i.test(textLower) && fs.existsSync(localDelhiSmogJpg)) {
+      logger.info('Using local fallback image for pollution/smog: delhi_smog.jpg');
+      return { type: 'image', filePath: localDelhiSmogJpg, isTopicImage: true, topicQuery: 'AIR POLLUTION ALERT' };
     }
-    defaultAsset = path.join(DEFAULTS_DIR, 'slot3_news.jpg');
-    return { type: 'image', filePath: defaultAsset, isDefaultFallback: true };
+
+    if (/parliament|lok sabha|rajya sabha|election|minister|cabinet|govt|policy|bill|bjp|congress/i.test(textLower) && fs.existsSync(localParliamentJpg)) {
+      logger.info('Using local fallback image for government/parliament: parliament_building.jpg');
+      return { type: 'image', filePath: localParliamentJpg, isTopicImage: true, topicQuery: 'PARLIAMENT REPORT' };
+    }
+
+    if (/tech|ai|cyber|space|globe|satellite|digital|internet/i.test(textLower) && fs.existsSync(localTechGlobeMp4)) {
+      logger.info('Using local fallback video for tech/world: tech_globe.mp4');
+      return { type: 'video', filePath: localTechGlobeMp4, isTopicVideo: true, topicQuery: 'GLOBAL REPORT' };
+    }
+
+    if (/traffic|highway|transport|city|train|flight|roads/i.test(textLower) && fs.existsSync(localCityTrafficMp4)) {
+      logger.info('Using local fallback video for city/traffic: city_traffic.mp4');
+      return { type: 'video', filePath: localCityTrafficMp4, isTopicVideo: true, topicQuery: 'CITY DEVELOPMENTS' };
+    }
+
+    // General news fallback: rotate between high-res newsroom video, city traffic, or tech globe
+    const fallbackClips = [localNewsroomMp4, localCityTrafficMp4, localTechGlobeMp4, defaultNewsMp4].filter(f => f && fs.existsSync(f));
+    if (fallbackClips.length > 0) {
+      const selectedClip = fallbackClips[Math.floor(Math.random() * fallbackClips.length)];
+      logger.info(`Using guaranteed evergreen news B-roll clip: ${path.basename(selectedClip)}`);
+      return { type: 'video', filePath: selectedClip, isTopicVideo: true, topicQuery: 'NEWS DESK REPORT' };
+    }
+
+    const fallbackImages = [localNewsroomJpg, defaultNewsJpg, localParliamentJpg].filter(f => f && fs.existsSync(f));
+    const selectedImage = fallbackImages[0] || defaultNewsJpg;
+    logger.info(`Using guaranteed evergreen news photo: ${path.basename(selectedImage)}`);
+    return { type: 'image', filePath: selectedImage, isTopicImage: true, topicQuery: 'BREAKING UPDATE' };
   } else if (slotType === 'slot5') {
     // Slot 5: Cricket & IPL Stadium dynamic background footage
     const stadiumQueries = [];

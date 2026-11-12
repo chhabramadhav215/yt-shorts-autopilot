@@ -436,10 +436,25 @@ export async function generateVisualBackground({
 
   const kbBase = `scale=1620:2880:force_original_aspect_ratio=increase,zoompan=z='min(zoom+0.0010,1.25)':d=${totalFrames}:x='(iw-iw/zoom)/2+sin(in/30*0.5)*45':y='(ih-ih/zoom)/2+cos(in/30*0.5)*30':s=1080x1920:fps=30,format=yuv420p`;
 
-  const filterParts = [
-    `[0:v]${kbBase}[kb]`,
-    `[kb][1:v]overlay=0:0:shortest=1[vout]`
-  ];
+  const filterParts = [];
+  if (slotType === 'slot3') {
+    const centerTop = 520;
+    const centerBottom = 1128;
+    const centerH = centerBottom - centerTop; // 608px (exact 16:9 ratio)
+    filterParts.push(
+      `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=16[bg_blurred]`,
+      `[0:v]scale=1440:810:force_original_aspect_ratio=increase,crop=1440:810,zoompan=z='min(zoom+0.0008,1.15)':d=${totalFrames}:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=1080x${centerH}:fps=30[center_kb]`,
+      `[bg_blurred][center_kb]overlay=0:${centerTop}:shortest=1[v_base]`,
+      `[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`,
+      `[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`,
+      `[v_center][1:v]overlay=0:0:shortest=1[vout]`
+    );
+  } else {
+    filterParts.push(
+      `[0:v]${kbBase}[kb]`,
+      `[kb][1:v]overlay=0:0:shortest=1[vout]`
+    );
+  }
 
   try {
     await runFFmpeg([
