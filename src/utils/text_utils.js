@@ -174,11 +174,7 @@ export function summarizeNewsHeadline(rawHeadline) {
  */
 export async function extractNewsVisualTagsWithGemini(cleanHeadline, apiKey) {
   if (!apiKey) return null;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    const prompt = `You are a video stock footage researcher for news YouTube Shorts.
+  const prompt = `You are a video stock footage researcher for news YouTube Shorts.
 Given this news headline: "${cleanHeadline}"
 Extract exactly 2 or 3 short, broad stock video search queries (each 2-3 words, describing REAL visual scenes suitable for searching Pexels stock video, e.g. "military press conference", "breaking news reporter", "geopolitics world map", "courtroom gavel justice", "stock market trading", "rocket launch space").
 Rules:
@@ -187,34 +183,40 @@ Rules:
 - Only output real visual scenery / stock video terms.
 - Return ONLY the queries separated by commas.`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 60, temperature: 0.2 },
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const tags = text
-      .split(/[,;\n]/)
-      .map((t) => t.replace(/["'*`.\-]/g, '').trim())
-      .filter((t) => t.length > 2 && t.split(/\s+/).length <= 4);
+  const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+  for (const model of candidateModels) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    if (tags.length >= 2) {
-      return {
-        primaryQuery: tags[0].toLowerCase(),
-        secondaryQuery: tags[1].toLowerCase(),
-        altQueries: tags.slice(2).map((t) => t.toLowerCase()),
-        source: 'gemini',
-      };
-    }
-  } catch (err) {
-    // Non-critical fallback
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 60, temperature: 0.2 },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const tags = text
+        .split(/[,;\n]/)
+        .map((t) => t.replace(/["'*`.\-]/g, '').trim())
+        .filter((t) => t.length > 2 && t.split(/\s+/).length <= 4);
+
+      if (tags.length >= 2) {
+        return {
+          primaryQuery: tags[0].toLowerCase(),
+          secondaryQuery: tags[1].toLowerCase(),
+          altQueries: tags.slice(2).map((t) => t.toLowerCase()),
+          source: `gemini-${model}`,
+        };
+      }
+    } catch (_) {}
   }
   return null;
 }

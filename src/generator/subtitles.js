@@ -118,7 +118,7 @@ export function generateAssSubtitles({
 
     for (let i = 0; i < segments.length; i++) {
       const span = segmentTimeSpans[i];
-      const text = (segments[i].english || segments[i].hindi || '').trim();
+      const text = (segments[i].hinglish || segments[i].english || segments[i].hindi || '').trim();
       const words = text.replace(/[#*`_~]/g, ' ').split(/\s+/).filter(Boolean);
       if (words.length === 0) continue;
 

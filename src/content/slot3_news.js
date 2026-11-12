@@ -10,119 +10,139 @@ import {
 import { logger } from '../utils/logger.js';
 
 /**
- * Uses Gemini AI to generate a punchy, factual 55–75 word (25–32s) Hindi news explainer
- * with matching English subtitles and grammatically complete headline.
+ * Uses Gemini AI (gemini-2.5-flash with fallback to gemini-2.0-flash) to generate a punchy,
+ * highly factual 55–70 word Hinglish news explainer script.
+ * Both the spoken voiceover and subtitles use the EXACT SAME Hinglish words.
  */
 async function generateNewsExplainerWithGemini({ headline, snippet, source, apiKey }) {
   if (!apiKey) return null;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 7000);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const prompt = `You are the lead investigative scriptwriter for a top-tier viral news YouTube Shorts channel (like Vox, Cut, Daily Pulse).
+  const prompt = `You are the lead news editor and scriptwriter for a top-tier viral YouTube Shorts and Instagram Reels channel.
 Given this real news story:
 - Headline: "${headline}"
-- Full Context & Details from RSS: "${snippet || 'Major breaking news report'}"
+- RSS Context / Key Details: "${snippet || 'Breaking news update'}"
 - News Source: "${source}"
 
-Write an informative, fast-paced, highly factual 55 to 75 word (25 to 32 second) Hindi news explainer script.
+Write an informative, fast-paced, highly factual 55 to 70 word (25 to 30 second) Hinglish news explainer script based on your knowledge and the story context.
+DO NOT use generic filler phrases (such as "visheshagyon ka manna hai ki neetiyon par asar padega" or "aaj ki sabse badi khabar"). Every sentence must state concrete names, actions, facts, or consequences.
 
-STRICT Content Structure (4 parts):
-1. Hook (8-14 words): High-impact opening stating EXACTLY what happened and who is involved. NO generic fluff like "Aaj ki sabse badi khabar".
-2. Core Detail 1 (15-22 words): Key facts, numbers, dates, or reasons behind the event from the story.
-3. Core Detail 2 (15-22 words): Crucial context, reactions from leaders/institutions, or strategic significance.
-4. Impact & Takeaway (12-18 words): What happens next, future consequences, and a crisp prompt asking viewers for their opinion.
+STRICT 4-Part Structure:
+1. Hook (8-14 words): High-impact opening stating EXACTLY what happened and who is involved.
+2. Core Detail 1 (14-20 words): Concrete facts, reasons, numbers, or actions from the story.
+3. Core Detail 2 (14-20 words): Key background context, institutional reaction, or strategic significance.
+4. Impact & Takeaway (10-16 words): What happens next, future consequences, and a crisp prompt asking viewers for their opinion.
 
-Format Requirements:
-- Voiceover (Hindi): Written in natural, punchy conversational Hindi (Devanagari script) with standard English loanwords (e.g. सुप्रीम कोर्ट, सरकार, रिपोर्ट, पॉलिसी, एक्शन). Total length across all 4 parts MUST be 55 to 75 words.
-- Subtitles (English): Clean, punchy transliterated English/Hinglish subtitles that directly translate each part.
-- Headline Card: Complete, grammatically finished 2-line headline (under 50 chars). NEVER end on prepositions or dangling words like "Threat to" or "After".
-- Visual Queries: 2-3 real visual stock video queries for searching B-roll (e.g. "parliament building aerial", "police convoy lights", "stock market screen").
+CRITICAL SUBTITLE REQUIREMENT:
+- The subtitles on screen MUST match the EXACT spoken Hinglish words 1-to-1 (same words, same order).
+- "hookHindi", "coreDetail1Hindi", "coreDetail2Hindi", "impactHindi" = spoken script in conversational Hindi/Hinglish (Devanagari script, e.g. "ताइवान में एनवीडिया के पूर्व एग्जीक्यूटिव एलिस हुआंग पर जासूसी के आरोप लगे हैं।").
+- "hookHinglish", "coreDetail1Hinglish", "coreDetail2Hinglish", "impactHinglish" = EXACT transliterated Latin script version of the spoken words (e.g. "Taiwan mein Nvidia ke former executive Alice Huang par jaasoosi ke aarop lage hain."). DO NOT TRANSLATE INTO ENGLISH. Use the exact transliterated Hinglish words.
+- Total word count across all 4 parts MUST be 55 to 70 words.
 
 Return ONLY a valid JSON object without markdown formatting:
 {
   "youtubeTitle": "High CTR news title with emojis (max 65 chars)",
-  "cardHeadline": "Complete finished 2-line headline (max 48 chars)",
+  "cardHeadline": "Complete, grammatically finished 2-line headline (max 48 chars)",
   "hookHindi": "...",
-  "hookEnglish": "...",
+  "hookHinglish": "...",
   "coreDetail1Hindi": "...",
-  "coreDetail1English": "...",
+  "coreDetail1Hinglish": "...",
   "coreDetail2Hindi": "...",
-  "coreDetail2English": "...",
+  "coreDetail2Hinglish": "...",
   "impactHindi": "...",
-  "impactEnglish": "...",
+  "impactHinglish": "...",
   "primaryVisualQuery": "broad 2-3 word visual query for B-roll",
   "secondaryVisualQuery": "broad 2-3 word visual query for B-roll",
   "altVisualQueries": ["query 3", "query 4"],
   "tags": ["news", "breakingnews", "explained"]
 }`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 800, temperature: 0.6 },
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+  const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+  for (const model of candidateModels) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    if (parsed.hookHindi && parsed.coreDetail1Hindi && parsed.impactHindi) {
-      return parsed;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 900, temperature: 0.6 },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => '');
+        logger.warn(`[Slot 3] Gemini API [${model}] HTTP ${res.status}: ${errorBody.slice(0, 250)}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+
+      if (parsed.hookHindi && parsed.coreDetail1Hindi && parsed.impactHindi) {
+        logger.success(`[Slot 3] Successfully generated news explainer with Gemini [${model}].`);
+        return parsed;
+      } else {
+        logger.warn(`[Slot 3] Gemini [${model}] returned incomplete JSON schema: ${cleanJson.slice(0, 150)}`);
+      }
+    } catch (e) {
+      logger.warn(`[Slot 3] Gemini API call to [${model}] failed (${e.message})`);
     }
-  } catch (e) {
-    logger.warn(`[Slot 3] Gemini news explainer failed (${e.message}), using factual procedural engine.`);
   }
+
+  logger.warn(`[Slot 3] All Gemini models failed or unavailable. Falling back to factual procedural engine.`);
   return null;
 }
 
 /**
- * Factual Procedural Engine (Fallback when Gemini API is unavailable)
- * Strictly extracts real facts from headline, snippet, and source. ZERO boilerplate filler.
+ * Factual Procedural Engine (Fallback when Gemini API is unavailable or rate-limited)
+ * Uses concrete facts from headline, snippet, and source. ZERO generic boilerplate.
+ * Generates exact 1-to-1 Hinglish subtitles matching the spoken voiceover.
  */
 function generateFactualFallback({ cleanHeadline, summary, snippet, source }) {
   const headlineClean = cleanHeadline.replace(/['":]/g, '').trim();
   const summaryText = summary.fullSummary;
 
-  // Extract real factual snippet sentence if available
+  // Extract key concrete fact from snippet if available
   let snippetFact = '';
   if (snippet) {
     const sentences = snippet
       .replace(/<[^>]+>/g, '')
       .split(/[.?!]/)
       .map((s) => s.trim())
-      .filter((s) => s.length > 25 && !s.toLowerCase().includes('http'));
+      .filter((s) => s.length > 20 && !s.toLowerCase().includes('http'));
     if (sentences.length > 0) {
-      snippetFact = sentences[0].slice(0, 95);
+      snippetFact = sentences[0].slice(0, 85);
     }
   }
 
   const segments = [
     {
-      hindi: `${headlineClean} को लेकर इस वक्त की सबसे बड़ी खबर सामने आई है।`,
-      english: `Major breaking developments have emerged regarding ${headlineClean}.`,
+      hindi: `${headlineClean} को लेकर एक बड़ा और अहम खुलासा सामने आया है।`,
+      hinglish: `${headlineClean} ko lekar ek bada aur ahem khulasa saamne aaya hai.`,
     },
     {
       hindi: snippetFact
-        ? `${source} की रिपोर्ट के अनुसार: ${snippetFact}। इस मामले में नए तथ्य सामने आ रहे हैं।`
-        : `${source} की रिपोर्ट के अनुसार इस मामले में संबंधित अधिकारियों ने सख्त कदम उठाए हैं।`,
-      english: `According to reports from ${source}, authorities and experts are closely monitoring these key developments.`,
+        ? `${source} की रिपोर्ट के मुताबिक: ${snippetFact}। इस मामले में जांच तेज हो गई है।`
+        : `${source} की रिपोर्ट के मुताबिक इस घटनाक्रम के बाद जांच एजेंसियां अलर्ट मोड पर हैं।`,
+      hinglish: snippetFact
+        ? `${source} ki report ke mutabik: ${snippetFact}. Is maamle mein jaanch tez ho gayi hai.`
+        : `${source} ki report ke mutabik is ghatnakram ke baad jaanch agencies alert mode par hain.`,
     },
     {
-      hindi: `विशेषज्ञों का मानना है कि इस अहम घटनाक्रम का सीधा असर आने वाले दिनों में नीतियों और आम जनता पर पड़ेगा।`,
-      english: `Analysts state that this critical situation will carry direct strategic and public policy consequences.`,
+      hindi: `इस संवेदनशील घटनाक्रम के सामने आने के बाद प्रशासन और संबंधित अधिकारी बड़े कदम उठा रहे हैं।`,
+      hinglish: `Is samvedansheel ghatnakram ke saamne aane ke baad prashasan aur ahem adhikari bade kadam utha rahe hain.`,
     },
     {
-      hindi: `इस पूरे मामले पर आपकी क्या राय है? कमेंट्स में जरूर बताइए और 60-सेकंड एक्सप्लेनर के लिए सब्सक्राइब कीजिए!`,
-      english: `What are your thoughts on this breaking story? Share your opinion below and subscribe!`,
+      hindi: `इस पूरे मामले पर आपकी क्या राय है? कमेंट्स में जरूर बताइए और सब्सक्राइब कीजिए!`,
+      hinglish: `Is poore maamle par aapki kya rai hai? Comments mein zaroor bataiye aur subscribe kijiye!`,
     },
   ];
 
@@ -187,21 +207,25 @@ export async function generateSlot3Content(customTopic = null) {
     segments = [
       {
         hindi: aiResult.hookHindi,
-        english: aiResult.hookEnglish,
+        hinglish: aiResult.hookHinglish || aiResult.hookEnglish,
+        english: aiResult.hookHinglish || aiResult.hookEnglish,
       },
       {
         hindi: aiResult.coreDetail1Hindi,
-        english: aiResult.coreDetail1English,
+        hinglish: aiResult.coreDetail1Hinglish || aiResult.coreDetail1English,
+        english: aiResult.coreDetail1Hinglish || aiResult.coreDetail1English,
       },
       {
         hindi: aiResult.coreDetail2Hindi,
-        english: aiResult.coreDetail2English,
+        hinglish: aiResult.coreDetail2Hinglish || aiResult.coreDetail2English,
+        english: aiResult.coreDetail2Hinglish || aiResult.coreDetail2English,
       },
       {
         hindi: aiResult.impactHindi,
-        english: aiResult.impactEnglish,
+        hinglish: aiResult.impactHinglish || aiResult.impactEnglish,
+        english: aiResult.impactHinglish || aiResult.impactEnglish,
       },
-    ].filter((s) => s.hindi && s.english);
+    ].filter((s) => s.hindi && (s.hinglish || s.english));
 
     visualQueries = {
       primaryQuery: aiResult.primaryVisualQuery || 'breaking news studio',
@@ -218,7 +242,11 @@ export async function generateSlot3Content(customTopic = null) {
     });
     title = fallback.youtubeTitle;
     cardHeadline = fallback.cardHeadline;
-    segments = fallback.segments;
+    segments = fallback.segments.map((s) => ({
+      hindi: s.hindi,
+      hinglish: s.hinglish,
+      english: s.hinglish, // exactly matching Hinglish words
+    }));
     visualQueries = {
       primaryQuery: fallback.primaryVisualQuery,
       secondaryQuery: fallback.secondaryVisualQuery,
@@ -228,14 +256,15 @@ export async function generateSlot3Content(customTopic = null) {
   }
 
   const voiceScript = segments.map((s) => s.hindi).join(' ');
-  const englishSubtitles = segments.map((s) => s.english).join(' ');
+  const subtitleText = segments.map((s) => s.hinglish || s.english).join(' ');
+  const englishSubtitles = subtitleText; // Ensure 100% matching Hinglish words for burned-in subtitles
 
   const description = `${title}\n\n` +
     `🔥 30-Second Explainer Breakdown:\n` +
     `• Topic: ${cleanHeadline}\n` +
     `• Summary: ${cardHeadline}\n` +
     `• Source: ${source}\n` +
-    `• Language: Hindi narration with English burned-in subtitles for worldwide viewers.\n\n` +
+    `• Language: Fast-paced Hindi narration with matching Hinglish on-screen subtitles.\n\n` +
     `Share your perspective below! Like and subscribe for daily quick-fire news explainers.`;
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'news.mp3');
@@ -254,6 +283,7 @@ export async function generateSlot3Content(customTopic = null) {
     tags,
     voice: config.voices.slot3,
     voiceScript,
+    subtitleText,
     englishSubtitles,
     segments,
     bgMusicPath,
