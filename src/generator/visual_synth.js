@@ -2,6 +2,7 @@ import { createRequire } from 'module';
 import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import sharp from 'sharp';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
 import { fetchSlotBackgroundMedia, fetchScriptureClip } from '../utils/media_fetcher.js';
@@ -19,13 +20,118 @@ const ffmpegPath = process.env.FFMPEG_PATH || (function() {
   }
 })();
 
-function escapeFfmpegDrawtext(str) {
+function escapeXml(str) {
   if (!str) return '';
-  return str
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\u2019") // convert single quotes to typographic curly apostrophe
-    .replace(/:/g, '\\:')
-    .replace(/%/g, '\\%');
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+/**
+ * Renders graphical UI elements (top scenario banners, headline cards, breaking news cards,
+ * narrator labels) onto a transparent 1080x1920 PNG overlay.
+ * Completely eliminates any dependency on FFmpeg drawtext or libfreetype.
+ */
+async function generateVisualOverlayImage({
+  slotType,
+  outputPath,
+  title = '',
+  headline = '',
+  epicBadge = '',
+  topicQuery = '',
+  hasAvatar = false,
+}) {
+  let innerSvg = '';
+
+  const commonStyle = `
+    .font-sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  `;
+
+  if (slotType === 'slot1') {
+    const rawBadge = (epicBadge || title || 'DAILY FUN & BABY VIBES')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+      .replace(/['":]/g, '')
+      .trim()
+      .substring(0, 35) || 'DAILY FUN & BABY VIBES';
+    const badge = escapeXml(rawBadge.toUpperCase());
+
+    innerSvg = `
+      <!-- Top Party Banner -->
+      <rect x="60" y="140" width="960" height="130" rx="16" fill="#220033" fill-opacity="0.88" stroke="#ff007f" stroke-width="6" />
+      <text x="540" y="222" class="font-sans" font-size="42" font-weight="900" fill="#ffffff" text-anchor="middle">${badge}</text>
+      ${hasAvatar ? `
+      <!-- Narrator Pill Badge -->
+      <rect x="90" y="1330" width="320" height="48" rx="8" fill="#220033" fill-opacity="0.90" stroke="#ff007f" stroke-width="3" />
+      <text x="250" y="1363" class="font-sans" font-size="26" font-weight="800" fill="#ffcc00" text-anchor="middle">LITTLE BOSS</text>
+      ` : ''}
+    `;
+  } else if (slotType === 'slot2') {
+    const rawBadge = (epicBadge || 'DAILY DIVINE WISDOM | SANATAN DHARMA').substring(0, 42);
+    const badge = escapeXml(rawBadge.toUpperCase());
+    innerSvg = `
+      <!-- Top Divine Banner -->
+      <rect x="50" y="150" width="980" height="150" rx="16" fill="#260c00" fill-opacity="0.88" stroke="#ff9900" stroke-width="6" />
+      <text x="540" y="240" class="font-sans" font-size="36" font-weight="900" fill="#ffd700" text-anchor="middle">${badge}</text>
+    `;
+  } else if (slotType === 'slot4') {
+    const rawBadge = (epicBadge || title || 'MAHABHARATA & GITA WISDOM')
+      .replace(/['":]/g, '')
+      .substring(0, 40);
+    const badge = escapeXml(rawBadge.toUpperCase());
+    innerSvg = `
+      <!-- Top Scripture Banner -->
+      <rect x="50" y="150" width="980" height="150" rx="16" fill="#260c00" fill-opacity="0.92" stroke="#ff9900" stroke-width="6" />
+      <text x="540" y="240" class="font-sans" font-size="38" font-weight="900" fill="#ffcc00" text-anchor="middle">${badge}</text>
+    `;
+  } else if (slotType === 'slot3') {
+    const rawHead = headline || title || 'Breaking News Update';
+    const { line1, line2 } = summarizeNewsHeadline(rawHead);
+    const line1Esc = escapeXml(line1);
+    const line2Esc = escapeXml(line2);
+    const badgeText = escapeXml(toTitleCase(topicQuery || 'Special Report').slice(0, 26));
+    const tickerText = escapeXml(toTitleCase(rawHead).slice(0, 70));
+
+    const headlineBlock = line2Esc
+      ? `<text x="540" y="420" class="font-sans" font-size="38" font-weight="900" fill="#ffcc00" text-anchor="middle">${line1Esc}</text>
+         <text x="540" y="472" class="font-sans" font-size="38" font-weight="900" fill="#ffffff" text-anchor="middle">${line2Esc}</text>`
+      : `<text x="540" y="445" class="font-sans" font-size="42" font-weight="900" fill="#ffcc00" text-anchor="middle">${line1Esc}</text>`;
+
+    innerSvg = `
+      <!-- Center Topic Pill Badge (corner of 16:9 box at y=1070) -->
+      <rect x="40" y="1070" width="380" height="46" rx="6" fill="#071126" fill-opacity="0.90" stroke="#ffcc00" stroke-width="2" />
+      <text x="55" y="1102" class="font-sans" font-size="24" font-weight="800" fill="#ffcc00">${badgeText}</text>
+
+      <!-- Top Breaking Pill -->
+      <rect x="330" y="295" width="420" height="56" rx="8" fill="#cc0000" fill-opacity="0.95" stroke="#ffcc00" stroke-width="2" />
+      <text x="540" y="334" class="font-sans" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">BREAKING UPDATE</text>
+
+      <!-- 2-Line Headline Card -->
+      <rect x="50" y="370" width="980" height="130" rx="8" fill="#071126" fill-opacity="0.95" stroke="#ffcc00" stroke-width="2" stroke-opacity="0.6" />
+      <rect x="50" y="370" width="8" height="130" rx="2" fill="#ffcc00" />
+      ${headlineBlock}
+
+      <!-- Subtitle Bar (y=1145 to 1490) -->
+      <rect x="0" y="1145" width="1080" height="345" fill="#071126" fill-opacity="0.85" />
+      <rect x="0" y="1145" width="1080" height="2" fill="#ffcc00" fill-opacity="0.4" />
+
+      <!-- Live News Ticker (y=1495 to 1535) -->
+      <rect x="0" y="1495" width="1080" height="40" fill="#b30000" fill-opacity="0.95" />
+      <rect x="0" y="1495" width="260" height="40" fill="#ffcc00" />
+      <text x="45" y="1523" class="font-sans" font-size="22" font-weight="900" fill="#000000">LIVE REPORT</text>
+      <text x="280" y="1523" class="font-sans" font-size="22" font-weight="700" fill="#ffffff">LIVE UPDATE • ${tickerText} • VERIFIED REPORT •</text>
+    `;
+  }
+
+  const svg = `<svg width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+    <defs><style>${commonStyle}</style></defs>
+    ${innerSvg}
+  </svg>`;
+
+  await sharp(Buffer.from(svg)).png().toFile(outputPath);
+  return outputPath;
 }
 
 function runFFmpeg(args) {
@@ -133,29 +239,45 @@ export async function generateVisualBackground({
 
     if (resolvedClipPath && fs.existsSync(resolvedClipPath)) {
       logger.info(`Formatting moving scripture clip with 9:16 vertical blur margins: ${path.basename(resolvedClipPath)}`);
+      const overlayPngPath = path.join(path.dirname(outputPath), `slot4_overlay_${Date.now()}.png`);
+      await generateVisualOverlayImage({
+        slotType: 'slot4',
+        outputPath: overlayPngPath,
+        title,
+        epicBadge: safeBadge,
+      });
+
       const filter = [
-        `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=24:2[bg]`,
+        `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=16[bg]`,
         `[0:v]scale=1020:574:force_original_aspect_ratio=decrease[fg]`,
         `[bg][fg]overlay=(W-w)/2:520[base]`,
         `[base]drawbox=x=30:y=518:w=1020:h=578:color=0xffaa00:t=5[b0]`,
-        `[b0]drawbox=x=50:y=150:w=980:h=150:color=0x260c00@0.92:t=fill[b1]`,
-        `[b1]drawbox=x=50:y=150:w=980:h=150:color=0xff9900:t=6[b2]`,
-        `[b2]drawtext=text='${safeBadge}':fontcolor=0xffcc00:fontsize=38:x=(w-text_w)/2:y=195:font='Arial Black'`
+        `[b0][1:v]overlay=0:0:shortest=1[vout]`
       ].join(';');
 
-      await runFFmpeg([
-        '-y',
-        '-stream_loop', '-1',
-        '-i', resolvedClipPath,
-        '-filter_complex', filter,
-        '-t', String(roundDur),
-        '-c:v', 'libx264',
-        '-pix_fmt', 'yuv420p',
-        outputPath
-      ]);
+      try {
+        await runFFmpeg([
+          '-y',
+          '-stream_loop', '-1',
+          '-i', resolvedClipPath,
+          '-loop', '1',
+          '-i', overlayPngPath,
+          '-filter_complex', filter,
+          '-map', '[vout]',
+          '-t', String(roundDur),
+          '-c:v', 'libx264',
+          '-preset', 'fast',
+          '-pix_fmt', 'yuv420p',
+          outputPath
+        ]);
 
-      logger.success(`Slot 4 visual with moving clip rendered: ${outputPath}`);
-      return outputPath;
+        logger.success(`Slot 4 visual with moving clip rendered: ${outputPath}`);
+        return outputPath;
+      } finally {
+        try {
+          if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
+        } catch (_) {}
+      }
     }
   }
 
@@ -182,136 +304,92 @@ export async function generateVisualBackground({
     const filterParts = [];
     const ffmpegArgs = ['-y', '-stream_loop', '-1', '-i', media.filePath];
 
+    const overlayPngPath = path.join(path.dirname(outputPath), `${slotType}_overlay_${Date.now()}.png`);
+    let nextInputIdx = 1;
+
     if (slotType === 'slot1') {
-      // Slot 1 (Entertainment): Real baby video loop across full 1080x1920 canvas
-      const safeBadge = (epicBadge || 'DAILY FUN & BABY VIBES')
-        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-        .replace(/['":]/g, '')
-        .trim()
-        .substring(0, 35);
-
-      filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
-      // Top Party Banner
-      filterParts.push(`[v0]drawbox=x=60:y=140:w=960:h=130:color=0x220033@0.85:t=fill[v1]`);
-      filterParts.push(`[v1]drawbox=x=60:y=140:w=960:h=130:color=0xff007f:t=6[v2]`);
-      filterParts.push(`[v2]drawtext=text='${safeBadge}':fontcolor=white:fontsize=42:x=(w-text_w)/2:y=182:font='Arial Black'[v_banner]`);
-
-      // 3D Animated Cute Baby Avatar Overlay (Bouncing & Talking synchronized to dialogue)
       const avatarRest = path.join(config.assetsDir, 'defaults', 'baby_avatar.png');
       const avatarTalk = path.join(config.assetsDir, 'defaults', 'baby_avatar_talk.png');
+      const hasAvatar = fs.existsSync(avatarRest) && fs.existsSync(avatarTalk);
 
-      if (fs.existsSync(avatarRest) && fs.existsSync(avatarTalk)) {
+      await generateVisualOverlayImage({
+        slotType: 'slot1',
+        outputPath: overlayPngPath,
+        title,
+        epicBadge,
+        hasAvatar,
+      });
+
+      filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
+
+      let currentTopNode = 'v0';
+      if (hasAvatar) {
         ffmpegArgs.push('-loop', '1', '-i', avatarRest);
         ffmpegArgs.push('-loop', '1', '-i', avatarTalk);
-
         filterParts.push(`[1:v]scale=360:360[a1]`);
         filterParts.push(`[2:v]scale=360:360[a2]`);
-        // Animated bounce & talking overlay (swapping between smiling and talking expression at 4Hz synced to dialogue)
-        filterParts.push(`[v_banner][a1]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),0)'[t1]`);
+        filterParts.push(`[${currentTopNode}][a1]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),0)'[t1]`);
         filterParts.push(`[t1][a2]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),1)'[t2]`);
-        // Narrator Pill Badge
-        filterParts.push(`[t2]drawbox=x=90:y=1330:w=320:h=48:color=0x220033@0.90:t=fill[t3]`);
-        filterParts.push(`[t3]drawbox=x=90:y=1330:w=320:h=48:color=0xff007f:t=3[t4]`);
-        filterParts.push(`[t4]drawtext=text='LITTLE BOSS':fontcolor=0xffcc00:fontsize=26:x=165:y=1341:font='Arial Black'[vout]`);
-      } else {
-        filterParts.push(`[v_banner]copy[vout]`);
+        currentTopNode = 't2';
+        nextInputIdx = 3;
       }
 
-    } else if (slotType === 'slot3') {
-      // Slot 3 (News Explainer): Dynamic broadcast layout adhering to 15% top & 20% bottom safe zones
-      const { line1, line2 } = summarizeNewsHeadline(headline || title);
+      ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
+      filterParts.push(`[${currentTopNode}][${nextInputIdx}:v]overlay=0:0:shortest=1[vout]`);
 
-      // Center Visual Section: 16:9 Edge-to-Edge (1080x608, y = 520 to 1128)
+    } else if (slotType === 'slot3') {
       const centerTop = 520;
       const centerBottom = 1128;
       const centerH = centerBottom - centerTop; // 608px (exact 16:9 ratio)
 
-      let centerNode = 'v_mid';
+      const topicQuery = media.topicQuery || media.leaderBadge || 'Special Report';
+      await generateVisualOverlayImage({
+        slotType: 'slot3',
+        outputPath: overlayPngPath,
+        title,
+        headline,
+        topicQuery,
+      });
+
+      let centerNode = 'v_center';
 
       if (media.isTopicVideo && fs.existsSync(media.filePath)) {
-        // CASE A: Dynamic moving topic video from Pexels (e.g. military press conference, breaking news studio, geopolitics world map)
-        // Full canvas motion background: fills entire 1080x1920 9:16 frame with subtle background blur for visual depth
-        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=14:2[bg_blurred]`);
-        // Center: Crystal-clear focused 16:9 topic video
+        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12[bg_blurred]`);
         filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_topic]`);
         filterParts.push(`[bg_blurred][center_topic]overlay=0:${centerTop}[v_base]`);
-
-        // Gold border lines framing the center 16:9 box
         filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
         filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
-
-        // Topic pill badge in corner (standard Title Case)
-        const badgeText = escapeFfmpegDrawtext(toTitleCase(media.topicQuery || 'Special Report').slice(0, 26));
-        filterParts.push(`[v_center]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
-        filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
-        filterParts.push(`[v_b1]drawtext=text='${badgeText}':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
-        centerNode = 'v_mid';
-
       } else if (media.topicImage && fs.existsSync(media.topicImage)) {
-        // CASE B: High-impact topic photo / leader portrait animated with Ken Burns pan & zoom
-        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=18:2[bg_news]`);
-
+        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12[bg_news]`);
         ffmpegArgs.push('-loop', '1', '-i', media.topicImage);
+        nextInputIdx = 2;
         filterParts.push(`[1:v]scale=1440:810:force_original_aspect_ratio=increase,crop=1440:810,zoompan=z='min(zoom+0.0006,1.10)':d=${totalFrames}:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=1080x${centerH}:fps=30[leader_kb]`);
         filterParts.push(`[bg_news][leader_kb]overlay=0:${centerTop}:shortest=1[v_leader]`);
         filterParts.push(`[v_leader]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
-        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_l1]`);
-
-        const badgeText = escapeFfmpegDrawtext(toTitleCase(media.leaderBadge || 'Special Report').slice(0, 26));
-        filterParts.push(`[v_l1]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
-        filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
-        filterParts.push(`[v_b1]drawtext=text='${badgeText}':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
-        centerNode = 'v_mid';
-
+        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
       } else {
-        // CASE C: Engaging dynamic motion background (blurred newsroom background + clean focused news card layout)
-        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=16:2[bg_blur]`);
+        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12[bg_blur]`);
         filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_studio]`);
         filterParts.push(`[bg_blur][center_studio]overlay=0:${centerTop}[v_base]`);
         filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
-        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_l1]`);
-        filterParts.push(`[v_l1]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0x071126@0.90:t=fill[v_b0]`);
-        filterParts.push(`[v_b0]drawbox=x=40:y=${centerBottom - 58}:w=380:h=46:color=0xffcc00:t=2[v_b1]`);
-        filterParts.push(`[v_b1]drawtext=text='News Desk Report':fontcolor=0xffcc00:fontsize=24:x=55:y=${centerBottom - 48}:font='Arial Black'[v_mid]`);
-        centerNode = 'v_mid';
+        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
       }
 
-      // Top Breaking Pill (y = 295 to 355, safely below top 15% safe zone = 288px)
-      filterParts.push(`[${centerNode}]drawbox=x=330:y=295:w=420:h=56:color=0xcc0000@0.95:t=fill[pill_bg]`);
-      filterParts.push(`[pill_bg]drawbox=x=330:y=295:w=420:h=56:color=0xffcc00:t=2[pill_border]`);
-      filterParts.push(`[pill_border]drawtext=text='BREAKING UPDATE':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=310:font='Arial Black'[v_badge]`);
-
-      // 2-Line Clean Headline Card (y = 370 to 500, max 50 chars, zero truncation or trailing dots)
-      filterParts.push(`[v_badge]drawbox=x=50:y=370:w=980:h=130:color=0x071126@0.95:t=fill[c0]`);
-      filterParts.push(`[c0]drawbox=x=50:y=370:w=8:h=130:color=0xffcc00:t=fill[c_accent]`);
-      filterParts.push(`[c_accent]drawbox=x=50:y=370:w=980:h=130:color=0xffcc00@0.6:t=2[c1]`);
-
-      const safeLine1 = escapeFfmpegDrawtext(line1);
-      const safeLine2 = escapeFfmpegDrawtext(line2);
-
-      if (safeLine2) {
-        filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=0xffcc00:fontsize=38:x=(w-text_w)/2:y=392:font='Arial Black'[c2]`);
-        filterParts.push(`[c2]drawtext=text='${safeLine2}':fontcolor=white:fontsize=38:x=(w-text_w)/2:y=444:font='Arial Black'[c_head]`);
-      } else {
-        filterParts.push(`[c1]drawtext=text='${safeLine1}':fontcolor=0xffcc00:fontsize=42:x=(w-text_w)/2:y=416:font='Arial Black'[c_head]`);
-      }
-
-      // Dark Semi-Transparent Subtitle Bar (y = 1145 to y = 1490)
-      filterParts.push(`[c_head]drawbox=x=0:y=1145:w=1080:h=345:color=0x071126@0.85:t=fill[v_sub_bar]`);
-      filterParts.push(`[v_sub_bar]drawbox=x=0:y=1145:w=1080:h=2:color=0xffcc00@0.4:t=fill[v_sub_line]`);
-
-      // Professional Clean Live News Ticker (y = 1495 to 1535, well above bottom 20% safe zone = 1536px)
-      filterParts.push(`[v_sub_line]drawbox=x=0:y=1495:w=1080:h=40:color=0xb30000@0.95:t=fill[v_ticker]`);
-      const tickerText = escapeFfmpegDrawtext(toTitleCase(headline || title).slice(0, 70));
-      filterParts.push(`[v_ticker]drawtext=text='LIVE UPDATE • ${tickerText} • ':fontcolor=white:fontsize=22:x=w-mod(t*160\\,w+1200):y=1505:font='Arial Black'[vout]`);
-      // Note: y = 1536 to 1920 is 100% CLEAN for YouTube Shorts UI safe zone!
+      ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
+      filterParts.push(`[${centerNode}][${nextInputIdx}:v]overlay=0:0:shortest=1[vout]`);
 
     } else {
       // Slot 2 Video
+      await generateVisualOverlayImage({
+        slotType: 'slot2',
+        outputPath: overlayPngPath,
+        title,
+        epicBadge,
+      });
+
       filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
-      filterParts.push(`[v0]drawbox=x=50:y=150:w=980:h=150:color=0x260c00@0.88:t=fill[v1]`);
-      filterParts.push(`[v1]drawbox=x=50:y=150:w=980:h=150:color=0xff9900:t=6[v2]`);
-      filterParts.push(`[v2]drawtext=text='DAILY DIVINE WISDOM | SANATAN DHARMA':fontcolor=0xffd700:fontsize=36:x=(w-text_w)/2:y=195:font='Arial Black'[vout]`);
+      ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
+      filterParts.push(`[v0][1:v]overlay=0:0:shortest=1[vout]`);
     }
 
     ffmpegArgs.push(
@@ -319,13 +397,20 @@ export async function generateVisualBackground({
       '-map', '[vout]',
       '-t', String(roundDur),
       '-c:v', 'libx264',
+      '-preset', 'fast',
       '-pix_fmt', 'yuv420p',
       outputPath
     );
 
-    await runFFmpeg(ffmpegArgs);
-    logger.success(`Dynamic moving video background rendered: ${outputPath}`);
-    return outputPath;
+    try {
+      await runFFmpeg(ffmpegArgs);
+      logger.success(`Dynamic moving video background rendered: ${outputPath}`);
+      return outputPath;
+    } finally {
+      try {
+        if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
+      } catch (_) {}
+    }
   }
 
   // -----------------------------------------------------------------
@@ -337,60 +422,45 @@ export async function generateVisualBackground({
 
   logger.info(`Applying dynamic Ken Burns pan & zoom on high-res image: ${path.basename(imagePath)} (${roundDur}s)...`);
 
+  const overlayPngPath = path.join(path.dirname(outputPath), `${slotType}_overlay_${Date.now()}.png`);
+  await generateVisualOverlayImage({
+    slotType,
+    outputPath: overlayPngPath,
+    title,
+    headline,
+    epicBadge,
+    topicQuery: media?.topicQuery || 'Special Report',
+    hasAvatar: false,
+  });
+
   const kbBase = `scale=1620:2880:force_original_aspect_ratio=increase,zoompan=z='min(zoom+0.0010,1.25)':d=${totalFrames}:x='(iw-iw/zoom)/2+sin(in/30*0.5)*45':y='(ih-ih/zoom)/2+cos(in/30*0.5)*30':s=1080x1920:fps=30,format=yuv420p`;
 
-  const filterParts = [`${kbBase}[kb]`];
+  const filterParts = [
+    `[0:v]${kbBase}[kb]`,
+    `[kb][1:v]overlay=0:0:shortest=1[vout]`
+  ];
 
-  if (slotType === 'slot1') {
-    filterParts.push(`[kb]drawbox=x=60:y=140:w=960:h=130:color=0x220033@0.85:t=fill[b1]`);
-    filterParts.push(`[b1]drawbox=x=60:y=140:w=960:h=130:color=0xff007f:t=6[b2]`);
-    filterParts.push(`[b2]drawtext=text='DAILY FUN & BABY VIBES':fontcolor=white:fontsize=44:x=(w-text_w)/2:y=180:font='Arial Black'[vout]`);
-  } else if (slotType === 'slot2') {
-    filterParts.push(`[kb]drawbox=x=50:y=150:w=980:h=150:color=0x260c00@0.88:t=fill[b1]`);
-    filterParts.push(`[b1]drawbox=x=50:y=150:w=980:h=150:color=0xff9900:t=6[b2]`);
-    filterParts.push(`[b2]drawtext=text='DAILY DIVINE WISDOM | SANATAN DHARMA':fontcolor=0xffd700:fontsize=36:x=(w-text_w)/2:y=195:font='Arial Black'[vout]`);
-  } else {
-    // Slot 3 image background with 2-line auto-summarized headline and safe zones
-    const { line1, line2 } = summarizeNewsHeadline(headline || title);
+  try {
+    await runFFmpeg([
+      '-y',
+      '-loop', '1',
+      '-i', imagePath,
+      '-loop', '1',
+      '-i', overlayPngPath,
+      '-filter_complex', filterParts.join(';'),
+      '-map', '[vout]',
+      '-t', String(roundDur),
+      '-c:v', 'libx264',
+      '-preset', 'fast',
+      '-pix_fmt', 'yuv420p',
+      outputPath
+    ]);
 
-    // Top Breaking Pill (y = 295 to 355, safely below top 15% safe zone = 288px)
-    filterParts.push(`[kb]drawbox=x=330:y=295:w=420:h=56:color=0xcc0000@0.95:t=fill[pill_bg]`);
-    filterParts.push(`[pill_bg]drawbox=x=330:y=295:w=420:h=56:color=0xffcc00:t=2[pill_border]`);
-    filterParts.push(`[pill_border]drawtext=text='BREAKING UPDATE':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=310:font='Arial Black'[b_badge]`);
-
-    // 2-Line Clean Headline Card (y = 370 to 500, max 50 chars, zero trailing dots)
-    filterParts.push(`[b_badge]drawbox=x=50:y=370:w=980:h=130:color=0x071126@0.95:t=fill[c0]`);
-    filterParts.push(`[c0]drawbox=x=50:y=370:w=8:h=130:color=0xffcc00:t=fill[c_accent]`);
-    filterParts.push(`[c_accent]drawbox=x=50:y=370:w=980:h=130:color=0xffcc00@0.6:t=2[c1]`);
-
-    if (line2) {
-      filterParts.push(`[c1]drawtext=text='${line1}':fontcolor=0xffcc00:fontsize=38:x=(w-text_w)/2:y=392:font='Arial Black'[c2]`);
-      filterParts.push(`[c2]drawtext=text='${line2}':fontcolor=white:fontsize=38:x=(w-text_w)/2:y=444:font='Arial Black'[c_head]`);
-    } else {
-      filterParts.push(`[c1]drawtext=text='${line1}':fontcolor=0xffcc00:fontsize=42:x=(w-text_w)/2:y=416:font='Arial Black'[c_head]`);
-    }
-
-    // Subtitle Bar (y = 1145 to 1490)
-    filterParts.push(`[c_head]drawbox=x=0:y=1145:w=1080:h=345:color=0x071126@0.85:t=fill[b_sub_bar]`);
-    filterParts.push(`[b_sub_bar]drawbox=x=0:y=1145:w=1080:h=2:color=0xffcc00@0.4:t=fill[b_sub_line]`);
-
-    // Clean Live News Ticker (y = 1495 to 1535)
-    filterParts.push(`[b_sub_line]drawbox=x=0:y=1495:w=1080:h=40:color=0xb30000@0.95:t=fill[b_ticker]`);
-    filterParts.push(`[b_ticker]drawtext=text='LIVE DEVELOPMENTS • VERIFIED REPORT • GLOBAL NEWS DESK • IN-DEPTH EXPLAINER • ':fontcolor=white:fontsize=22:x=w-mod(t*180\\,w+1200):y=1505:font='Arial Black'[vout]`);
+    logger.success(`Ken Burns dynamic visual background rendered: ${outputPath}`);
+    return outputPath;
+  } finally {
+    try {
+      if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
+    } catch (_) {}
   }
-
-  await runFFmpeg([
-    '-y',
-    '-loop', '1',
-    '-i', imagePath,
-    '-filter_complex', filterParts.join(';'),
-    '-map', '[vout]',
-    '-t', String(roundDur),
-    '-c:v', 'libx264',
-    '-pix_fmt', 'yuv420p',
-    outputPath
-  ]);
-
-  logger.success(`Ken Burns dynamic visual background rendered: ${outputPath}`);
-  return outputPath;
 }
