@@ -60,9 +60,9 @@ export async function generateShortVideo(slot, customTopic = null) {
   const audioDuration = await getMediaDuration(voiceoverResult.audioPath);
   logger.info(`Voiceover duration: ${audioDuration.toFixed(1)} seconds`);
 
-  // Handle Slot 4 Dual-Audio Logic (Original Serial Dialogue + AI Commentary)
+  // Handle Slot 4 Audio Timing (Narration starts at 0.0s)
   const isDualAudio = Boolean(content.isDualAudio);
-  const introDuration = isDualAudio ? (content.introDuration || 7.0) : 0;
+  const introDuration = isDualAudio ? (content.introDuration || 0) : 0;
 
   // 3. Generate Styled Bold English Subtitles (Burned-in for global reach)
   const subtitlesPath = path.join(slotDir, 'subtitles.ass');

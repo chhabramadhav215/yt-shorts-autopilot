@@ -36,7 +36,7 @@ function escapeXml(str) {
  * narrator labels) onto a transparent 1080x1920 PNG overlay.
  * Completely eliminates any dependency on FFmpeg drawtext or libfreetype.
  */
-async function generateVisualOverlayImage({
+export async function generateVisualOverlayImage({
   slotType,
   outputPath,
   title = '',
@@ -78,14 +78,47 @@ async function generateVisualOverlayImage({
       <text x="540" y="240" class="font-sans" font-size="36" font-weight="900" fill="#ffd700" text-anchor="middle">${badge}</text>
     `;
   } else if (slotType === 'slot4') {
-    const rawBadge = (epicBadge || title || 'MAHABHARATA & GITA WISDOM')
+    const rawBadge = (epicBadge || 'SACRED SCRIPTURES & DHARMA')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
       .replace(/['":]/g, '')
-      .substring(0, 40);
+      .trim()
+      .substring(0, 42) || 'SACRED SCRIPTURES';
     const badge = escapeXml(rawBadge.toUpperCase());
+
+    // Extract clean episode headline: strip trailing epics, emojis, quotes
+    let cleanTitle = (title || 'Epic Scripture Wisdom')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+      .replace(/[|].*$/g, '')
+      .replace(/\s+(?:Mahabharata|Ramayana|Bhagavad Gita|Epic Wisdom).*$/i, '')
+      .replace(/['":]/g, '')
+      .trim();
+
+    const titleLines = wrapText(cleanTitle, 26).slice(0, 3);
+    let titleBlock = '';
+    if (titleLines.length <= 1) {
+      titleBlock = `<text x="540" y="325" class="font-sans" font-size="42" font-weight="900" fill="#ffcc00" text-anchor="middle">${escapeXml(titleLines[0] || cleanTitle)}</text>`;
+    } else if (titleLines.length === 2) {
+      titleBlock = `
+        <text x="540" y="292" class="font-sans" font-size="38" font-weight="900" fill="#ffcc00" text-anchor="middle">${escapeXml(titleLines[0])}</text>
+        <text x="540" y="352" class="font-sans" font-size="38" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(titleLines[1])}</text>
+      `;
+    } else if (titleLines.length >= 3) {
+      titleBlock = `
+        <text x="540" y="278" class="font-sans" font-size="34" font-weight="900" fill="#ffcc00" text-anchor="middle">${escapeXml(titleLines[0])}</text>
+        <text x="540" y="328" class="font-sans" font-size="34" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(titleLines[1])}</text>
+        <text x="540" y="378" class="font-sans" font-size="32" font-weight="900" fill="#ffd700" text-anchor="middle">${escapeXml(titleLines[2])}</text>
+      `;
+    }
+
     innerSvg = `
-      <!-- Top Scripture Banner -->
-      <rect x="50" y="150" width="980" height="150" rx="16" fill="#260c00" fill-opacity="0.92" stroke="#ff9900" stroke-width="6" />
-      <text x="540" y="240" class="font-sans" font-size="38" font-weight="900" fill="#ffcc00" text-anchor="middle">${badge}</text>
+      <!-- Top Scripture Category Pill -->
+      <rect x="190" y="135" width="700" height="48" rx="8" fill="#4a1500" fill-opacity="0.94" stroke="#ffaa00" stroke-width="2" />
+      <text x="540" y="168" class="font-sans" font-size="22" font-weight="800" fill="#ffd700" text-anchor="middle">${badge}</text>
+
+      <!-- Top Story Title Card -->
+      <rect x="50" y="198" width="980" height="220" rx="16" fill="#1f0900" fill-opacity="0.95" stroke="#ff9900" stroke-width="4" />
+      <rect x="50" y="198" width="10" height="220" rx="4" fill="#ffd700" />
+      ${titleBlock}
     `;
   } else if (slotType === 'slot3') {
     const rawHead = headline || title || 'Breaking News Update';
@@ -235,11 +268,19 @@ export async function generateVisualBackground({
       resolvedClipPath = await fetchScriptureClip({
         englishTitle: title,
         dialogueTheme: customTopic || title,
+        epic: epicBadge,
       });
     }
 
+    if (!resolvedClipPath || !fs.existsSync(resolvedClipPath)) {
+      // Guaranteed emergency fallback
+      const fallbackCandidate = path.join(config.assetsDir, 'clips', 'scriptures', 'geeta_saar.mp4');
+      if (fs.existsSync(fallbackCandidate)) resolvedClipPath = fallbackCandidate;
+    }
+
     if (resolvedClipPath && fs.existsSync(resolvedClipPath)) {
-      logger.info(`Formatting moving scripture clip with 9:16 vertical blur margins: ${path.basename(resolvedClipPath)}`);
+      const isImage = /\.(jpe?g|png|webp)$/i.test(resolvedClipPath);
+      logger.info(`Formatting scripture ${isImage ? 'artwork image' : 'moving clip'} with 9:16 vertical blur margins: ${path.basename(resolvedClipPath)}`);
       const overlayPngPath = path.join(path.dirname(outputPath), `slot4_overlay_${Date.now()}.png`);
       await generateVisualOverlayImage({
         slotType: 'slot4',
@@ -247,6 +288,10 @@ export async function generateVisualBackground({
         title,
         epicBadge: safeBadge,
       });
+
+      const inputArgs = isImage
+        ? ['-loop', '1', '-i', resolvedClipPath]
+        : ['-stream_loop', '-1', '-i', resolvedClipPath];
 
       const filter = [
         `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=16[bg]`,
@@ -259,8 +304,7 @@ export async function generateVisualBackground({
       try {
         await runFFmpeg([
           '-y',
-          '-stream_loop', '-1',
-          '-i', resolvedClipPath,
+          ...inputArgs,
           '-loop', '1',
           '-i', overlayPngPath,
           '-filter_complex', filter,

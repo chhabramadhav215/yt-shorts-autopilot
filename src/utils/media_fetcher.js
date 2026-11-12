@@ -680,17 +680,59 @@ export async function fetchSlotBackgroundMedia({
 }
 
 /**
+ * Detects epic category from scripture metadata: 'ramayana' | 'mahabharata' | 'gita' | 'general'
+ * @param {Object} item
+ * @returns {string}
+ */
+export function detectScriptureEpic(item = {}) {
+  const text = `${item.id || ''} ${item.epic || ''} ${item.dialogueTheme || ''} ${item.englishTitle || ''} ${(item.tags || []).join(' ')}`.toLowerCase();
+  if (
+    text.includes('ramayan') ||
+    text.includes('hanuman') ||
+    text.includes('rama') ||
+    text.includes('sita') ||
+    text.includes('ravana') ||
+    text.includes('sundar') ||
+    text.includes('lanka') ||
+    text.includes('ayodhya')
+  ) {
+    return 'ramayana';
+  }
+  if (
+    text.includes('gita') ||
+    text.includes('geeta') ||
+    text.includes('krishna') ||
+    text.includes('vishwaroop') ||
+    text.includes('arjun')
+  ) {
+    return 'gita';
+  }
+  if (
+    text.includes('mahabharat') ||
+    text.includes('bhishma') ||
+    text.includes('karna') ||
+    text.includes('kurukshetra') ||
+    text.includes('pandav') ||
+    text.includes('kaurav') ||
+    text.includes('shantanu')
+  ) {
+    return 'mahabharata';
+  }
+  return 'general';
+}
+
+/**
  * Ensures high-quality 30-45s clip exists for Slot 4 (Epic Scriptures & Wisdom)
  * Downloads or slices via yt-dlp.exe, with fallback to pre-cached or local clip
  * @param {Object} item - Scripture topic item
- * @returns {Promise<string>} Path to local video clip
+ * @returns {Promise<string>} Path to local video clip or image
  */
 export async function fetchScriptureClip(item = {}) {
   const filename = item.clipFilename || `${item.id || 'scripture'}.mp4`;
   const targetPath = path.join(SCRIPTURES_DIR, filename);
 
-  // 1. If clip already exists and is healthy (> 200KB), reuse it
-  if (fs.existsSync(targetPath) && fs.statSync(targetPath).size > 200000) {
+  // 1. If clip already exists and is healthy (> 100KB), reuse it
+  if (fs.existsSync(targetPath) && fs.statSync(targetPath).size > 100000) {
     logger.info(`Using cached scripture video clip: ${filename}`);
     return targetPath;
   }
@@ -722,21 +764,80 @@ export async function fetchScriptureClip(item = {}) {
         });
       });
 
-      if (fs.existsSync(targetPath) && fs.statSync(targetPath).size > 200000) {
+      if (fs.existsSync(targetPath) && fs.statSync(targetPath).size > 100000) {
         logger.success(`Successfully sliced and saved scripture clip: ${filename}`);
         return targetPath;
       }
     } catch (e) {
-      logger.warn(`yt-dlp clip extraction failed (${e.message}), checking fallbacks.`);
+      logger.warn(`yt-dlp clip extraction failed (${e.message}), checking category-matched fallbacks.`);
     }
   }
 
-  // 3. Fallback: Check if ANY scripture clip exists in scriptures folder (e.g. geeta_saar.mp4)
-  const existingClips = fs.readdirSync(SCRIPTURES_DIR).filter((f) => f.endsWith('.mp4'));
-  for (const clip of existingClips) {
-    const candidate = path.join(SCRIPTURES_DIR, clip);
-    if (fs.statSync(candidate).size > 200000) {
-      logger.info(`Reusing existing high-quality scripture footage: ${clip}`);
+  // 3. Category-Aware Local Fallback Pool (NEVER mix Ramayana with Mahabharata)
+  const epicCategory = detectScriptureEpic(item);
+  logger.info(`Resolving local scripture fallback for category: [${epicCategory.toUpperCase()}] (topic: "${item.englishTitle || item.id || ''}")`);
+
+  let candidates = [];
+  if (epicCategory === 'ramayana') {
+    const isHanuman = `${item.id || ''} ${item.englishTitle || ''} ${item.dialogueTheme || ''}`.toLowerCase().includes('hanuman');
+    if (isHanuman) {
+      candidates = [
+        path.join(SCRIPTURES_DIR, 'hanuman_ravana.mp4'),
+        path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4'),
+        path.join(SCRIPTURES_DIR, 'hanuman_ravana.jpg'),
+        path.join(DEFAULTS_DIR, 'slot2_hanuman.jpg'),
+        path.join(SCRIPTURES_DIR, 'ram_durbar.jpg'),
+      ];
+    } else {
+      candidates = [
+        path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4'),
+        path.join(SCRIPTURES_DIR, 'hanuman_ravana.mp4'),
+        path.join(SCRIPTURES_DIR, 'ram_durbar.jpg'),
+        path.join(DEFAULTS_DIR, 'slot2_hanuman.jpg'),
+        path.join(SCRIPTURES_DIR, 'hanuman_ravana.jpg'),
+      ];
+    }
+  } else if (epicCategory === 'gita') {
+    candidates = [
+      path.join(SCRIPTURES_DIR, 'geeta_saar.mp4'),
+      path.join(SCRIPTURES_DIR, 'karna_daan.mp4'),
+      path.join(SCRIPTURES_DIR, 'bhishma_pratigya.mp4'),
+    ];
+  } else if (epicCategory === 'mahabharata') {
+    const itemText = `${item.id || ''} ${item.englishTitle || ''} ${item.dialogueTheme || ''}`.toLowerCase();
+    if (itemText.includes('bhishma')) {
+      candidates = [
+        path.join(SCRIPTURES_DIR, 'bhishma_pratigya.mp4'),
+        path.join(SCRIPTURES_DIR, 'geeta_saar.mp4'),
+        path.join(SCRIPTURES_DIR, 'karna_daan.mp4'),
+      ];
+    } else if (itemText.includes('karna')) {
+      candidates = [
+        path.join(SCRIPTURES_DIR, 'karna_daan.mp4'),
+        path.join(SCRIPTURES_DIR, 'geeta_saar.mp4'),
+        path.join(SCRIPTURES_DIR, 'bhishma_pratigya.mp4'),
+      ];
+    } else {
+      candidates = [
+        path.join(SCRIPTURES_DIR, 'geeta_saar.mp4'),
+        path.join(SCRIPTURES_DIR, 'karna_daan.mp4'),
+        path.join(SCRIPTURES_DIR, 'bhishma_pratigya.mp4'),
+      ];
+    }
+  } else {
+    // General / festival fallback pool
+    candidates = [
+      path.join(SCRIPTURES_DIR, 'geeta_saar.mp4'),
+      path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4'),
+      path.join(SCRIPTURES_DIR, 'hanuman_ravana.mp4'),
+      path.join(DEFAULTS_DIR, 'slot2_shiva.jpg'),
+      path.join(DEFAULTS_DIR, 'slot2_hanuman.jpg'),
+    ];
+  }
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).size > 50000) {
+      logger.success(`Matched local ${epicCategory.toUpperCase()} scripture asset: ${path.basename(candidate)}`);
       return candidate;
     }
   }

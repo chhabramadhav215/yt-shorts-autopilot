@@ -13,7 +13,7 @@ export const SCRIPTURES_EPICS = [
     dialogueTheme: 'Krishna-Arjun Samvaad (Karma Yoga / Geeta Saar)',
     shlokSanskrit: 'कर्मण्येवाधिकारस्ते मा फलेषु कदाचन।\nमा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि॥',
     shlokEnglish: 'Karmanye Vadhikaraste Ma Phaleshu Kadachana...',
-    introDuration: 7.0,
+    introDuration: 0,
     moralSummary: 'Focus on your prescribed duty without anxiety over outcomes; duty is supreme.',
     attribution: 'Shrimad Bhagavad Gita Chapter 2, Verse 47 | Sage Ved Vyasa',
     segments: [
@@ -40,7 +40,7 @@ export const SCRIPTURES_EPICS = [
     dialogueTheme: 'Devavrata The Terrible Vow (Bhishma Pratigya)',
     shlokSanskrit: 'अद्यप्रभृति मे दाश ब्रह्मचर्यं भविष्यति।\nअपुत्रस्यापि मे लोका भविष्यन्त्यक्षया दिवि॥',
     shlokEnglish: 'From this day forth, I embrace lifelong celibacy for my father happiness...',
-    introDuration: 7.0,
+    introDuration: 0,
     moralSummary: 'Honoring parents and upholding a righteous vow transcends all worldly desires.',
     attribution: 'Mahabharata by Sage Ved Vyasa | Respectful Transformative Educational Commentary',
     segments: [
@@ -67,7 +67,7 @@ export const SCRIPTURES_EPICS = [
     dialogueTheme: 'Daanveer Karna (Kavach Kundal Daan)',
     shlokSanskrit: 'न मे भीतिः कुतश्चास्ति न मया विरतो यशः।\nकवचं कुण्डले चैव प्रयच्छामि सुरेश्वर॥',
     shlokEnglish: 'I have no fear of death, nor shall my glory ever fade; take my divine armor...',
-    introDuration: 7.0,
+    introDuration: 0,
     moralSummary: 'True generosity never wavers, even when one own survival is on the line.',
     attribution: 'Mahabharata Epic Tradition | Philosophical Analysis & Moral Study',
     segments: [
@@ -94,7 +94,7 @@ export const SCRIPTURES_EPICS = [
     dialogueTheme: 'Hanuman Ji in the Court of Lanka',
     shlokSanskrit: 'रामनामांकितं चापि इदं पश्य मया कृतम्।\nकुरु धर्मं समासाद्य मा गा रावण संक्षयम्॥',
     shlokEnglish: 'Heed the sacred message of Shri Rama, turn to Dharma before total destruction arrives...',
-    introDuration: 7.0,
+    introDuration: 0,
     moralSummary: 'Righteousness fears no tyrant; arrogance always leads to self-destruction.',
     attribution: 'Valmiki Ramayana | Reverent Cultural & Moral Commentary under Fair Use',
     segments: [
@@ -114,6 +114,33 @@ export const SCRIPTURES_EPICS = [
     tags: ['shorts', 'ramayana', 'hanuman', 'jaishriram', 'ravana', 'sundarkand', 'fearless', 'dharma'],
   },
   {
+    id: 'ram_rajya',
+    clipFilename: 'ramayana_rama.mp4',
+    englishTitle: 'The Eternal Ideal of Ram Rajya 🏹 Valmiki Ramayana Wisdom',
+    epic: 'Valmiki Ramayana (Yuddha Kanda)',
+    dialogueTheme: 'Shri Ram Coronation & Ideal Governance (Ram Rajya)',
+    shlokSanskrit: 'रामो विग्रहवान् धर्मः साधुः सत्यपराक्रमः।\nराजा सर्वस्य लोकस्य देवानामिव वासवः॥',
+    shlokEnglish: 'Rama is the very embodiment of Dharma, righteous and truthful in valor...',
+    introDuration: 0,
+    moralSummary: 'True leadership serves all with justice, compassion, and unwavering adherence to truth.',
+    attribution: 'Valmiki Ramayana | Reverent Cultural & Moral Commentary under Fair Use',
+    segments: [
+      {
+        hindi: 'श्री राम का संपूर्ण जीवन हमें सिखाता है कि एक आदर्श राजा और मनुष्य का कर्तव्य क्या होता है।',
+        english: 'The life of Lord Rama exemplifies the highest duties of an ideal leader and noble human.',
+      },
+      {
+        hindi: 'रामराज्य का अर्थ है ऐसा समाज जहाँ न्याय, करुणा और सत्य की विजय हो, और किसी के साथ अन्याय न हो।',
+        english: 'Ram Rajya signifies a just realm where truth and compassion prevail, and none suffer injustice.',
+      },
+      {
+        hindi: 'जब नेतृत्व निस्वार्थ सेवा बन जाता है, तभी समाज में शांति और समृद्धि का वास होता है। जय श्री राम!',
+        english: 'When leadership transforms into selfless service, peace and prosperity flourish. Jai Shri Ram!',
+      },
+    ],
+    tags: ['shorts', 'ramayana', 'shriram', 'ramrajya', 'dharma', 'jaishriram', 'sanatandharma', 'wisdom'],
+  },
+  {
     id: 'vishwaroop_darshan',
     clipFilename: 'vishwaroop_darshan.mp4',
     englishTitle: 'The Cosmic Vision of Krishna 🕉️ Vishwaroop Darshan | Bhagavad Gita',
@@ -121,7 +148,7 @@ export const SCRIPTURES_EPICS = [
     dialogueTheme: 'Lord Krishna Universal Cosmic Manifestation',
     shlokSanskrit: 'कालोऽस्मि लोकक्षयकृत्प्रवृद्धो लोकान्समाहर्तुमिह प्रवृत्ततः।',
     shlokEnglish: 'I am mighty Time, the source of destruction and renewal of all cosmic worlds...',
-    introDuration: 7.0,
+    introDuration: 0,
     moralSummary: 'Time conquers all mortal pride; surrender ego and fulfill your cosmic destiny.',
     attribution: 'Shrimad Bhagavad Gita | Spiritual & Philosophical Darshan Analysis',
     segments: [
@@ -149,7 +176,7 @@ export async function generateSlot4Content(customTopic = null) {
   let attribution = '';
   let shlokSanskrit = '';
   let shlokEnglish = '';
-  let introDuration = 7.0;
+  let introDuration = 0;
   let clipPath = null;
   let epicBadge = 'MAHABHARATA & GITA WISDOM';
 
@@ -203,7 +230,7 @@ export async function generateSlot4Content(customTopic = null) {
     attribution = item.attribution;
     shlokSanskrit = item.shlokSanskrit;
     shlokEnglish = item.shlokEnglish;
-    introDuration = item.introDuration || 7.0;
+    introDuration = item.introDuration || 0;
     epicBadge = item.epic.toUpperCase();
 
     // Automatically resolve or slice high-quality scripture video clip
@@ -215,6 +242,7 @@ export async function generateSlot4Content(customTopic = null) {
     clipPath = await fetchScriptureClip({
       dialogueTheme: customTopic || title,
       englishTitle: title,
+      epic: epicBadge,
       clipFilename: `${(customTopic || title).toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 20)}.mp4`,
     });
   }
@@ -228,7 +256,7 @@ export async function generateSlot4Content(customTopic = null) {
     `• ${moral}\n\n` +
     `📜 SCRIPTURE REFERENCE & CONTEXT:\n` +
     `• Source: ${attribution}\n` +
-    `• Audio: Original serial video clip audio (first 7s at 100% volume) followed by transformative Hindi AI moral commentary with English burned-in subtitles.\n\n` +
+    `• Audio: Transformative Hindi philosophical commentary with English burned-in subtitles, set to sacred devotional instrumental music.\n\n` +
     `⚖️ SECTION 107 FAIR USE & ATTRIBUTION DISCLAIMER:\n` +
     `Copyright Disclaimer under Section 107 of the Copyright Act 1976: Allowance is made for "fair use" for purposes such as criticism, comment, news reporting, teaching, scholarship, education, and research. Fair use is a use permitted by copyright statute that might otherwise be infringing. Non-profit, educational, or personal spiritual use tips the balance in favor of fair use. All reverent attribution belongs to original literary epics and copyright holders.`;
 
@@ -249,8 +277,8 @@ export async function generateSlot4Content(customTopic = null) {
     segments,
     shlokSanskrit,
     shlokEnglish,
-    introDuration,
-    isDualAudio: true,
+    introDuration: 0,
+    isDualAudio: false,
     bgMusicPath,
     clipPath,
     epicBadge,

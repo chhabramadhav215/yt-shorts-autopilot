@@ -135,12 +135,18 @@ export async function buildShortVideo({
   // Check if original video clip has audio for Dual-Audio
   let originalAudioSource = null;
   if (isDualAudio && clipAudioPath && fs.existsSync(clipAudioPath)) {
-    const clipHasAudio = await hasAudioStream(clipAudioPath);
-    if (clipHasAudio) {
-      originalAudioSource = clipAudioPath;
-      logger.info(`Using original serial clip audio for dual-audio: ${path.basename(clipAudioPath)}`);
+    // If background instrumental music exists, always prefer clean instrumental music over clip dialogue to prevent voice clashes
+    if (backgroundMusicPath && fs.existsSync(backgroundMusicPath)) {
+      originalAudioSource = backgroundMusicPath;
+      logger.info(`Using background instrumental music track to avoid speech clash: ${path.basename(backgroundMusicPath)}`);
     } else {
-      logger.warn(`Clip ${path.basename(clipAudioPath)} has no audio stream, falling back to background music.`);
+      const clipHasAudio = await hasAudioStream(clipAudioPath);
+      if (clipHasAudio) {
+        originalAudioSource = clipAudioPath;
+        logger.info(`Using original serial clip audio for dual-audio: ${path.basename(clipAudioPath)}`);
+      } else {
+        logger.warn(`Clip ${path.basename(clipAudioPath)} has no audio stream, falling back to background music.`);
+      }
     }
   }
 
