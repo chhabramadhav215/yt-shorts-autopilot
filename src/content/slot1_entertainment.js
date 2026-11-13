@@ -28,25 +28,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अरे छोटे बॉस, आज इतना सीरियस मुंह बनाकर पूरे घर में क्यों घूम रहे हो?',
-            hinglish: 'Oye chhote boss, aaj itna serious muh banakar pure ghar mein kyu ghum rahe ho?'
+            hinglish: 'Oye chhote boss, aaj itna serious muh banakar pure ghar mein kyu ghum rahe ho?',
+            english: "Hey Little Boss, why are you walking around looking so serious today?"
           },
           {
             speaker: 'Baby',
             role: 'Little Boss',
             hindi: 'पापा सीरियस इसलिए हूँ क्योंकि आज मैंने आपकी सैलरी से चॉकलेट का टैक्स काट लिया है!',
-            hinglish: 'Papa serious isliye hoon kyunki maine aapki salary se chocolate ka tax kaat liya!'
+            hinglish: 'Papa serious isliye hoon kyunki maine aapki salary se chocolate ka tax kaat liya!',
+            english: "I'm serious, Dad, because today I deducted a chocolate tax directly from your salary!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'क्या?! पर कंपनी तो मेरी है, टैक्स तू कैसे काटेगा भाई?',
-            hinglish: 'Kya?! Par company toh meri hai, tax tu kaise katega bhai?'
+            hinglish: 'Kya?! Par company toh meri hai, tax tu kaise katega bhai?',
+            english: "What?! But it's my company, how can you deduct taxes from me?!"
           },
           {
             speaker: 'Baby',
             role: 'Little Boss',
             hindi: 'कंपनी आपकी होगी पापा, पर इस घर का असली मैनेजिंग डायरेक्टर तो मैं ही हूँ!',
-            hinglish: 'Company aapki hogi papa, par is ghar ka asli managing director toh main hi hoon!'
+            hinglish: 'Company aapki hogi papa, par is ghar ka asli managing director toh main hi hoon!',
+            english: "It may be your company, Dad, but I'm the real Managing Director of this house!"
           }
         ]
       },
@@ -58,25 +62,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'हां भाई छोटे, आज तुम्हारी छह महीने की परफॉर्मेंस रिव्यू मीटिंग है!',
-            hinglish: 'Haan bhai chhote, aaj tumhari 6 mahine ki performance review meeting hai!'
+            hinglish: 'Haan bhai chhote, aaj tumhari 6 mahine ki performance review meeting hai!',
+            english: "Alright junior, today is your six-month performance review meeting!"
           },
           {
             speaker: 'Baby',
             role: 'Little Boss',
             hindi: 'रिव्यू छोड़ो पापा, पहले ये बताओ मेरी दूध की बोतल में मलाई का इंसेंटिव कब बढ़ाओगे?',
-            hinglish: 'Review chhodo papa, pehle ye batao doodh ki bottle mein malai ka incentive kab badhaoge?'
+            hinglish: 'Review chhodo papa, pehle ye batao doodh ki bottle mein malai ka incentive kab badhaoge?',
+            english: "Forget the review, Dad, when are you increasing the cream allowance in my milk bottle?"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'इंसेंटिव तब मिलेगा जब रात को बिना रोए चुपचाप सोओगे!',
-            hinglish: 'Incentive tab milega jab raat ko bina roye chupchaap sooge!'
+            hinglish: 'Incentive tab milega jab raat ko bina roye chupchaap sooge!',
+            english: "You'll get an incentive only when you sleep quietly at night without crying!"
           },
           {
             speaker: 'Baby',
             role: 'Little Boss',
             hindi: 'अगर मैं रात को सो गया तो आपकी रील्स कौन देखेगा? इंक्रीमेंट पक्का समझो!',
-            hinglish: 'Agar main raat ko so gaya toh aapki reels kaun dekhega? Increment pakka samjho!'
+            hinglish: 'Agar main raat ko so gaya toh aapki reels kaun dekhega? Increment pakka samjho!',
+            english: "If I sleep at night, who will watch your reels? Consider my promotion confirmed!"
           }
         ]
       }
@@ -95,25 +103,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'DJ Bhaiya',
             hindi: 'अरे डीजे भैया का चेला! ये कौन सा नया डांस स्टेप ईजाद कर दिया तुमने?',
-            hinglish: 'Oye DJ bhaiya ke chele! Ye kaun sa naya dance step ijaad kar diya tumne?'
+            hinglish: 'Oye DJ bhaiya ke chele! Ye kaun sa naya dance step ijaad kar diya tumne?',
+            english: "Hey DJ's little apprentice! What kind of crazy new dance step have you invented?"
           },
           {
             speaker: 'Baby',
             role: 'Rockstar',
             hindi: 'अरे डीजे अंकल, इसे कहते हैं डायपर हिप-हॉप स्टाइल, बड़े-बड़े डांसर्स भी फेल हैं!',
-            hinglish: 'Arre DJ uncle, ise kehte hain diaper hip-hop style, bade-bade dancers bhi fail hain!'
+            hinglish: 'Arre DJ uncle, ise kehte hain diaper hip-hop style, bade-bade dancers bhi fail hain!',
+            english: "Hey DJ uncle, this is diaper hip-hop style, even pro dancers fail before this!"
           },
           {
             speaker: 'Adult',
             role: 'DJ Bhaiya',
             hindi: 'पर बेटा, कमर तो हिल रही है, हाथ क्यों ऊपर-नीचे फेंक रहे हो?',
-            hinglish: 'Par beta, kamar toh hil rahi hai, haath kyu upar neeche phenk rahe ho?'
+            hinglish: 'Par beta, kamar toh hil rahi hai, haath kyu upar neeche phenk rahe ho?',
+            english: "Okay, but your hips are grooving, why are you throwing your hands all over the place?"
           },
           {
             speaker: 'Baby',
             role: 'Rockstar',
             hindi: 'क्योंकि जब जेब में दूध का सिक्का खनकता है, तो हाथ अपने आप हवा में उड़ते हैं!',
-            hinglish: 'Kyunki jab jeb mein doodh ka sikka khanakta hai, toh haath hawa mein udte hain!'
+            hinglish: 'Kyunki jab jeb mein doodh ka sikka khanakta hai, toh haath hawa mein udte hain!',
+            english: "Because when chocolate coins jingle in my pocket, my hands fly into the air automatically!"
           }
         ]
       },
@@ -125,25 +137,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'ओए रॉकस्टार! बारात में ऐसे नागिन डांस करोगे तो रिश्तेदार क्या कहेंगे?',
-            hinglish: 'Oye rockstar! Baraat mein aise naagin dance karoge toh rishtedaar kya kahenge?'
+            hinglish: 'Oye rockstar! Baraat mein aise naagin dance karoge toh rishtedaar kya kahenge?',
+            english: "Hey rockstar! If you do the snake dance at the wedding, what will the relatives say?"
           },
           {
             speaker: 'Baby',
             role: 'Rockstar',
             hindi: 'रिश्तेदार कुछ भी कहें पापा, दूल्हे से ज़्यादा शगुन के लिफाफे मुझे ही मिलने वाले हैं!',
-            hinglish: 'Rishtedaar kuch bhi kahein papa, dulhe se zyada shagun ke lifafe mujhe hi milenge!'
+            hinglish: 'Rishtedaar kuch bhi kahein papa, dulhe se zyada shagun ke lifafe mujhe hi milenge!',
+            english: "Whatever they say, Dad, I'm taking home all the cash envelopes, not the groom!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अच्छा? पर डांस का ऑफिशियल लाइसेंस कहाँ है तुम्हारा?',
-            hinglish: 'Achha? Par dance ka official license kahan hai tumhara?'
+            hinglish: 'Achha? Par dance ka official license kahan hai tumhara?',
+            english: "Really? But where is your official dancing license, mister?"
           },
           {
             speaker: 'Baby',
             role: 'Rockstar',
             hindi: 'लाइसेंस छोड़ो पापा, डीजे वाले को बोलो गाना बदलो, अब बेबी का राज चलेगा!',
-            hinglish: 'License chhodo papa, DJ wale ko bolo gaana badlo, ab baby ka raaj chalega!'
+            hinglish: 'License chhodo papa, DJ wale ko bolo gaana badlo, ab baby ka raaj chalega!',
+            english: "Forget the license, Dad, tell the DJ to change the track, baby rules the party!"
           }
         ]
       }
@@ -162,25 +178,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'ओए जासूस! फ्रिज का दरवाजा खुला है और तुम्हारा पूरा मुंह चॉकलेट से लाल क्यों है?',
-            hinglish: 'Oye jasoos! Fridge ka darwaza khula hai aur tumhara pura muh chocolate se laal kyu hai?'
+            hinglish: 'Oye jasoos! Fridge ka darwaza khula hai aur tumhara pura muh chocolate se laal kyu hai?',
+            english: "Hey detective! The fridge door is wide open and your whole face is smeared with chocolate!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा कसम से मैंने चॉकलेट नहीं खाई, वो तो खुद फिसलकर मेरे मुंह में आ गई!',
-            hinglish: 'Papa kasam se maine chocolate nahi khai, woh khud phisalkar mere muh mein aa gayi!'
+            hinglish: 'Papa kasam se maine chocolate nahi khai, woh khud phisalkar mere muh mein aa gayi!',
+            english: "I swear Dad, I didn't eat the chocolate, it slipped and fell straight into my mouth!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अच्छा? और ये जो हाथों पर सबूत चिपके हैं, इनका क्या करूँ?',
-            hinglish: 'Achha? Aur ye jo haathon par saboot chipke hain, inka kya karun?'
+            hinglish: 'Achha? Aur ye jo haathon par saboot chipke hain, inka kya karun?',
+            english: "Really? And what about the sticky evidence caught red-handed on your fingers?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'सबूत मिटाने के लिए मुझे एक और किटकैट दो, वरना मम्मी को बता दूंगा आपने कोल्ड ड्रिंक पी थी!',
-            hinglish: 'Saboot mitane ke liye ek aur KitKat do, warna mummy ko bata dunga aapne cold drink pee thi!'
+            hinglish: 'Saboot mitane ke liye ek aur KitKat do, warna mummy ko bata dunga aapne cold drink pee thi!',
+            english: "To destroy the evidence, give me another KitKat, or I'll tell Mom you drank cold soda!"
           }
         ]
       },
@@ -192,25 +212,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'ओए नटखट! लिविंग रूम की सफेद दीवार पर ये लाल-पीली पेंटिंग किसने बनाई है?',
-            hinglish: 'Oye natkhat! Living room ki white deewar par ye laal-peeli painting kisne banayi hai?'
+            hinglish: 'Oye natkhat! Living room ki white deewar par ye laal-peeli painting kisne banayi hai?',
+            english: "Hey troublemaker! Who made this red and yellow painting all over the white living room wall?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा डांटने से पहले कद्र करो, ये पांच करोड़ की मॉडर्न आर्ट है, म्यूजियम में बिकेगी!',
-            hinglish: 'Papa daantne se pehle kadar karo, ye 5 crore ki modern art hai, museum mein bikegi!'
+            hinglish: 'Papa daantne se pehle kadar karo, ye 5 crore ki modern art hai, museum mein bikegi!',
+            english: "Before scolding me Dad, appreciate it! This is 5-crore modern art for a museum!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'मॉडर्न आर्ट?! पर लाल क्रियॉन तो तुम्हारे ही हाथ में रंगे हाथ पकड़ा गया है!',
-            hinglish: 'Modern art?! Par laal crayon toh tumhare hi haath mein range haath pakda gaya hai!'
+            hinglish: 'Modern art?! Par laal crayon toh tumhare hi haath mein range haath pakda gaya hai!',
+            english: "Modern art?! But the red crayon was caught red-handed right in your hand!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'हाथ में क्रियॉन होना गुनाह नहीं पापा, असली महान कलाकार को कोई नहीं समझता!',
-            hinglish: 'Haath mein crayon hona gunaah nahi papa, asli mahaan kalakaar ko koi nahi samajhta!'
+            hinglish: 'Haath mein crayon hona gunaah nahi papa, asli mahaan kalakaar ko koi nahi samajhta!',
+            english: "Holding a crayon isn't a crime, Dad! Nobody understands true genius artists!"
           }
         ]
       }
@@ -229,25 +253,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'बेटा एक नया चुटकुला सुनाऊं? एक बार एक आलू प्याज से मिलने गया...',
-            hinglish: 'Beta ek naya chutkula sunau? Ek baar ek aaloo pyaaz se milne gaya...'
+            hinglish: 'Beta ek naya chutkula sunau? Ek baar ek aaloo pyaaz se milne gaya...',
+            english: "Want to hear a new joke, kiddo? Once upon a time, a potato went to meet an onion..."
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'हाहाहा! पापा आपका चुटकुला तो बहुत बेकार था, पर आपकी शक्ल देखकर हंसी आ गई!',
-            hinglish: 'Hahaha! Papa aapka chutkula toh bekaar tha, par aapki shakal dekhkar hansi aa gayi!'
+            hinglish: 'Hahaha! Papa aapka chutkula toh bekaar tha, par aapki shakal dekhkar hansi aa gayi!',
+            english: "Hahaha! Dad, your joke was terrible, but your funny face made me burst out laughing!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अरे! मेरी शक्ल में ऐसा क्या मज़ाकिया है भाई?',
-            hinglish: 'Arre! Meri shakal mein aisa kya mazakiya hai bhai?'
+            hinglish: 'Arre! Meri shakal mein aisa kya mazakiya hai bhai?',
+            english: "Hey! What's so funny about my face, young man?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'जब आप सीरियस होते हो ना पापा, तो बिल्कुल गुस्सा वाले लाल टमाटर जैसे लगते हो!',
-            hinglish: 'Jab aap serious hote ho na papa, toh bilkul gusse wale laal tamatar jaise lagte ho!'
+            hinglish: 'Jab aap serious hote ho na papa, toh bilkul gusse wale laal tamatar jaise lagte ho!',
+            english: "Whenever you get serious, Dad, you look like a red angry tomato!"
           }
         ]
       },
@@ -259,25 +287,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अरे भाई इतनी ज़ोर-ज़ोर से क्यों हंस रहे हो, कोई गड़ा हुआ खज़ाना मिल गया क्या?',
-            hinglish: 'Arre bhai itni zor-zor se kyu hans rahe ho, koi khazana mil gaya kya?'
+            hinglish: 'Arre bhai itni zor-zor se kyu hans rahe ho, koi khazana mil gaya kya?',
+            english: "Hey kiddo, why are you laughing so loud? Did you find a buried treasure or what?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा खज़ाना तो नहीं मिला, पर आपकी नकली मूंछ टेढ़ी हो गई है, ज़रा शीशे में देखो!',
-            hinglish: 'Papa khazana toh nahi mila, par aapki nakli moochh tedhi ho gayi hai, sheeshe mein dekho!'
+            hinglish: 'Papa khazana toh nahi mila, par aapki nakli moochh tedhi ho gayi hai, sheeshe mein dekho!',
+            english: "No treasure, Dad, but your fake mustache is hanging crooked, check the mirror!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अरे बाप रे! मेरी मूंछ कब से उल्टी लटकी हुई है?',
-            hinglish: 'Arre baap re! Meri moochh kab se ulti latki hui hai?'
+            hinglish: 'Arre baap re! Meri moochh kab se ulti latki hui hai?',
+            english: "Good heavens! How long has my mustache been hanging upside down?!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'दस मिनट से पापा! और पूरे मोहल्ले ने देख भी लिया, हाहाहा!',
-            hinglish: 'Das minute se papa! Aur poore mohalle ne dekh bhi liya, hahaha!'
+            hinglish: 'Das minute se papa! Aur poore mohalle ne dekh bhi liya, hahaha!',
+            english: "For ten whole minutes, Dad! And the entire neighborhood already saw it, hahaha!"
           }
         ]
       }
@@ -296,25 +328,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Cop',
             hindi: 'ओए छोटे ड्राइवर! गाड़ी ज़रा साइड में लगाओ, ओवरस्पीडिंग का चालान कटेगा!',
-            hinglish: 'Oye chhote driver! Gaadi zara side mein lagao, overspeeding ka chalan katega!'
+            hinglish: 'Oye chhote driver! Gaadi zara side mein lagao, overspeeding ka chalan katega!',
+            english: "Hey little driver! Pull your car over to the curb, you're getting a speeding ticket!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'अंकल चालान बाद में काटना, पहले ये बताओ मेरी गाड़ी में रिवर्स गियर कहाँ है?',
-            hinglish: 'Uncle chalan baad mein kaatna, pehle ye batao meri gaadi mein reverse gear kahan hai?'
+            hinglish: 'Uncle chalan baad mein kaatna, pehle ye batao meri gaadi mein reverse gear kahan hai?',
+            english: "Write the ticket later, officer, first tell me where the reverse gear on this car is!"
           },
           {
             speaker: 'Adult',
             role: 'Cop',
             hindi: 'ड्राइविंग आती नहीं और हाईवे पर कार दौड़ा रहे हो? लाइसेंस कहाँ है तुम्हारा?',
-            hinglish: 'Driving aati nahi aur highway par car dauda rahe ho? License kahan hai tumhara?'
+            hinglish: 'Driving aati nahi aur highway par car dauda rahe ho? License kahan hai tumhara?',
+            english: "You don't even know how to drive and you're speeding on the expressway? Where's your license?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'लाइसेंस तो नहीं है अंकल, पर ये लाल वाली लॉलीपॉप ले लो और मामला यहीं रफा-दफा करो!',
-            hinglish: 'License toh nahi hai uncle, par ye laal lollipop le lo aur mamla yahin rafa-dafa karo!'
+            hinglish: 'License toh nahi hai uncle, par ye laal lollipop le lo aur mamla yahin rafa-dafa karo!',
+            english: "No license, officer, but take this red lollipop and let's settle this right here!"
           }
         ]
       },
@@ -326,25 +362,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Cop',
             hindi: 'ओए नन्हे बाइकर! बिना हेलमेट के इतनी तेज़ गाड़ी क्यों भगा रहे हो?',
-            hinglish: 'Oye nanhe biker! Bina helmet ke itni tez gaadi kyu bhaga rahe ho?'
+            hinglish: 'Oye nanhe biker! Bina helmet ke itni tez gaadi kyu bhaga rahe ho?',
+            english: "Hey little biker! Why are you speeding on the sofa highway without a helmet?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'अंकल अगर हेलमेट पहन लूंगा तो मेरा नया हेयरस्टाइल दुनिया को कैसे दिखेगा?',
-            hinglish: 'Uncle agar helmet pehan lunga toh mera naya hairstyle duniya ko kaise dikhega?'
+            hinglish: 'Uncle agar helmet pehan lunga toh mera naya hairstyle duniya ko kaise dikhega?',
+            english: "Uncle, if I wear a helmet, how will the world admire my brand new hairstyle?"
           },
           {
             speaker: 'Adult',
             role: 'Cop',
             hindi: 'हेयरस्टाइल के चक्कर में पांच सौ का भारी चालान कट जाएगा तुम्हारा!',
-            hinglish: 'Hairstyle ke chakkar mein paanch sau ka bhari chalan kat jayega tumhara!'
+            hinglish: 'Hairstyle ke chakkar mein paanch sau ka bhari chalan kat jayega tumhara!',
+            english: "Because of your hairstyle, you're getting slapped with a 500-rupee fine!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'चालान पापा के नाम भेज देना अंकल, आज उनकी सैलरी आई है, हाहाहा!',
-            hinglish: 'Chalan papa ke naam bhej dena uncle, aaj unki salary aayi hai, hahaha!'
+            hinglish: 'Chalan papa ke naam bhej dena uncle, aaj unki salary aayi hai, hahaha!',
+            english: "Send the fine directly to Dad, officer, he just got paid today, hahaha!"
           }
         ]
       }
@@ -363,25 +403,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Doctor',
             hindi: 'बेटा बिल्कुल मत डरना, बस एक छोटी सी नन्हीं चींटी प्यार से काटेगी!',
-            hinglish: 'Beta bilkul mat darna, bas ek chhoti si nanhi cheenti pyaar se kaategi!'
+            hinglish: 'Beta bilkul mat darna, bas ek chhoti si nanhi cheenti pyaar se kaategi!',
+            english: "Don't be scared at all, kiddo, it's just a tiny little ant giving you a gentle bite!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'अरे डॉक्टर अंकल, अगर चींटी के पास इतना बड़ा सुई वाला इंजेक्शन होता तो हाथी भी बेहोश हो जाता!',
-            hinglish: 'Doctor uncle, agar cheenti ke paas itna bada injection hota toh haathi bhi behosh ho jata!'
+            hinglish: 'Doctor uncle, agar cheenti ke paas itna bada injection hota toh haathi bhi behosh ho jata!',
+            english: "Doctor uncle, if an ant carried a giant needle like that, even an elephant would pass out!"
           },
           {
             speaker: 'Adult',
             role: 'Doctor',
             hindi: 'अरे वाह, बड़ा समझदार बच्चा है! ज़रा मुंह खोलकर जीभ बाहर निकालो?',
-            hinglish: 'Arre wah, bada samajhdaar bachha hai! Zara muh kholkar jeebh bahar nikalo?'
+            hinglish: 'Arre wah, bada samajhdaar bachha hai! Zara muh kholkar jeebh bahar nikalo?',
+            english: "Well, aren't you a smart kid! Now open your mouth and stick your tongue out?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'जीभ तो निकाल दूंगा अंकल, पर पहले सुई जेब में रखो, वरना मैं आपकी कुर्सी का पहिया निकाल दूंगा!',
-            hinglish: 'Jeebh toh nikaal dunga uncle, par pehle sui jeb mein rakho, warna kursi ka pahiya nikaal dunga!'
+            hinglish: 'Jeebh toh nikaal dunga uncle, par pehle sui jeb mein rakho, warna kursi ka pahiya nikaal dunga!',
+            english: "I'll stick my tongue out, uncle, but put that needle away first, or I'll unscrew your chair wheels!"
           }
         ]
       },
@@ -393,25 +437,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अरे बेटा, शीशे के सामने खड़े होकर इतनी देर से किससे बातें कर रहे हो?',
-            hinglish: 'Arre beta, sheeshe ke samne khade hokar itni der se kisse baatein kar rahe ho?'
+            hinglish: 'Arre beta, sheeshe ke samne khade hokar itni der se kisse baatein kar rahe ho?',
+            english: "Hey son, who have you been talking to in front of the mirror for so long?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा शीशे के अंदर एक बहुत ही हैंडसम बच्चा मुझे लगातार घूर रहा है!',
-            hinglish: 'Papa sheeshe ke andar ek bohot hi handsome bachha mujhe lagataar ghur raha hai!'
+            hinglish: 'Papa sheeshe ke andar ek bohot hi handsome bachha mujhe lagataar ghur raha hai!',
+            english: "Dad, there is a super handsome kid inside the mirror who keeps staring right at me!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'बेटा वो तुम्हारा ही चेहरा है, कोई दूसरा बच्चा नहीं है वो!',
-            hinglish: 'Beta woh tumhara hi chehra hai, koi doosra bachha nahi hai woh!'
+            hinglish: 'Beta woh tumhara hi chehra hai, koi doosra bachha nahi hai woh!',
+            english: "Son, that's just your own reflection, there is no other kid in there!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'अगर वो मैं हूँ पापा, तो वो मेरी चॉकलेट मांगने पर मना क्यों नहीं करता? ज़ेरॉक्स कॉपी है वो!',
-            hinglish: 'Agar woh main hoon papa, toh meri chocolate maangne par mana kyu nahi karta? Xerox copy hai woh!'
+            hinglish: 'Agar woh main hoon papa, toh meri chocolate maangne par mana kyu nahi karta? Xerox copy hai woh!',
+            english: "If that's me, Dad, why doesn't he share his chocolate when I ask? He's a counterfeit clone!"
           }
         ]
       }
@@ -430,25 +478,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Trainer',
             hindi: 'चलो छोटे पहलवान! आज दस पुशअप्स और बीस जंप्स लगाने हैं तुम्हें!',
-            hinglish: 'Chalo chhote pehlwaan! Aaj 10 pushups aur 20 jumps lagane hain tumhe!'
+            hinglish: 'Chalo chhote pehlwaan! Aaj 10 pushups aur 20 jumps lagane hain tumhe!',
+            english: "Alright little champ! Today you've got ten pushups and twenty high jumps to do!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'ट्रेनर अंकल पुशअप्स का तो पता नहीं, पर उछल-उछल कर सोफे के स्प्रिंग ज़रूर तोड़ दूंगा!',
-            hinglish: 'Trainer uncle pushups ka toh pata nahi, par uchhal-uchhal kar sofa ke spring tod dunga!'
+            hinglish: 'Trainer uncle pushups ka toh pata nahi, par uchhal-uchhal kar sofa ke spring tod dunga!',
+            english: "Trainer uncle, I don't know about pushups, but jumping around will break the sofa springs!"
           },
           {
             speaker: 'Adult',
             role: 'Trainer',
             hindi: 'सोफे पर नहीं ज़मीन पर वर्कआउट करो! सिक्स पैक एब्स बनाने हैं कि नहीं?',
-            hinglish: 'Sofa par nahi zameen par workout karo! Six pack abs banane hain ki nahi?'
+            hinglish: 'Sofa par nahi zameen par workout karo! Six pack abs banane hain ki nahi?',
+            english: "Work out on the floor, not on the couch! Don't you want to build six-pack abs?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'एब्स का क्या करूँ अंकल? मम्मी कहती हैं कि गोल-मटोल पेट वाले बच्चे ही ज़्यादा क्यूट होते हैं!',
-            hinglish: 'Abs ka kya karun uncle? Mummy kehti hain gol-matol pet wale bachhe zyada cute hote hain!'
+            hinglish: 'Abs ka kya karun uncle? Mummy kehti hain gol-matol pet wale bachhe zyada cute hote hain!',
+            english: "What would I do with abs, uncle? Mom says chubby-cheeked babies are way cuter!"
           }
         ]
       },
@@ -460,25 +512,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'ओए तूफानी बच्चे! सुबह से नॉन-स्टॉप उछल रहे हो, क्या इनवर्टर की बैटरी पर चलते हो?',
-            hinglish: 'Oye toofani bachhe! Subah se non-stop uchhal rahe ho, kya inverter battery par chalte ho?'
+            hinglish: 'Oye toofani bachhe! Subah se non-stop uchhal rahe ho, kya inverter battery par chalte ho?',
+            english: "Hey energizer baby! You've been bouncing non-stop since morning, are you running on an inverter battery?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा बैटरी पर तो आपके खिलौने चलते हैं, मेरा पावर सोर्स तो मम्मी की बनाई मीठी खीर है!',
-            hinglish: 'Papa battery par toh khilaune chalte hain, mera power source mummy ki banayi kheer hai!'
+            hinglish: 'Papa battery par toh khilaune chalte hain, mera power source mummy ki banayi kheer hai!',
+            english: "Dad, your toys run on batteries, my secret fuel is Mom's sweet homemade kheer pudding!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'तो थोड़ी खीर मुझे भी दे दो, ऑफिस से आकर मेरी बैटरी बिल्कुल लो हो गई है!',
-            hinglish: 'Toh thodi kheer mujhe bhi de do, office se aakar meri battery bilkul low ho gayi hai!'
+            hinglish: 'Toh thodi kheer mujhe bhi de do, office se aakar meri battery bilkul low ho gayi hai!',
+            english: "Then share some of that kheer with me, my battery is completely drained after office!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'खीर खत्म हो गई पापा! अब सिर्फ मेरा डांस देखो और चुपचाप वीडियो को सब्सक्राइब करो!',
-            hinglish: 'Kheer khatam ho gayi papa! Ab sirf mera dance dekho aur video ko subscribe karo!'
+            hinglish: 'Kheer khatam ho gayi papa! Ab sirf mera dance dekho aur video ko subscribe karo!',
+            english: "The kheer is all gone, Dad! Now just watch my victory dance and quietly subscribe!"
           }
         ]
       }
@@ -497,25 +553,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'आज तुमने फिर से दूध का गिलास फर्श पर गिरा दिया? आज तुम्हारी भारी डांट पक्की है!',
-            hinglish: 'Aaj tumne fir se doodh ka glass farsh par gira diya? Aaj tumhari daant pakki hai!'
+            hinglish: 'Aaj tumne fir se doodh ka glass farsh par gira diya? Aaj tumhari daant pakki hai!',
+            english: "Did you spill that glass of milk on the floor again? Today you're in big trouble!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा मुझे डांटने से पहले ज़रा पीछे मुड़कर देखो, दादी बेलन लेकर खड़ी हैं!',
-            hinglish: 'Papa mujhe daantne se pehle peeche mudkar dekho, Dadi belan lekar khadi hain!'
+            hinglish: 'Papa mujhe daantne se pehle peeche mudkar dekho, Dadi belan lekar khadi hain!',
+            english: "Dad, before you scold me, take a quick look behind you—Grandma is standing with a rolling pin!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अरे मम्मी आप?! नहीं-नहीं मैं तो बस बच्चे को बहुत प्यार से समझा रहा था!',
-            hinglish: 'Arre mummy aap?! Nahi-nahi main toh bas bachhe ko bohot pyaar se samjha raha tha!'
+            hinglish: 'Arre mummy aap?! Nahi-nahi main toh bas bachhe ko bohot pyaar se samjha raha tha!',
+            english: "Oh, Mother, it is you?! No, no, I was just gently advising the child with so much love!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'देखा छोटा दिमाग बड़ा धमाका! एक नकली आंसू में पापा का पूरा गेम उल्टा कर दिया!',
-            hinglish: 'Dekha chhota dimaag bada dhamaka! Ek nakli aansu mein papa ka game ulta kar diya!'
+            hinglish: 'Dekha chhota dimaag bada dhamaka! Ek nakli aansu mein papa ka game ulta kar diya!',
+            english: "Small brain, giant explosion! One fake tear and Dad's entire game plan is flipped!"
           }
         ]
       },
@@ -527,25 +587,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'ओए नटखट! मेरा फोन अनलॉक करके तुमने ऑनलाइन नई टॉय कार कैसे ऑर्डर कर दी?',
-            hinglish: 'Oye natkhat! Mera phone unlock karke tumne online nayi toy car kaise order kar di?'
+            hinglish: 'Oye natkhat! Mera phone unlock karke tumne online nayi toy car kaise order kar di?',
+            english: "Hey mischief-maker! How did you unlock my phone and order a brand new toy car online?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा जब आप सो रहे थे, मैंने आपकी ही उंगली लगाकर फिंगरप्रिंट लॉक खोल लिया!',
-            hinglish: 'Papa jab aap so rahe the, maine aapki hi ungli lagakar fingerprint lock khol liya!'
+            hinglish: 'Papa jab aap so rahe the, maine aapki hi ungli lagakar fingerprint lock khol liya!',
+            english: "Dad, while you were asleep, I pressed your own finger onto the fingerprint sensor!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'क्या?! पर मेरे फोन का छह अंकों वाला पिन तो तुम्हें कभी नहीं पता था!',
-            hinglish: 'Kya?! Par mere phone ka 6 digit pin toh tumhe kabhi nahi pata tha!'
+            hinglish: 'Kya?! Par mere phone ka 6 digit pin toh tumhe kabhi nahi pata tha!',
+            english: "What?! But you never knew my secret six-digit passcode!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा आपका पिन वन-टू-थ्री-फोर-फाइव-सिक्स है, ये तो हमारे टॉमी कुत्ते को भी पता है!',
-            hinglish: 'Papa aapka pin 1-2-3-4-5-6 hai, ye toh hamare Tommy kutte ko bhi pata hai!'
+            hinglish: 'Papa aapka pin 1-2-3-4-5-6 hai, ye toh hamare Tommy kutte ko bhi pata hai!',
+            english: "Dad, your PIN is 1-2-3-4-5-6, even our dog Tommy knows that passcode!"
           }
         ]
       }
@@ -564,25 +628,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अरे नन्हे इंजीनियर! ये जो खिलौनों की इतनी ऊंची मीनार बनाई है, ये गिरेगी तो नहीं?',
-            hinglish: 'Arre nanhe engineer! Ye jo khilaunon ki itni unchi minaar banayi hai, ye giregi toh nahi?'
+            hinglish: 'Arre nanhe engineer! Ye jo khilaunon ki itni unchi minaar banayi hai, ye giregi toh nahi?',
+            english: "Hey little engineer! You built this towering toy tower so high, it's not going to collapse, is it?"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा गिरना ही तो इस पूरे प्रोजेक्ट का असली क्लाइमेक्स है, ज़रा एक सेकंड रुको!',
-            hinglish: 'Papa girna hi toh is poore project ka asli climax hai, zara ek second ruko!'
+            hinglish: 'Papa girna hi toh is poore project ka asli climax hai, zara ek second ruko!',
+            english: "Dad, the collapse is the real grand climax of this entire project, just wait one second!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'अरे-अरे लात मत मारना! पूरा कमरा बिखर जाएगा भाई!',
-            hinglish: 'Arre-arre laat mat maarna! Poora kamra bikhar jayega bhai!'
+            hinglish: 'Arre-arre laat mat maarna! Poora kamra bikhar jayega bhai!',
+            english: "Hey, hey, don't kick it! The entire room will be a scattered mess, buddy!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'धड़ाम! इसे कहते हैं कंट्रोल्ड डिमोलिशन पापा, अगली बिल्डिंग इससे भी ऊंची बनाऊंगा!',
-            hinglish: 'Dhadhaam! Ise kehte hain controlled demolition papa, agli building isse bhi unchi banaunga!'
+            hinglish: 'Dhadhaam! Ise kehte hain controlled demolition papa, agli building isse bhi unchi banaunga!',
+            english: "Boom! That's called controlled demolition, Dad, the next skyscraper will be even taller!"
           }
         ]
       },
@@ -594,25 +662,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'टिकट चेकर बाबू आ गए! इस टॉय ट्रेन में बिना टिकट यात्रा करने की सख्त मनाही है!',
-            hinglish: 'Ticket checker babu aa gaye! Is toy train mein bina ticket yatra ki sakht manahi hai!'
+            hinglish: 'Ticket checker babu aa gaye! Is toy train mein bina ticket yatra ki sakht manahi hai!',
+            english: "Ticket inspector is here! Riding this toy express train without a ticket is strictly forbidden!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'पापा इस ट्रेन का ड्राइवर, गार्ड और रेलवे मिनिस्टर सब मैं ही हूँ, टिकट कैसा?',
-            hinglish: 'Papa is train ka driver, guard aur railway minister sab main hi hoon, ticket kaisa?'
+            hinglish: 'Papa is train ka driver, guard aur railway minister sab main hi hoon, ticket kaisa?',
+            english: "Dad, I am the train driver, the guard, and the Railway Minister—what ticket are you talking about?!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'बिना टिकट के पकड़े जाने पर नन्हे मुसाफिर को जेल भी हो सकती है!',
-            hinglish: 'Bina ticket ke pakde jaane par nanhe musaafir ko jail bhi ho sakti hai!'
+            hinglish: 'Bina ticket ke pakde jaane par nanhe musaafir ko jail bhi ho sakti hai!',
+            english: "Traveling without a ticket could land this tiny passenger in baby jail!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'जेल में अगर कार्टून और चॉकलेट चिप्स मिलेंगे तो मैं अभी चलने को तैयार हूँ!',
-            hinglish: 'Jail mein agar cartoon aur chocolate chips milenge toh main abhi chalne ko taiyaar hoon!'
+            hinglish: 'Jail mein agar cartoon aur chocolate chips milenge toh main abhi chalne ko taiyaar hoon!',
+            english: "If that jail serves cartoons and chocolate chips, I'm ready to board right now!"
           }
         ]
       }
@@ -631,25 +703,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'घड़ी में रात के दस बज गए हैं, अब चुपचाप सो जाओ, आज का मैच खत्म!',
-            hinglish: 'Ghadi mein raat ke 10 baj gaye hain, ab chupchaap so jao, aaj ka match khatam!'
+            hinglish: 'Ghadi mein raat ke 10 baj gaye hain, ab chupchaap so jao, aaj ka match khatam!',
+            english: "It's ten o'clock at night on the clock, go to sleep quietly now, today's match is over!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'मैच खत्म नहीं हुआ पापा, बेबी टीम ने मम्मी-पापा को थकाकर वर्ल्ड कप जीत लिया है!',
-            hinglish: 'Match khatam nahi hua papa, baby team ne mummy-papa ko thakakar World Cup jeet liya!'
+            hinglish: 'Match khatam nahi hua papa, baby team ne mummy-papa ko thakakar World Cup jeet liya!',
+            english: "The match is not over, Dad! Team Baby exhausted Mom and Dad and won the World Cup!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'बेटा सुबह स्कूल भी जाना है तुम्हें, ज़रा अपनी आंखें बंद करो!',
-            hinglish: 'Beta subah school bhi jaana hai tumhe, zara apni aankhein band karo!'
+            hinglish: 'Beta subah school bhi jaana hai tumhe, zara apni aankhein band karo!',
+            english: "Son, you have playschool tomorrow morning, close those eyes of yours!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'आंखें बंद तो कल करेंगे पापा, अभी तो आधी रात की जीत की पार्टी शुरू हुई है!',
-            hinglish: 'Aankhein band toh kal karenge papa, abhi toh aadhi raat ki party shuru hui hai!'
+            hinglish: 'Aankhein band toh kal karenge papa, abhi toh aadhi raat ki party shuru hui hai!',
+            english: "We will close our eyes tomorrow, Dad, the midnight victory afterparty has just begun!"
           }
         ]
       },
@@ -661,25 +737,29 @@ const CLIP_THEME_REGISTRY = {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'वाह भाई वाह! आज तुमने बिना गिरे पूरे दस कदम चल लिए, बहुत शानदार!',
-            hinglish: 'Wah bhai wah! Aaj tumne bina gire poore 10 kadam chal liye, bohot shandar!'
+            hinglish: 'Wah bhai wah! Aaj tumne bina gire poore 10 kadam chal liye, bohot shandar!',
+            english: "Way to go! Today you walked ten full steps all by yourself without falling, spectacular!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'दस कदम तो वार्मअप था पापा, अब जल्दी से गोल्ड मेडल और दो स्कूप आइसक्रीम लाओ!',
-            hinglish: 'Das kadam toh warmup tha papa, ab jaldi se gold medal aur 2 scoop ice cream lao!'
+            hinglish: 'Das kadam toh warmup tha papa, ab jaldi se gold medal aur 2 scoop ice cream lao!',
+            english: "Ten steps was just the warmup, Dad, now bring over my gold medal and two scoops of ice cream!"
           },
           {
             speaker: 'Adult',
             role: 'Papa',
             hindi: 'आइसक्रीम कल मिलेगी बेटा, आज सिर्फ शाबाशी से काम चलाओ!',
-            hinglish: 'Ice cream kal milegi beta, aaj sirf shabaashi se kaam chalao!'
+            hinglish: 'Ice cream kal milegi beta, aaj sirf shabaashi se kaam chalao!',
+            english: "Ice cream comes tomorrow, kiddo, today you only get a round of applause!"
           },
           {
             speaker: 'Baby',
             role: 'Baby',
             hindi: 'शाबाशी से पेट नहीं भरता पापा, आइसक्रीम नहीं दी तो रात भर रोने का सायरन बजाऊंगा!',
-            hinglish: 'Shabaashi se pet nahi bharta papa, ice cream nahi di toh raat bhar rone ka siren bajaunga!'
+            hinglish: 'Shabaashi se pet nahi bharta papa, ice cream nahi di toh raat bhar rone ka siren bajaunga!',
+            english: "Applause doesn't fill my tummy, Dad! No ice cream, and I'll sound the midnight crying siren!"
           }
         ]
       }
@@ -795,11 +875,11 @@ STRICT CONTENT RULES:
    - Line 3 (${roles.adult}): Exasperated, shocked counter-question.
    - Line 4 (${roles.baby}): Laugh-out-loud funny punchline that leaves viewers laughing!
 3. Speech duration: 4 lines, total ~45-55 Hindi words.
-4. Each dialogue line must include:
+4. Dual-Language Requirement:
    - "speaker": "Adult" or "Baby"
    - "role": "${roles.adult}" or "${roles.baby}"
-   - "hindi": Natural spoken Hindi in Devanagari script for neural TTS.
-   - "hinglish": Clean Latin transliteration matching the exact spoken Hindi words for subtitles.
+   - "hindi": Natural spoken Hindi in Devanagari script for neural TTS to speak.
+   - "english": High-quality, hilarious, punchy English translation of each line for burned-in on-screen subtitles.
 
 Return ONLY a valid JSON object without markdown fences:
 {
@@ -812,25 +892,25 @@ Return ONLY a valid JSON object without markdown fences:
       "speaker": "Adult",
       "role": "${roles.adult}",
       "hindi": "...",
-      "hinglish": "..."
+      "english": "..."
     },
     {
       "speaker": "Baby",
       "role": "${roles.baby}",
       "hindi": "...",
-      "hinglish": "..."
+      "english": "..."
     },
     {
       "speaker": "Adult",
       "role": "${roles.adult}",
       "hindi": "...",
-      "hinglish": "..."
+      "english": "..."
     },
     {
       "speaker": "Baby",
       "role": "${roles.baby}",
       "hindi": "...",
-      "hinglish": "..."
+      "english": "..."
     }
   ],
   "tags": ["shorts", "babycomedy", "viralshorts", "funnybaby", "toddlerhumor", "comedyreels", "fyp"]
@@ -959,14 +1039,14 @@ export async function generateSlot1Content(customTopic = null) {
     const isAdult = item.speaker === 'Adult' || item.speaker?.toLowerCase().includes('adult');
     const roleName = item.role || (isAdult ? clipContextInfo.roles.adult : clipContextInfo.roles.baby);
     const cleanHindi = (item.hindi || '').trim();
-    const rawHinglish = item.hinglish || transliterateHindiToHinglish(cleanHindi) || cleanHindi;
-    const cleanHinglish = rawHinglish.trim().replace(/^[A-Za-z]+:\s*/, '');
+    const rawEnglish = (item.english || item.subtitle || item.hinglish || transliterateHindiToHinglish(cleanHindi) || cleanHindi).trim();
+    const cleanEnglish = rawEnglish.replace(/^[A-Za-z]+:\s*/, '');
 
     return {
       speaker: isAdult ? 'Adult' : 'Baby',
       role: roleName,
       hindi: cleanHindi,
-      hinglish: cleanHinglish,
+      english: cleanEnglish,
       text: cleanHindi,
     };
   });
@@ -975,13 +1055,12 @@ export async function generateSlot1Content(customTopic = null) {
     speaker: line.speaker,
     role: line.role,
     hindi: line.hindi,
-    hinglish: line.hinglish,
-    english: line.hinglish,
+    english: line.english,
   }));
 
   // Injected SSML breaks between character dialogue lines for natural conversational cadence
   const fullHindiScript = formattedDialogueLines.map((l) => l.hindi).join(' <break time="0.3s"/> ');
-  const fullHinglishSubtitles = formattedDialogueLines.map((l) => l.hinglish).join(' ');
+  const fullEnglishSubtitles = formattedDialogueLines.map((l) => l.english).join(' ');
 
   // Select upbeat background music track
   const audioBeds = getSlot1AudioBeds();
@@ -995,7 +1074,7 @@ export async function generateSlot1Content(customTopic = null) {
     slot: 'slot1',
     slotName: 'Entertainment (Cute Baby & Toddler Reels)',
     title: generated.title,
-    description: `${generated.title}\n\nEnjoy the most hilarious 2-character baby comedy dialogues!\n(Little Boss vs ${clipContextInfo.roles.adult} comedy banter with bold burned-in subtitles).\n\nSubscribe for daily toddler fun, baby jokes, and joyful laughter!`,
+    description: `${generated.title}\n\nEnjoy the most hilarious 2-character baby comedy dialogues!\n(Little Boss vs ${clipContextInfo.roles.adult} comedy banter in Hindi with bold English burned-in subtitles).\n\nSubscribe for daily toddler fun, baby jokes, and joyful laughter!`,
     tags: generated.tags || ['shorts', 'babycomedy', 'viralshorts', 'funnybaby', 'toddlerhumor', 'fyp'],
     voice: config.voices.slot1 || 'hi-IN-SwaraNeural',
     adultVoice: config.voices.slot1Adult || 'hi-IN-MadhurNeural',
@@ -1008,8 +1087,8 @@ export async function generateSlot1Content(customTopic = null) {
     clipPath: chosenClipPath,
     epicBadge: generated.badge || `${clipContextInfo.roles.adult.toUpperCase()} VS BABY 👶`,
     voiceScript: fullHindiScript,
-    subtitleText: fullHinglishSubtitles,
-    englishSubtitles: fullHinglishSubtitles,
+    subtitleText: fullEnglishSubtitles,
+    englishSubtitles: fullEnglishSubtitles,
     dialogueLines: formattedDialogueLines,
     segments: formattedSegments,
     bgMusicPath,

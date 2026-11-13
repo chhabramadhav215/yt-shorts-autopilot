@@ -119,8 +119,11 @@ export function generateAssSubtitles({
 
     for (let i = 0; i < segments.length; i++) {
       const span = segmentTimeSpans[i];
-      // Ensure subtitles always use exact transliterated Hinglish matching spoken Hindi voiceover
-      const text = (segments[i].hinglish || (segments[i].hindi ? transliterateHindiToHinglish(segments[i].hindi) : segments[i].english) || '').trim();
+      // Enforce high-quality English subtitles (fallback to hinglish or transliteration only if English is missing)
+      let text = (segments[i].english || segments[i].subtitle || segments[i].hinglish || '').trim();
+      if (!text && segments[i].hindi) {
+        text = transliterateHindiToHinglish(segments[i].hindi);
+      }
       const words = text.replace(/[#*`_~]/g, ' ').split(/\s+/).filter(Boolean);
       if (words.length === 0) continue;
 

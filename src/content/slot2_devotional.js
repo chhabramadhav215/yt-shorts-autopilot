@@ -179,22 +179,20 @@ export async function generateSlot2Content(customTopic = null) {
   }
 
   const formattedSegments = segments.map((s) => {
-    const hinglish = s.hinglish || transliterateHindiToHinglish(s.hindi);
     return {
       hindi: s.hindi,
-      hinglish,
-      english: hinglish,
+      english: s.english || s.hinglish || transliterateHindiToHinglish(s.hindi),
     };
   });
 
   const voiceScript = formattedSegments.map((s) => s.hindi).join(' ');
-  const subtitleText = formattedSegments.map((s) => s.hinglish).join(' ');
+  const subtitleText = formattedSegments.map((s) => s.english).join(' ');
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'devotional.mp3');
 
   const description = `${title}\n\n` +
     `A sacred reminder of devotion, peace, and spiritual wisdom.\n` +
-    `(Narration in Hindi with 1-to-1 matching Hinglish subtitles for worldwide darshan).\n\n` +
+    `(Narration in Hindi with burned-in English subtitles for worldwide darshan).\n\n` +
     `⚖️ SECTION 107 FAIR USE & ATTRIBUTION NOTICE:\n` +
     `Copyright Disclaimer under Section 107 of the Copyright Act 1976: Allowance is made for "fair use" for purposes such as criticism, comment, teaching, scholarship, education, and research. Non-profit spiritual and cultural enrichment tips the balance in favor of fair use. All reverence to sacred traditions.`;
 

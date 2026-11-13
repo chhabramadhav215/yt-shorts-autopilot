@@ -33,23 +33,23 @@ STRICT 4-Part Structure:
 4. Impact & Takeaway (10-16 words): What happens next, future consequences, and a crisp prompt asking viewers for their opinion.
 
 CRITICAL SUBTITLE REQUIREMENT:
-- The subtitles on screen MUST match the EXACT spoken Hinglish words 1-to-1 (same words, same order).
-- "hookHindi", "coreDetail1Hindi", "coreDetail2Hindi", "impactHindi" = spoken script in conversational Hindi/Hinglish (Devanagari script, e.g. "ताइवान में एनवीडिया के पूर्व एग्जीक्यूटिव एलिस हुआंग पर जासूसी के आरोप लगे हैं।").
-- "hookHinglish", "coreDetail1Hinglish", "coreDetail2Hinglish", "impactHinglish" = EXACT transliterated Latin script version of the spoken words (e.g. "Taiwan mein Nvidia ke former executive Alice Huang par jaasoosi ke aarop lage hain."). DO NOT TRANSLATE INTO ENGLISH. Use the exact transliterated Hinglish words.
-- Total word count across all 4 parts MUST be 55 to 70 words.
+- Generate two distinct language versions:
+  1. Spoken voiceover: Written in Hindi / Hinglish in Devanagari script for neural TTS to speak ("hookHindi", "coreDetail1Hindi", "coreDetail2Hindi", "impactHindi").
+  2. On-screen subtitles: A high-quality, punchy, grammatical English translation of the exact same script for burned-in subtitles ("hookEnglish", "coreDetail1English", "coreDetail2English", "impactEnglish").
+- Total word count across all 4 parts MUST be 50 to 65 words.
 
 Return ONLY a valid JSON object without markdown formatting:
 {
   "youtubeTitle": "High CTR news title with emojis (max 65 chars)",
   "cardHeadline": "Complete, grammatically finished 2-line headline (max 48 chars)",
   "hookHindi": "...",
-  "hookHinglish": "...",
+  "hookEnglish": "...",
   "coreDetail1Hindi": "...",
-  "coreDetail1Hinglish": "...",
+  "coreDetail1English": "...",
   "coreDetail2Hindi": "...",
-  "coreDetail2Hinglish": "...",
+  "coreDetail2English": "...",
   "impactHindi": "...",
-  "impactHinglish": "...",
+  "impactEnglish": "...",
   "primaryVisualQuery": "broad 2-3 word visual query for B-roll",
   "secondaryVisualQuery": "broad 2-3 word visual query for B-roll",
   "altVisualQueries": ["query 3", "query 4"],
@@ -126,23 +126,23 @@ function generateFactualFallback({ cleanHeadline, summary, snippet, source }) {
   const segments = [
     {
       hindi: `${headlineClean} को लेकर एक बड़ा और अहम खुलासा सामने आया है।`,
-      hinglish: `${headlineClean} ko lekar ek bada aur ahem khulasa saamne aaya hai.`,
+      english: `A major breaking development has emerged regarding ${headlineClean}.`,
     },
     {
       hindi: snippetFact
         ? `${source} की रिपोर्ट के मुताबिक: ${snippetFact}। इस मामले में जांच तेज हो गई है।`
         : `${source} की रिपोर्ट के मुताबिक इस घटनाक्रम के बाद जांच एजेंसियां अलर्ट मोड पर हैं।`,
-      hinglish: snippetFact
-        ? `${source} ki report ke mutabik: ${snippetFact}. Is maamle mein jaanch tez ho gayi hai.`
-        : `${source} ki report ke mutabik is ghatnakram ke baad jaanch agencies alert mode par hain.`,
+      english: snippetFact
+        ? `According to ${source}: ${snippetFact}. An active investigation is underway.`
+        : `According to ${source}, top investigative agencies are now on high alert.`,
     },
     {
       hindi: `इस संवेदनशील घटनाक्रम के सामने आने के बाद प्रशासन और संबंधित अधिकारी बड़े कदम उठा रहे हैं।`,
-      hinglish: `Is samvedansheel ghatnakram ke saamne aane ke baad prashasan aur ahem adhikari bade kadam utha rahe hain.`,
+      english: `Following these developments, high-level authorities are taking decisive action.`,
     },
     {
       hindi: `इस पूरे मामले पर आपकी क्या राय है? कमेंट्स में जरूर बताइए और सब्सक्राइब कीजिए!`,
-      hinglish: `Is poore maamle par aapki kya rai hai? Comments mein zaroor bataiye aur subscribe kijiye!`,
+      english: `What is your take on this breaking story? Share your views below and subscribe!`,
     },
   ];
 
@@ -207,25 +207,21 @@ export async function generateSlot3Content(customTopic = null) {
     segments = [
       {
         hindi: aiResult.hookHindi,
-        hinglish: aiResult.hookHinglish || aiResult.hookEnglish,
-        english: aiResult.hookHinglish || aiResult.hookEnglish,
+        english: aiResult.hookEnglish || aiResult.hookHinglish,
       },
       {
         hindi: aiResult.coreDetail1Hindi,
-        hinglish: aiResult.coreDetail1Hinglish || aiResult.coreDetail1English,
-        english: aiResult.coreDetail1Hinglish || aiResult.coreDetail1English,
+        english: aiResult.coreDetail1English || aiResult.coreDetail1Hinglish,
       },
       {
         hindi: aiResult.coreDetail2Hindi,
-        hinglish: aiResult.coreDetail2Hinglish || aiResult.coreDetail2English,
-        english: aiResult.coreDetail2Hinglish || aiResult.coreDetail2English,
+        english: aiResult.coreDetail2English || aiResult.coreDetail2Hinglish,
       },
       {
         hindi: aiResult.impactHindi,
-        hinglish: aiResult.impactHinglish || aiResult.impactEnglish,
-        english: aiResult.impactHinglish || aiResult.impactEnglish,
+        english: aiResult.impactEnglish || aiResult.impactHinglish,
       },
-    ].filter((s) => s.hindi && (s.hinglish || s.english));
+    ].filter((s) => s.hindi && s.english);
 
     visualQueries = {
       primaryQuery: aiResult.primaryVisualQuery || 'breaking news studio',
@@ -244,8 +240,7 @@ export async function generateSlot3Content(customTopic = null) {
     cardHeadline = fallback.cardHeadline;
     segments = fallback.segments.map((s) => ({
       hindi: s.hindi,
-      hinglish: s.hinglish,
-      english: s.hinglish, // exactly matching Hinglish words
+      english: s.english,
     }));
     visualQueries = {
       primaryQuery: fallback.primaryVisualQuery,
@@ -256,15 +251,15 @@ export async function generateSlot3Content(customTopic = null) {
   }
 
   const voiceScript = segments.map((s) => s.hindi).join(' ');
-  const subtitleText = segments.map((s) => s.hinglish || s.english).join(' ');
-  const englishSubtitles = subtitleText; // Ensure 100% matching Hinglish words for burned-in subtitles
+  const subtitleText = segments.map((s) => s.english).join(' ');
+  const englishSubtitles = subtitleText;
 
   const description = `${title}\n\n` +
     `🔥 30-Second Explainer Breakdown:\n` +
     `• Topic: ${cleanHeadline}\n` +
     `• Summary: ${cardHeadline}\n` +
     `• Source: ${source}\n` +
-    `• Language: Fast-paced Hindi narration with matching Hinglish on-screen subtitles.\n\n` +
+    `• Language: Fast-paced Hindi narration with burned-in English on-screen subtitles.\n\n` +
     `Share your perspective below! Like and subscribe for daily quick-fire news explainers.`;
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'news.mp3');

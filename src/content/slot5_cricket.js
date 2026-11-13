@@ -1,7 +1,7 @@
 import path from 'path';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
-import { summarizeNewsHeadline, toTitleCase, transliterateHindiToHinglish } from '../utils/text_utils.js';
+import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
 
 /**
  * Fetches latest trending IPL/Cricket news from Google News RSS
@@ -138,23 +138,27 @@ const VIRAL_CRICKET_TEMPLATES = [
 ];
 
 /**
- * Generates script using Gemini 1.5 Flash if available
+ * Generates script using Gemini with fallback chain
  */
 async function generateWithGemini(newsHeadline, apiKey) {
   if (!apiKey) return null;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+  for (const model of models) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    const prompt = `You are the lead content creator for India's #1 viral IPL and Cricket YouTube Shorts and Instagram Reels channel.
+      const prompt = `You are the lead content creator for India's #1 viral IPL and Cricket YouTube Shorts and Instagram Reels channel.
 Create a hyper-engaging 30-second Hindi voiceover script with English subtitles based on this cricket topic: "${newsHeadline}".
 
 Format Requirements:
 1. Hook (0-3s): High-curiosity question (e.g. Trade rumors, record bids, captaincy shakeups).
 2. Body (4-28s): Crisp facts, purse comparisons, and stats in 2 sharp parts.
 3. CTA (29-35s): Polarization/comment-bait question to trigger furious debate in YouTube comments.
-4. Language: Natural, punchy spoken Hindi (written in Devanagari script) for voiceover, paired with punchy English translations for burned-in subtitles.
+4. Dual-Language Requirement:
+   - "hookHindi", "bodyPart1Hindi", "bodyPart2Hindi", "ctaHindi": Natural, punchy spoken Hindi (written in Devanagari script) for voiceover.
+   - "hookEnglish", "bodyPart1English", "bodyPart2English", "ctaEnglish": High-quality, punchy English translations for burned-in on-screen subtitles.
 
 Return ONLY a valid JSON object without markdown fences:
 {
@@ -175,28 +179,34 @@ Return ONLY a valid JSON object without markdown fences:
   "tags": ["IPL2026", "IPLAuction", "CricketShorts"]
 }`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+      if (!res.ok) {
+        logger.warn(`Gemini (${model}) returned HTTP ${res.status}`);
+        continue;
+      }
 
-    if (parsed.hookHindi && parsed.bodyPart1Hindi && parsed.ctaHindi) {
-      return parsed;
+      const data = await res.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+
+      if (parsed.hookHindi && parsed.bodyPart1Hindi && parsed.hookEnglish) {
+        logger.success(`Gemini (${model}) successfully generated cricket script.`);
+        return parsed;
+      }
+    } catch (e) {
+      logger.warn(`Gemini API call to ${model} failed (${e.message})`);
     }
-  } catch (e) {
-    logger.warn(`Gemini cricket generation failed: ${e.message}. Using high-CTR procedural engine.`);
   }
   return null;
 }
@@ -257,28 +267,24 @@ export async function generateSlot5Content(customTopic = null) {
   const segments = [
     {
       hindi: generated.hookHindi,
-      hinglish: transliterateHindiToHinglish(generated.hookHindi),
-      english: transliterateHindiToHinglish(generated.hookHindi),
+      english: generated.hookEnglish,
     },
     {
       hindi: generated.bodyPart1Hindi,
-      hinglish: transliterateHindiToHinglish(generated.bodyPart1Hindi),
-      english: transliterateHindiToHinglish(generated.bodyPart1Hindi),
+      english: generated.bodyPart1English,
     },
     {
       hindi: generated.bodyPart2Hindi,
-      hinglish: transliterateHindiToHinglish(generated.bodyPart2Hindi),
-      english: transliterateHindiToHinglish(generated.bodyPart2Hindi),
+      english: generated.bodyPart2English,
     },
     {
       hindi: generated.ctaHindi,
-      hinglish: transliterateHindiToHinglish(generated.ctaHindi),
-      english: transliterateHindiToHinglish(generated.ctaHindi),
+      english: generated.ctaEnglish,
     },
   ];
 
   const voiceScript = segments.map((s) => s.hindi).join(' ');
-  const subtitleText = segments.map((s) => s.hinglish).join(' ');
+  const subtitleText = segments.map((s) => s.english).join(' ');
 
   const tags = [
     'IPL2026',
