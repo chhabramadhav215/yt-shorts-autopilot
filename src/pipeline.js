@@ -8,7 +8,7 @@ import { generateSlot2Content } from './content/slot2_devotional.js';
 import { generateSlot3Content } from './content/slot3_news.js';
 import { generateSlot4Content } from './content/slot4_scriptures.js';
 import { generateSlot5Content } from './content/slot5_cricket.js';
-import { generateVoiceover } from './generator/tts.js';
+import { generateVoiceover, generateDialogueVoiceover } from './generator/tts.js';
 import { generateAssSubtitles } from './generator/subtitles.js';
 import { generateVisualBackground } from './generator/visual_synth.js';
 import { buildShortVideo, getMediaDuration } from './generator/video_builder.js';
@@ -48,14 +48,28 @@ export async function generateShortVideo(slot, customTopic = null) {
 
   logger.slot(slot, `Title: "${content.title}"`);
 
-  // 2. Synthesize Voiceover (TTS)
-  const voiceoverResult = await generateVoiceover({
-    text: content.voiceScript,
-    voice: content.voice,
-    outputDir: slotDir,
-    pitch: content.pitch,
-    rate: content.rate,
-  });
+  // 2. Synthesize Voiceover (TTS) - Supports Multi-Voice 2-Character Dialogues
+  let voiceoverResult;
+  if (content.dialogueLines && Array.isArray(content.dialogueLines) && content.dialogueLines.length > 0) {
+    voiceoverResult = await generateDialogueVoiceover({
+      dialogueLines: content.dialogueLines,
+      outputDir: slotDir,
+      defaultAdultVoice: content.adultVoice || 'hi-IN-MadhurNeural',
+      defaultBabyVoice: content.voice || 'hi-IN-SwaraNeural',
+      adultPitch: content.adultPitch || '+0Hz',
+      adultRate: content.adultRate || '+4%',
+      babyPitch: content.pitch || '+38%',
+      babyRate: content.rate || '+6%',
+    });
+  } else {
+    voiceoverResult = await generateVoiceover({
+      text: content.voiceScript,
+      voice: content.voice,
+      outputDir: slotDir,
+      pitch: content.pitch,
+      rate: content.rate,
+    });
+  }
 
   const audioDuration = await getMediaDuration(voiceoverResult.audioPath);
   logger.info(`Voiceover duration: ${audioDuration.toFixed(1)} seconds`);

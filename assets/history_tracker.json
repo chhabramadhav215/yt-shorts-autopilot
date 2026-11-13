@@ -1,4 +1,11 @@
 {
   "slot4": 3,
-  "slot1_rotation": 7
+  "slot1_rotation": 7,
+  "slot1_clip_subthemes": {
+    "04_baby_laughing.mp4": 1,
+    "03_baby_mischief.mp4": 1,
+    "02_baby_dance.mp4": 1,
+    "01_baby_classic.mp4": 1,
+    "05_toddler_wobble.mp4": 1
+  }
 }

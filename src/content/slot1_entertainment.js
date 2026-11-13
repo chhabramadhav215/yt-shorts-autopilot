@@ -3,669 +3,1013 @@ import fs from 'fs';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
 import { getSlot1AudioBeds } from '../utils/audio_beds.js';
+import { fetchSlotBackgroundMedia, getCategoryVideoPool } from '../utils/media_fetcher.js';
+import { pickUnusedFallbackClip } from '../utils/used_assets.js';
+import { ensureSlot1Pool, getSlot1PoolClips } from '../utils/ensure_slot1_pool.js';
 
 const TRACKER_PATH = path.join(config.assetsDir, 'history_tracker.json');
 
-// Diverse, creative concepts list to prompt Gemini or cycle procedurally
-const DIVERSE_CONCEPTS = [
-  'baby tasting lemon sour face reaction',
-  'cute baby dancing to funky beats',
-  'toddler playing with cute puppy and teaching tricks',
-  'baby having serious babbling conversation with reflection in mirror',
-  'toddler caught eating chocolate cake with red hands',
-  'cute baby laughing hysterically at peek-a-boo',
-  'toddler wearing dad giant shoes walking funny',
-  'baby tasting ice cream brain-freeze surprise',
-  'toddler explaining why toys belong on the floor',
-  'baby trying to feed french fry to stuffed teddy bear',
-  'toddler negotiating bedtime like a master CEO',
-  'baby playing with floating soap bubbles in bathtub',
-  'toddler trying to sing baby shark with gibberish words',
-  'baby discovering own toes and being utterly amazed',
-  'toddler convinced pet cat speaks hindi',
-  'baby hearing loud sneeze and dramatic jump reaction',
-  'toddler pretending to sleep when mum walks in',
-  'doctor uncle tiny injection and dinosaur ant mystery',
-  'mummy instagram scrolling vs baby phone screen time rules',
-  'baby tasting watermelon and loving the sweet juice',
-];
-
-// Rich library of 18+ distinct procedural scenarios for non-repeating fallback
-const EXPANDED_SCENARIOS = [
-  {
-    concept: 'lemon_taste',
-    badge: 'LEMON TASTE TEST 🍋',
-    englishTitle: 'Baby Tastes Lemon For The First Time! 👶🍋 Funny Reaction',
-    visualQuery: 'baby tasting lemon funny',
-    altQueries: ['cute baby sour face', 'funny baby tasting', 'toddler laughing'],
-    segments: [
+/**
+ * Rich library of visual theme contexts mapped directly to video clips in assets/clips/baby/
+ * Guarantees that the generated 2-character comedy dialogue 100% matches what is visible on screen.
+ */
+const CLIP_THEME_REGISTRY = {
+  '01_baby_classic.mp4': {
+    context: 'A cute toddler strutting around the room like a tiny CEO / Little Boss inspecting the house with serious swagger.',
+    roles: { adult: 'Papa', baby: 'Little Boss' },
+    badge: 'LITTLE BOSS CEO 👶💼',
+    scenarios: [
       {
-        hindi: 'मम्मी ने बोला कि ये मीठी पीली कैंडी है!',
-        english: 'Mummy said this is a sweet yellow candy...',
+        title: 'Work From Home Little Boss! 👶💼 Salary Tax Busted | Viral Baby Comedy',
+        badge: 'LITTLE BOSS CEO 👶💼',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अरे छोटे बॉस, आज इतना सीरियस मुंह बनाकर पूरे घर में क्यों घूम रहे हो?',
+            hinglish: 'Oye chhote boss, aaj itna serious muh banakar pure ghar mein kyu ghum rahe ho?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Little Boss',
+            hindi: 'पापा सीरियस इसलिए हूँ क्योंकि आज मैंने आपकी सैलरी से चॉकलेट का टैक्स काट लिया है!',
+            hinglish: 'Papa serious isliye hoon kyunki maine aapki salary se chocolate ka tax kaat liya!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'क्या?! पर कंपनी तो मेरी है, टैक्स तू कैसे काटेगा भाई?',
+            hinglish: 'Kya?! Par company toh meri hai, tax tu kaise katega bhai?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Little Boss',
+            hindi: 'कंपनी आपकी होगी पापा, पर इस घर का असली मैनेजिंग डायरेक्टर तो मैं ही हूँ!',
+            hinglish: 'Company aapki hogi papa, par is ghar ka asli managing director toh main hi hoon!'
+          }
+        ]
       },
       {
-        hindi: 'जैसे ही मैंने जीभ लगाई, मेरी पूरी बत्तीसी हिल गई!',
-        english: 'The moment I licked it, my whole face got twisted!',
-      },
-      {
-        hindi: 'अरे बाप रे! क्या इसमें बिजली का झटका लगा हुआ था?!',
-        english: 'Oh my goodness! Was this wired with electric shock?!',
-      },
-      {
-        hindi: 'मेरा खट्टा चेहरा देखकर हंसी आई तो तुरंत लाइक और सब्सक्राइब करो!',
-        english: 'If my sour face made you laugh, hit like and subscribe now!',
-      },
-    ],
-    tags: ['shorts', 'babytastinglemon', 'sourface', 'funnybaby', 'cutebaby', 'toddlerreaction', 'viralcomedy', 'fyp'],
+        title: 'Baby Demands Salary Increment! 👶🍼 Milk Allowance Meeting',
+        badge: 'SALARY HIKE MEETING 👶📈',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'हां भाई छोटे, आज तुम्हारी छह महीने की परफॉर्मेंस रिव्यू मीटिंग है!',
+            hinglish: 'Haan bhai chhote, aaj tumhari 6 mahine ki performance review meeting hai!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Little Boss',
+            hindi: 'रिव्यू छोड़ो पापा, पहले ये बताओ मेरी दूध की बोतल में मलाई का इंसेंटिव कब बढ़ाओगे?',
+            hinglish: 'Review chhodo papa, pehle ye batao doodh ki bottle mein malai ka incentive kab badhaoge?'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'इंसेंटिव तब मिलेगा जब रात को बिना रोए चुपचाप सोओगे!',
+            hinglish: 'Incentive tab milega jab raat ko bina roye chupchaap sooge!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Little Boss',
+            hindi: 'अगर मैं रात को सो गया तो आपकी रील्स कौन देखेगा? इंक्रीमेंट पक्का समझो!',
+            hinglish: 'Agar main raat ko so gaya toh aapki reels kaun dekhega? Increment pakka samjho!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'puppy_buddy',
-    badge: 'TODDLER & PUPPY BUDDY 🐶',
-    englishTitle: 'Toddler Trying To Train Pet Puppy! 👶🐶 Boss In Action',
-    visualQuery: 'toddler playing with dog',
-    altQueries: ['cute baby puppy playing', 'toddler with dog laughing', 'cute baby playing'],
-    segments: [
+  '02_baby_dance.mp4': {
+    context: 'An energetic toddler grooving, jumping, and bouncing on beat with funny baby dance moves.',
+    roles: { adult: 'DJ Bhaiya', baby: 'Rockstar Baby' },
+    badge: 'BABY DANCE BATTLE 🕺🎶',
+    scenarios: [
       {
-        hindi: 'आज मैं हमारे टॉमी को स्पेशल कमांड सिखा रहा हूँ!',
-        english: 'Today I am training our puppy Tommy with special commands!',
+        title: 'DJ Bhaiya vs Rockstar Baby! 👶🕺 Diaper Hip-Hop Challenge',
+        badge: 'BABY DANCE BATTLE 🕺🎶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'DJ Bhaiya',
+            hindi: 'अरे डीजे भैया का चेला! ये कौन सा नया डांस स्टेप ईजाद कर दिया तुमने?',
+            hinglish: 'Oye DJ bhaiya ke chele! Ye kaun sa naya dance step ijaad kar diya tumne?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Rockstar',
+            hindi: 'अरे डीजे अंकल, इसे कहते हैं डायपर हिप-हॉप स्टाइल, बड़े-बड़े डांसर्स भी फेल हैं!',
+            hinglish: 'Arre DJ uncle, ise kehte hain diaper hip-hop style, bade-bade dancers bhi fail hain!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'DJ Bhaiya',
+            hindi: 'पर बेटा, कमर तो हिल रही है, हाथ क्यों ऊपर-नीचे फेंक रहे हो?',
+            hinglish: 'Par beta, kamar toh hil rahi hai, haath kyu upar neeche phenk rahe ho?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Rockstar',
+            hindi: 'क्योंकि जब जेब में दूध का सिक्का खनकता है, तो हाथ अपने आप हवा में उड़ते हैं!',
+            hinglish: 'Kyunki jab jeb mein doodh ka sikka khanakta hai, toh haath hawa mein udte hain!'
+          }
+        ]
       },
       {
-        hindi: 'मैंने कहा सिट! लेकिन वो उल्टा मेरे बिस्किट पर ही झपट पड़ा!',
-        english: 'I said SIT! But he jumped right at my biscuit instead!',
-      },
-      {
-        hindi: 'लगता है इस घर में ट्रेनिंग की ज़रूरत टॉमी को नहीं, मुझे ही है!',
-        english: 'Looks like in this house, I am the one getting trained!',
-      },
-      {
-        hindi: 'अगर आपको भी पपीज़ प्यारे लगते हैं तो कमेंट में रेड हार्ट भेजो!',
-        english: 'Drop red hearts in the comments if you love cute puppies too!',
-      },
-    ],
-    tags: ['shorts', 'babyandpuppy', 'cutepet', 'toddlerhumor', 'funnyanimals', 'innocence', 'cutebaby'],
+        title: 'Wedding Baraat Baby Dance! 👶🕺 Naagin Dance Revealed',
+        badge: 'BARAAT NAAGIN DANCE 👶🐍',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'ओए रॉकस्टार! बारात में ऐसे नागिन डांस करोगे तो रिश्तेदार क्या कहेंगे?',
+            hinglish: 'Oye rockstar! Baraat mein aise naagin dance karoge toh rishtedaar kya kahenge?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Rockstar',
+            hindi: 'रिश्तेदार कुछ भी कहें पापा, दूल्हे से ज़्यादा शगुन के लिफाफे मुझे ही मिलने वाले हैं!',
+            hinglish: 'Rishtedaar kuch bhi kahein papa, dulhe se zyada shagun ke lifafe mujhe hi milenge!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अच्छा? पर डांस का ऑफिशियल लाइसेंस कहाँ है तुम्हारा?',
+            hinglish: 'Achha? Par dance ka official license kahan hai tumhara?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Rockstar',
+            hindi: 'लाइसेंस छोड़ो पापा, डीजे वाले को बोलो गाना बदलो, अब बेबी का राज चलेगा!',
+            hinglish: 'License chhodo papa, DJ wale ko bolo gaana badlo, ab baby ka raaj chalega!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'dance_groove',
-    badge: 'BABY DANCE GROOVE 🕺',
-    englishTitle: 'DJ Turn The Beat Up! 👶🕺 Little Boss On The Floor | Viral Baby Dance',
-    visualQuery: 'toddler dancing funny',
-    altQueries: ['cute baby dancing', 'baby grooving music', 'toddler dancing happy'],
-    segments: [
+  '03_baby_mischief.mp4': {
+    context: 'A naughty toddler caught red-handed sneaking snacks/chocolate, grinning guiltily with messy hands.',
+    roles: { adult: 'Papa', baby: 'Chocolate Heist Baby' },
+    badge: 'CHOCOLATE HEIST 🍫👶',
+    scenarios: [
       {
-        hindi: 'अरे डीजे भैया, थोड़ा वॉल्यूम तो बढ़ाओ!',
-        english: 'Hey DJ Bhaiya, turn up the volume right now!',
+        title: 'Caught Red Handed With Chocolate! 👶🍫 Busted Baby Logic',
+        badge: 'CHOCOLATE HEIST 🍫👶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'ओए जासूस! फ्रिज का दरवाजा खुला है और तुम्हारा पूरा मुंह चॉकलेट से लाल क्यों है?',
+            hinglish: 'Oye jasoos! Fridge ka darwaza khula hai aur tumhara pura muh chocolate se laal kyu hai?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा कसम से मैंने चॉकलेट नहीं खाई, वो तो खुद फिसलकर मेरे मुंह में आ गई!',
+            hinglish: 'Papa kasam se maine chocolate nahi khai, woh khud phisalkar mere muh mein aa gayi!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अच्छा? और ये जो हाथों पर सबूत चिपके हैं, इनका क्या करूँ?',
+            hinglish: 'Achha? Aur ye jo haathon par saboot chipke hain, inka kya karun?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'सबूत मिटाने के लिए मुझे एक और किटकैट दो, वरना मम्मी को बता दूंगा आपने कोल्ड ड्रिंक पी थी!',
+            hinglish: 'Saboot mitane ke liye ek aur KitKat do, warna mummy ko bata dunga aapne cold drink pee thi!'
+          }
+        ]
       },
       {
-        hindi: 'जब तक ये कमर नहीं हिलेगी, पार्टी कैसे शुरू होगी!',
-        english: 'How can the party start until I shake a leg?',
-      },
-      {
-        hindi: 'ज़रा ये बाउंस और बीट पर मेरे मूव्स तो देखो!',
-        english: 'Check out these bouncing moves and rhythm!',
-      },
-      {
-        hindi: 'मेरे इस डांस को दस में से कितने नंबर दोगे? कमेंट में बताओ और सब्सक्राइब करो!',
-        english: 'Rate my dance from 1 to 10 in the comments and subscribe!',
-      },
-    ],
-    tags: ['shorts', 'babydance', 'cutedance', 'littleboss', 'dancechallenge', 'groove', 'trending', 'happyvibes'],
+        title: 'Modern Art Wall Drawing! 👶🎨 Toddler Picasso Caught',
+        badge: 'TODDLER PICASSO 👶🎨',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'ओए नटखट! लिविंग रूम की सफेद दीवार पर ये लाल-पीली पेंटिंग किसने बनाई है?',
+            hinglish: 'Oye natkhat! Living room ki white deewar par ye laal-peeli painting kisne banayi hai?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा डांटने से पहले कद्र करो, ये पांच करोड़ की मॉडर्न आर्ट है, म्यूजियम में बिकेगी!',
+            hinglish: 'Papa daantne se pehle kadar karo, ye 5 crore ki modern art hai, museum mein bikegi!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'मॉडर्न आर्ट?! पर लाल क्रियॉन तो तुम्हारे ही हाथ में रंगे हाथ पकड़ा गया है!',
+            hinglish: 'Modern art?! Par laal crayon toh tumhare hi haath mein range haath pakda gaya hai!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'हाथ में क्रियॉन होना गुनाह नहीं पापा, असली महान कलाकार को कोई नहीं समझता!',
+            hinglish: 'Haath mein crayon hona gunaah nahi papa, asli mahaan kalakaar ko koi nahi samajhta!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'mirror_convo',
-    badge: 'MIRROR BABY MYSTERY 🪞',
-    englishTitle: 'Baby Discovers Reflection In Mirror! 👶🪞 Serious Conversation',
-    visualQuery: 'baby looking in mirror laughing',
-    altQueries: ['cute baby reflection', 'toddler mirror funny', 'baby talking mirror'],
-    segments: [
+  '04_baby_laughing.mp4': {
+    context: 'A cute baby laughing uncontrollably, giggling hysterically and rolling over with pure joy.',
+    roles: { adult: 'Standup Papa', baby: 'Baby Judge' },
+    badge: 'LAUGHING CONTEST 😂👶',
+    scenarios: [
       {
-        hindi: 'शीशे में एक बहुत ही स्मार्ट बच्चा मुझे लगातार घूर रहा है!',
-        english: 'There is an extremely smart baby staring right at me in the mirror!',
+        title: 'Baby Laughs At Dad Joke! 👶😂 Pure Comedy Reaction',
+        badge: 'DAD JOKE FAIL 😂👶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'बेटा एक नया चुटकुला सुनाऊं? एक बार एक आलू प्याज से मिलने गया...',
+            hinglish: 'Beta ek naya chutkula sunau? Ek baar ek aaloo pyaaz se milne gaya...'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'हाहाहा! पापा आपका चुटकुला तो बहुत बेकार था, पर आपकी शक्ल देखकर हंसी आ गई!',
+            hinglish: 'Hahaha! Papa aapka chutkula toh bekaar tha, par aapki shakal dekhkar hansi aa gayi!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अरे! मेरी शक्ल में ऐसा क्या मज़ाकिया है भाई?',
+            hinglish: 'Arre! Meri shakal mein aisa kya mazakiya hai bhai?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'जब आप सीरियस होते हो ना पापा, तो बिल्कुल गुस्सा वाले लाल टमाटर जैसे लगते हो!',
+            hinglish: 'Jab aap serious hote ho na papa, toh bilkul gusse wale laal tamatar jaise lagte ho!'
+          }
+        ]
       },
       {
-        hindi: 'जब मैं हंसता हूँ तो वो भी हंसता है, जब मैं चिढ़ाता हूँ तो वो भी चिढ़ाता है!',
-        english: 'When I laugh he laughs, when I make faces he copies me!',
-      },
-      {
-        hindi: 'अरे भाई, क्या तू मेरी ही ज़ेरॉक्स कॉपी है? कुछ तो बोल!',
-        english: 'Hey buddy, are you my xerox copy or what? Say something!',
-      },
-      {
-        hindi: 'देखा छोटा जासूस! रोज़ाना ऐसी मस्ती के लिए सब्सक्राइब करो!',
-        english: 'Look at the little detective! Subscribe for daily toddler fun!',
-      },
-    ],
-    tags: ['shorts', 'babyinmirror', 'cutebaby', 'toddlercuriosity', 'funnyreaction', 'wholesome', 'fyp'],
+        title: 'Laughing Champion Baby! 👶😂 Crooked Mustache Prank',
+        badge: 'LAUGHING CHAMPION 😂👶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अरे भाई इतनी ज़ोर-ज़ोर से क्यों हंस रहे हो, कोई गड़ा हुआ खज़ाना मिल गया क्या?',
+            hinglish: 'Arre bhai itni zor-zor se kyu hans rahe ho, koi khazana mil gaya kya?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा खज़ाना तो नहीं मिला, पर आपकी नकली मूंछ टेढ़ी हो गई है, ज़रा शीशे में देखो!',
+            hinglish: 'Papa khazana toh nahi mila, par aapki nakli moochh tedhi ho gayi hai, sheeshe mein dekho!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अरे बाप रे! मेरी मूंछ कब से उल्टी लटकी हुई है?',
+            hinglish: 'Arre baap re! Meri moochh kab se ulti latki hui hai?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'दस मिनट से पापा! और पूरे मोहल्ले ने देख भी लिया, हाहाहा!',
+            hinglish: 'Das minute se papa! Aur poore mohalle ne dekh bhi liya, hahaha!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'chocolate_busted',
-    badge: 'CHOCOLATE HEIST 🍫',
-    englishTitle: 'Caught Red Handed With Chocolate! 👶🍫 Toddler Logic',
-    visualQuery: 'baby eating chocolate messy face',
-    altQueries: ['naughty kid smiling chocolate', 'cute baby messy eating', 'toddler laughing sneakily'],
-    segments: [
+  '05_toddler_wobble.mp4': {
+    context: 'A toddler driving a toy car / wobble scooter across the room like a reckless speed racer.',
+    roles: { adult: 'Traffic Cop', baby: 'Toddler Driver' },
+    badge: 'TRAFFIC COP VS BABY 👮‍♂️🚗',
+    scenarios: [
       {
-        hindi: 'मम्मी ने पूछा फ्रिज की चॉकलेट किसने खत्म की?',
-        english: 'Mummy asked who finished the chocolate in the fridge...',
+        title: 'Oye License Dikha! 👶🚗 Toddler vs Traffic Police | Viral Comedy Short',
+        badge: 'TRAFFIC COP VS BABY 👮‍♂️🚗',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Cop',
+            hindi: 'ओए छोटे ड्राइवर! गाड़ी ज़रा साइड में लगाओ, ओवरस्पीडिंग का चालान कटेगा!',
+            hinglish: 'Oye chhote driver! Gaadi zara side mein lagao, overspeeding ka chalan katega!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'अंकल चालान बाद में काटना, पहले ये बताओ मेरी गाड़ी में रिवर्स गियर कहाँ है?',
+            hinglish: 'Uncle chalan baad mein kaatna, pehle ye batao meri gaadi mein reverse gear kahan hai?'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Cop',
+            hindi: 'ड्राइविंग आती नहीं और हाईवे पर कार दौड़ा रहे हो? लाइसेंस कहाँ है तुम्हारा?',
+            hinglish: 'Driving aati nahi aur highway par car dauda rahe ho? License kahan hai tumhara?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'लाइसेंस तो नहीं है अंकल, पर ये लाल वाली लॉलीपॉप ले लो और मामला यहीं रफा-दफा करो!',
+            hinglish: 'License toh nahi hai uncle, par ye laal lollipop le lo aur mamla yahin rafa-dafa karo!'
+          }
+        ]
       },
       {
-        hindi: 'मैंने मासूम चेहरा बनाकर कहा मुझे तो कुछ भी नहीं पता!',
-        english: 'I made an innocent face and said I know nothing about it!',
-      },
-      {
-        hindi: 'वो तो बाद में पता चला कि पूरा मुंह चॉकलेट से रंगा हुआ था!',
-        english: 'Only later did I realize my whole face was covered in chocolate!',
-      },
-      {
-        hindi: 'चोरी पकड़ी गई! अगर आप भी चॉकलेट लवर हैं तो लाइक ठोक दो!',
-        english: 'Busted! Hit like if you are a certified chocolate lover too!',
-      },
-    ],
-    tags: ['shorts', 'chocolatelovers', 'bustedbaby', 'toddlerheist', 'cutecomedy', 'funnybaby', 'explore'],
+        title: 'No Helmet Fine On Sofa Expressway! 👶🏎️ Speed Racer Baby',
+        badge: 'NO HELMET FINE 👮‍♂️🏎️',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Cop',
+            hindi: 'ओए नन्हे बाइकर! बिना हेलमेट के इतनी तेज़ गाड़ी क्यों भगा रहे हो?',
+            hinglish: 'Oye nanhe biker! Bina helmet ke itni tez gaadi kyu bhaga rahe ho?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'अंकल अगर हेलमेट पहन लूंगा तो मेरा नया हेयरस्टाइल दुनिया को कैसे दिखेगा?',
+            hinglish: 'Uncle agar helmet pehan lunga toh mera naya hairstyle duniya ko kaise dikhega?'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Cop',
+            hindi: 'हेयरस्टाइल के चक्कर में पांच सौ का भारी चालान कट जाएगा तुम्हारा!',
+            hinglish: 'Hairstyle ke chakkar mein paanch sau ka bhari chalan kat jayega tumhara!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'चालान पापा के नाम भेज देना अंकल, आज उनकी सैलरी आई है, हाहाहा!',
+            hinglish: 'Chalan papa ke naam bhej dena uncle, aaj unki salary aayi hai, hahaha!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'peekaboo_laugh',
-    badge: 'PEEK-A-BOO LAUGHTER 😂',
-    englishTitle: 'Baby Can’t Stop Laughing At Peek-a-Boo! 👶😂 Pure Happiness',
-    visualQuery: 'baby laughing hysterically',
-    altQueries: ['cute baby giggling', 'toddler laughing uncontrollably', 'happy baby smiling'],
-    segments: [
+  '06_baby_curiosity.mp4': {
+    context: 'A curious baby staring with wide open eyes, investigating doctor tools, a mirror reflection, or strange objects.',
+    roles: { adult: 'Doctor Uncle', baby: 'Tiny Detective' },
+    badge: 'DOCTOR UNCLE LIE 💉👶',
+    scenarios: [
       {
-        hindi: 'पापा ने अपना चेहरा हाथों से छुपाया और बोले पीकाबू!',
-        english: 'Papa hid his face behind his hands and shouted PEEK-A-BOO!',
+        title: 'Doctor Uncle’s Big Lie! 👶💉 Tiny Injection Mystery',
+        badge: 'DOCTOR UNCLE LIE 💉👶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Doctor',
+            hindi: 'बेटा बिल्कुल मत डरना, बस एक छोटी सी नन्हीं चींटी प्यार से काटेगी!',
+            hinglish: 'Beta bilkul mat darna, bas ek chhoti si nanhi cheenti pyaar se kaategi!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'अरे डॉक्टर अंकल, अगर चींटी के पास इतना बड़ा सुई वाला इंजेक्शन होता तो हाथी भी बेहोश हो जाता!',
+            hinglish: 'Doctor uncle, agar cheenti ke paas itna bada injection hota toh haathi bhi behosh ho jata!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Doctor',
+            hindi: 'अरे वाह, बड़ा समझदार बच्चा है! ज़रा मुंह खोलकर जीभ बाहर निकालो?',
+            hinglish: 'Arre wah, bada samajhdaar bachha hai! Zara muh kholkar jeebh bahar nikalo?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'जीभ तो निकाल दूंगा अंकल, पर पहले सुई जेब में रखो, वरना मैं आपकी कुर्सी का पहिया निकाल दूंगा!',
+            hinglish: 'Jeebh toh nikaal dunga uncle, par pehle sui jeb mein rakho, warna kursi ka pahiya nikaal dunga!'
+          }
+        ]
       },
       {
-        hindi: 'मुझे इतनी हंसी आ रही है कि हंसते-हंसते लोटपोट हो गया!',
-        english: 'I am laughing so hard I cannot even sit straight!',
-      },
-      {
-        hindi: 'पापा को लगता है वो जादूगर हैं, पर मुझे तो उनकी शक्ल पर हंसी आ रही है!',
-        english: 'Papa thinks he did magic, but I am just laughing at his funny face!',
-      },
-      {
-        hindi: 'ये प्यारी मुस्कान अपने दोस्तों को शेयर करो और सब्सक्राइब करो!',
-        english: 'Share this innocent smile with your friends and hit subscribe!',
-      },
-    ],
-    tags: ['shorts', 'babylaughing', 'peekaboo', 'purehappiness', 'cutebaby', 'joyful', 'wholesome'],
+        title: 'Baby Meets Mirror Twin! 👶🪞 Serious Bodyguard Debate',
+        badge: 'MIRROR TWIN DEBATE 👶🪞',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अरे बेटा, शीशे के सामने खड़े होकर इतनी देर से किससे बातें कर रहे हो?',
+            hinglish: 'Arre beta, sheeshe ke samne khade hokar itni der se kisse baatein kar rahe ho?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा शीशे के अंदर एक बहुत ही हैंडसम बच्चा मुझे लगातार घूर रहा है!',
+            hinglish: 'Papa sheeshe ke andar ek bohot hi handsome bachha mujhe lagataar ghur raha hai!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'बेटा वो तुम्हारा ही चेहरा है, कोई दूसरा बच्चा नहीं है वो!',
+            hinglish: 'Beta woh tumhara hi chehra hai, koi doosra bachha nahi hai woh!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'अगर वो मैं हूँ पापा, तो वो मेरी चॉकलेट मांगने पर मना क्यों नहीं करता? ज़ेरॉक्स कॉपी है वो!',
+            hinglish: 'Agar woh main hoon papa, toh meri chocolate maangne par mana kyu nahi karta? Xerox copy hai woh!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'dad_big_shoes',
-    badge: 'BIG DAD SHOES 👟',
-    englishTitle: 'Toddler Wearing Dad’s Giant Shoes! 👶👟 Big Boss Walk',
-    visualQuery: 'toddler wearing big shoes funny',
-    altQueries: ['cute baby big shoes walking', 'toddler walking funny', 'naughty kid smiling'],
-    segments: [
+  '07_happy_bounce.mp4': {
+    context: 'A toddler bouncing with crazy unlimited energy, jumping up and down non-stop on couch or floor.',
+    roles: { adult: 'Gym Trainer', baby: 'Fitness Boss Baby' },
+    badge: 'BABY WORKOUT CHALLENGE 🏋️‍♂️👶',
+    scenarios: [
       {
-        hindi: 'आज मैंने पापा के दस नंबर वाले जूते पहन लिए हैं!',
-        english: 'Today I put on Papa’s giant size ten shoes!',
+        title: 'Gym Trainer vs Bouncing Baby! 👶🏋️‍♂️ Sofa Workout Challenge',
+        badge: 'BABY WORKOUT 🏋️‍♂️👶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Trainer',
+            hindi: 'चलो छोटे पहलवान! आज दस पुशअप्स और बीस जंप्स लगाने हैं तुम्हें!',
+            hinglish: 'Chalo chhote pehlwaan! Aaj 10 pushups aur 20 jumps lagane hain tumhe!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'ट्रेनर अंकल पुशअप्स का तो पता नहीं, पर उछल-उछल कर सोफे के स्प्रिंग ज़रूर तोड़ दूंगा!',
+            hinglish: 'Trainer uncle pushups ka toh pata nahi, par uchhal-uchhal kar sofa ke spring tod dunga!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Trainer',
+            hindi: 'सोफे पर नहीं ज़मीन पर वर्कआउट करो! सिक्स पैक एब्स बनाने हैं कि नहीं?',
+            hinglish: 'Sofa par nahi zameen par workout karo! Six pack abs banane hain ki nahi?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'एब्स का क्या करूँ अंकल? मम्मी कहती हैं कि गोल-मटोल पेट वाले बच्चे ही ज़्यादा क्यूट होते हैं!',
+            hinglish: 'Abs ka kya karun uncle? Mummy kehti hain gol-matol pet wale bachhe zyada cute hote hain!'
+          }
+        ]
       },
       {
-        hindi: 'अब मैं घर का असली मालिक हूँ, सब मेरी बात सुनेंगे!',
-        english: 'Now I am the real boss of the house, everyone must listen to me!',
-      },
-      {
-        hindi: 'बस एक दिक्कत है... दो कदम चलते ही मैं ज़मीन पर धड़ाम गिर जाता हूँ!',
-        english: 'Only one problem... I take two steps and crash straight to the floor!',
-      },
-      {
-        hindi: 'बड़े जूते छोटा बॉस! अगर वॉक पसंद आई तो सब्सक्राइब करना मत भूलना!',
-        english: 'Big shoes little boss! Do not forget to subscribe!',
-      },
-    ],
-    tags: ['shorts', 'bigshoes', 'toddlerwalk', 'littleboss', 'cutecomedy', 'funnybaby', 'viralshorts'],
+        title: 'High Voltage Bouncing Baby! 👶⚡ Secret Energy Source',
+        badge: 'ENERGY SECRET 👶⚡',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'ओए तूफानी बच्चे! सुबह से नॉन-स्टॉप उछल रहे हो, क्या इनवर्टर की बैटरी पर चलते हो?',
+            hinglish: 'Oye toofani bachhe! Subah se non-stop uchhal rahe ho, kya inverter battery par chalte ho?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा बैटरी पर तो आपके खिलौने चलते हैं, मेरा पावर सोर्स तो मम्मी की बनाई मीठी खीर है!',
+            hinglish: 'Papa battery par toh khilaune chalte hain, mera power source mummy ki banayi kheer hai!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'तो थोड़ी खीर मुझे भी दे दो, ऑफिस से आकर मेरी बैटरी बिल्कुल लो हो गई है!',
+            hinglish: 'Toh thodi kheer mujhe bhi de do, office se aakar meri battery bilkul low ho gayi hai!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'खीर खत्म हो गई पापा! अब सिर्फ मेरा डांस देखो और चुपचाप वीडियो को सब्सक्राइब करो!',
+            hinglish: 'Kheer khatam ho gayi papa! Ab sirf mera dance dekho aur video ko subscribe karo!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'icecream_brainfreeze',
-    badge: 'BRAIN FREEZE MOMENT 🍦',
-    englishTitle: 'Baby Experiences Brain Freeze! 👶🍦 Hilarious Ice Cream Face',
-    visualQuery: 'baby eating ice cream funny face',
-    altQueries: ['cute baby tasting ice cream', 'toddler funny expression', 'baby laughing eating'],
-    segments: [
+  '08_naughty_smile.mp4': {
+    context: 'A toddler with a cheeky, savage side-eye smile planning a mischievous trick or prank.',
+    roles: { adult: 'Papa', baby: 'Savage Toddler' },
+    badge: 'DADI KA LAADLA 🕶️👶',
+    scenarios: [
       {
-        hindi: 'गर्मियों में ठंडी-ठंडी स्ट्रॉबेरी आइसक्रीम खाने का मज़ा ही कुछ और है!',
-        english: 'Eating cold strawberry ice cream in summer is pure bliss!',
+        title: 'Grandma’s Defense Shield! 👶🕶️ Savage Toddler Trick',
+        badge: 'DADI KA LAADLA 🕶️👶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'आज तुमने फिर से दूध का गिलास फर्श पर गिरा दिया? आज तुम्हारी भारी डांट पक्की है!',
+            hinglish: 'Aaj tumne fir se doodh ka glass farsh par gira diya? Aaj tumhari daant pakki hai!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा मुझे डांटने से पहले ज़रा पीछे मुड़कर देखो, दादी बेलन लेकर खड़ी हैं!',
+            hinglish: 'Papa mujhe daantne se pehle peeche mudkar dekho, Dadi belan lekar khadi hain!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अरे मम्मी आप?! नहीं-नहीं मैं तो बस बच्चे को बहुत प्यार से समझा रहा था!',
+            hinglish: 'Arre mummy aap?! Nahi-nahi main toh bas bachhe ko bohot pyaar se samjha raha tha!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'देखा छोटा दिमाग बड़ा धमाका! एक नकली आंसू में पापा का पूरा गेम उल्टा कर दिया!',
+            hinglish: 'Dekha chhota dimaag bada dhamaka! Ek nakli aansu mein papa ka game ulta kar diya!'
+          }
+        ]
       },
       {
-        hindi: 'लेकिन जैसे ही मैंने बड़ा बाइट लिया, सिर में अलार्म बजने लगा!',
-        english: 'But the moment I took a giant bite, alarm bells rang in my head!',
-      },
-      {
-        hindi: 'आंखें चौड़ी, मुंह खुला का खुला! ये आइसक्रीम है या बर्फ का तूफान?!',
-        english: 'Eyes wide open, jaw dropped! Is this ice cream or a snow storm?!',
-      },
-      {
-        hindi: 'इस सुपर फनी चेहरे पर एक लाइक तो बनता है! जल्दी सब्सक्राइब करें!',
-        english: 'This hilarious reaction deserves a like! Subscribe right now!',
-      },
-    ],
-    tags: ['shorts', 'brainfreeze', 'icecreamlover', 'cutebaby', 'funnyfaces', 'toddlerreaction', 'fyp'],
+        title: 'Phone Password Busted! 👶📱 Smart Toddler Hack',
+        badge: 'PHONE HACKER BABY 👶📱',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'ओए नटखट! मेरा फोन अनलॉक करके तुमने ऑनलाइन नई टॉय कार कैसे ऑर्डर कर दी?',
+            hinglish: 'Oye natkhat! Mera phone unlock karke tumne online nayi toy car kaise order kar di?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा जब आप सो रहे थे, मैंने आपकी ही उंगली लगाकर फिंगरप्रिंट लॉक खोल लिया!',
+            hinglish: 'Papa jab aap so rahe the, maine aapki hi ungli lagakar fingerprint lock khol liya!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'क्या?! पर मेरे फोन का छह अंकों वाला पिन तो तुम्हें कभी नहीं पता था!',
+            hinglish: 'Kya?! Par mere phone ka 6 digit pin toh tumhe kabhi nahi pata tha!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा आपका पिन वन-टू-थ्री-फोर-फाइव-सिक्स है, ये तो हमारे टॉमी कुत्ते को भी पता है!',
+            hinglish: 'Papa aapka pin 1-2-3-4-5-6 hai, ye toh hamare Tommy kutte ko bhi pata hai!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'messy_room_logic',
-    badge: 'TODDLER LOGIC 101 🧸',
-    englishTitle: 'Toddler Philosophy: Clean Room Dilemma! 👶🧠 Smart Kid Wisdom',
-    visualQuery: 'toddler messy room playing toys',
-    altQueries: ['cute baby playing toys', 'toddler laughing messy room', 'naughty kid'],
-    segments: [
+  '09_toy_adventure.mp4': {
+    context: 'A baby playing intently with blocks, building a skyscraper tower or crashing toy cars on the carpet.',
+    roles: { adult: 'Architect Papa', baby: 'Master Builder' },
+    badge: 'TOY TOWER COLLAPSE 🏗️👶',
+    scenarios: [
       {
-        hindi: 'अगर कल सुबह मुझे फिर से सारे खिलौनों से खेलना ही है...',
-        english: 'If I have to play with all my toys again tomorrow morning...',
+        title: 'Architect Papa vs Baby Builder! 👶🏗️ Controlled Demolition',
+        badge: 'TOY TOWER COLLAPSE 🏗️👶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अरे नन्हे इंजीनियर! ये जो खिलौनों की इतनी ऊंची मीनार बनाई है, ये गिरेगी तो नहीं?',
+            hinglish: 'Arre nanhe engineer! Ye jo khilaunon ki itni unchi minaar banayi hai, ye giregi toh nahi?'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा गिरना ही तो इस पूरे प्रोजेक्ट का असली क्लाइमेक्स है, ज़रा एक सेकंड रुको!',
+            hinglish: 'Papa girna hi toh is poore project ka asli climax hai, zara ek second ruko!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'अरे-अरे लात मत मारना! पूरा कमरा बिखर जाएगा भाई!',
+            hinglish: 'Arre-arre laat mat maarna! Poora kamra bikhar jayega bhai!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'धड़ाम! इसे कहते हैं कंट्रोल्ड डिमोलिशन पापा, अगली बिल्डिंग इससे भी ऊंची बनाऊंगा!',
+            hinglish: 'Dhadhaam! Ise kehte hain controlled demolition papa, agli building isse bhi unchi banaunga!'
+          }
+        ]
       },
       {
-        hindi: 'तो आज रात कमरा समेटने की क्या ज़रूरत है?',
-        english: 'Why do I have to clean up the room tonight?',
-      },
-      {
-        hindi: 'अपनी एनर्जी बचाना ही तो असली स्मार्ट वर्क कहलाता है!',
-        english: 'Conserving energy is called smart working!',
-      },
-      {
-        hindi: 'मम्मी को समझाओ कि मैं इंजीनियर हूँ! सब्सक्राइब करना मत भूलना!',
-        english: 'Tell Mummy I am an engineer! Subscribe for more toddler wisdom!',
-      },
-    ],
-    tags: ['shorts', 'toddlerlogic', 'smartbaby', 'babywisdom', 'funnyhumor', 'relatable', 'fyp'],
+        title: 'Toy Train Ticket Inspector! 👶🚂 VIP Baby Passenger',
+        badge: 'TOY TRAIN TICKETS 👶🚂',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'टिकट चेकर बाबू आ गए! इस टॉय ट्रेन में बिना टिकट यात्रा करने की सख्त मनाही है!',
+            hinglish: 'Ticket checker babu aa gaye! Is toy train mein bina ticket yatra ki sakht manahi hai!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'पापा इस ट्रेन का ड्राइवर, गार्ड और रेलवे मिनिस्टर सब मैं ही हूँ, टिकट कैसा?',
+            hinglish: 'Papa is train ka driver, guard aur railway minister sab main hi hoon, ticket kaisa?'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'बिना टिकट के पकड़े जाने पर नन्हे मुसाफिर को जेल भी हो सकती है!',
+            hinglish: 'Bina ticket ke pakde jaane par nanhe musaafir ko jail bhi ho sakti hai!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'जेल में अगर कार्टून और चॉकलेट चिप्स मिलेंगे तो मैं अभी चलने को तैयार हूँ!',
+            hinglish: 'Jail mein agar cartoon aur chocolate chips milenge toh main abhi chalne ko taiyaar hoon!'
+          }
+        ]
+      }
+    ]
   },
-  {
-    concept: 'teddy_bear_feast',
-    badge: 'TEDDY BEAR FEAST 🧸🍟',
-    englishTitle: 'Generous Toddler Sharing Food With Teddy! 👶🍟 Wholesome Moment',
-    visualQuery: 'baby feeding teddy bear toy',
-    altQueries: ['cute baby playing with teddy', 'toddler sharing food', 'cute baby smiling'],
-    segments: [
+  '10_playful_celebration.mp4': {
+    context: 'A baby clapping hands excitedly, cheering victory, and giggling with big joyful smiles.',
+    roles: { adult: 'Papa', baby: 'Champion Toddler' },
+    badge: 'VICTORY CELEBRATION 🏆👶',
+    scenarios: [
       {
-        hindi: 'मेरा प्यारा टेडी दिन भर भूखा बैठा रहता है!',
-        english: 'My sweet teddy bear sits hungry the entire day...',
+        title: 'Bedtime Match Victory! 👶🏆 Baby Defeats Sleep Routine',
+        badge: 'VICTORY CELEBRATION 🏆👶',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'घड़ी में रात के दस बज गए हैं, अब चुपचाप सो जाओ, आज का मैच खत्म!',
+            hinglish: 'Ghadi mein raat ke 10 baj gaye hain, ab chupchaap so jao, aaj ka match khatam!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'मैच खत्म नहीं हुआ पापा, बेबी टीम ने मम्मी-पापा को थकाकर वर्ल्ड कप जीत लिया है!',
+            hinglish: 'Match khatam nahi hua papa, baby team ne mummy-papa ko thakakar World Cup jeet liya!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'बेटा सुबह स्कूल भी जाना है तुम्हें, ज़रा अपनी आंखें बंद करो!',
+            hinglish: 'Beta subah school bhi jaana hai tumhe, zara apni aankhein band karo!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'आंखें बंद तो कल करेंगे पापा, अभी तो आधी रात की जीत की पार्टी शुरू हुई है!',
+            hinglish: 'Aankhein band toh kal karenge papa, abhi toh aadhi raat ki party shuru hui hai!'
+          }
+        ]
       },
       {
-        hindi: 'इसलिए आज मैं उसे अपनी सबसे पसंदीदा चिप्स खिला रहा हूँ!',
-        english: 'So today I am sharing my favorite chips with him!',
-      },
-      {
-        hindi: 'अरे टेडी, मुंह तो खोलो! सारी चिप्स तो मेरी टी-शर्ट पर ही गिर गई!',
-        english: 'Hey teddy, open your mouth! All the chips spilled on my shirt!',
-      },
-      {
-        hindi: 'अगर आपको भी अपने बचपन का खिलौना याद है तो लाइक करो!',
-        english: 'Hit like if you also remember your childhood favorite toy!',
-      },
-    ],
-    tags: ['shorts', 'teddybear', 'sharingiscaring', 'wholesomebaby', 'cutechildhood', 'explore'],
-  },
-  {
-    concept: 'bedtime_negotiation',
-    badge: 'BEDTIME NEGOTIATION 🛌',
-    englishTitle: 'The Ultimate Bedtime Mystery! 👶🛌 Toddler Investigation',
-    visualQuery: 'naughty kid smiling bed',
-    altQueries: ['cute baby hiding blanket', 'toddler laughing in bed', 'cute baby laughing'],
-    segments: [
-      {
-        hindi: 'पापा-मम्मी मुझे तो नौ बजे सोने भेज देते हैं...',
-        english: 'Why do parents tell me to sleep at nine PM sharp...',
-      },
-      {
-        hindi: 'और खुद चुपके से टीवी देखते हैं और आइसक्रीम खाते हैं!',
-        english: 'While they stay up watching movies and eating ice cream?!',
-      },
-      {
-        hindi: 'मुझे इनके सारे सीक्रेट प्लान पता चल चुके हैं!',
-        english: 'I have unlocked all their secret late-night plans!',
-      },
-      {
-        hindi: 'रंगे हाथों पकड़े गए! अगर आप भी होशियार हैं तो लाइक और सब्सक्राइब करें!',
-        english: 'Busted! Hit like and subscribe if you caught your parents too!',
-      },
-    ],
-    tags: ['shorts', 'bedtimemystery', 'funnyparents', 'smarttoddler', 'cutebaby', 'viralshorts', 'comedy'],
-  },
-  {
-    concept: 'soap_bubbles_bath',
-    badge: 'BUBBLE POP PARTY 🫧',
-    englishTitle: 'Baby Bath Time Soap Bubble Party! 👶🫧 Pure Joy & Magic',
-    visualQuery: 'baby playing soap bubbles bath',
-    altQueries: ['cute baby bubbles', 'toddler laughing water bubbles', 'baby smiling bath'],
-    segments: [
-      {
-        hindi: 'देखो हवा में उड़ते हुए जादुई पानी के गुब्बारे!',
-        english: 'Look at the magical water balloons floating in the air!',
-      },
-      {
-        hindi: 'मैं जिसे भी छूने की कोशिश करता हूँ, वो फुस्स हो जाता है!',
-        english: 'Every single one I try to touch just pops into thin air!',
-      },
-      {
-        hindi: 'ये बबल्स पक्का किसी निंजा स्कूल से ट्रेनिंग लेकर आए हैं!',
-        english: 'These bubbles must have trained at a secret ninja academy!',
-      },
-      {
-        hindi: 'हंसते रहो और रोज़ाना ऐसी क्यूट मस्ती के लिए सब्सक्राइब करो!',
-        english: 'Keep smiling and subscribe for daily adorable fun!',
-      },
-    ],
-    tags: ['shorts', 'soapbubbles', 'bathtimefun', 'cutebaby', 'innocence', 'happyvibes', 'fyp'],
-  },
-  {
-    concept: 'grandparents_trick',
-    badge: 'DADI KA LAADLA 🕶️',
-    englishTitle: 'When Grandparents Are Around! 👶🕶️ Savage Toddler Trick',
-    visualQuery: 'naughty kid smiling talking',
-    altQueries: ['cute baby pretending', 'toddler laughing', 'funny baby expressions'],
-    segments: [
-      {
-        hindi: 'जब भी पापा मुझे चॉकलेट खाने पर डांटते हैं...',
-        english: 'Whenever Papa scolds me for eating chocolate...',
-      },
-      {
-        hindi: 'मैं चुपचाप दादी की तरफ देखकर नकली रोना शुरू कर देता हूँ!',
-        english: 'I just look over at Dadi and start fake crying!',
-      },
-      {
-        hindi: 'और बस दो सेकंड में, उल्टे पापा की ही डांट पड़ जाती है!',
-        english: 'In two seconds, Papa gets scolded instead!',
-      },
-      {
-        hindi: 'देखा छोटा दिमाग बड़ा धमाका! अगर आपको भी दादी प्यारी हैं तो सब्सक्राइब करें!',
-        english: 'Subscribe if you love your grandparents too!',
-      },
-    ],
-    tags: ['shorts', 'savagetoddler', 'funny', 'dadi', 'babytricks', 'cutebaby', 'viralcomedy'],
-  },
-  {
-    concept: 'doctor_injection',
-    badge: 'DOCTOR UNCLE LIE 💉',
-    englishTitle: 'Doctor Uncle’s Big Lie! 👶💉 Tiny Injection Mystery',
-    visualQuery: 'cute baby smiling talking',
-    altQueries: ['toddler talking funny', 'cute baby laughing', 'naughty kid'],
-    segments: [
-      {
-        hindi: 'डॉक्टर अंकल बोले बस एक छोटी सी चींटी काटेगी!',
-        english: 'Doctor uncle said it will only pinch like a tiny ant...',
-      },
-      {
-        hindi: 'अरे अंकल, क्या चींटी के पास इतना बड़ा सुई वाला इंजेक्शन होता है?!',
-        english: 'Uncle, do ants carry giant syringes like that?!',
-      },
-      {
-        hindi: 'मुझे तो लगता है वो चींटी किसी डायनासोर के खानदान की थी!',
-        english: 'I think that ant was related to a dinosaur family!',
-      },
-      {
-        hindi: 'हंसते-हंसते पेट में दर्द हो गया तो जल्दी से लाइक और सब्सक्राइब करो!',
-        english: 'If you laughed out loud, hit like and subscribe right now!',
-      },
-    ],
-    tags: ['shorts', 'babyhumor', 'doctorjoke', 'cutebaby', 'toddlerjokes', 'viralcomedy', 'laughing'],
-  },
-  {
-    concept: 'phone_screen_time',
-    badge: 'MUMMY PHONE BUSTED 📱',
-    englishTitle: 'Phone Rules Double Standard! 👶📱 Busted Mummy Papa',
-    visualQuery: 'toddler holding phone laughing',
-    altQueries: ['cute baby talking phone', 'toddler laughing', 'naughty kid smiling'],
-    segments: [
-      {
-        hindi: 'मम्मी दिन भर बोलती हैं कि फोन देखने से आंखें खराब हो जाती हैं!',
-        english: 'Mummy tells me that looking at phones ruins your eyes...',
-      },
-      {
-        hindi: 'और खुद पूरा दिन इंस्टाग्राम पर रील्स स्क्रॉल करती रहती हैं!',
-        english: 'While she spends all day scrolling Instagram reels!',
-      },
-      {
-        hindi: 'क्या मम्मी की आंखों में स्पेशल फिल्टर लगा हुआ है?',
-        english: 'Does Mummy have a special magic filter on her eyes?!',
-      },
-      {
-        hindi: 'अगर आपके घर भी यही हाल है, तो कमेंट में हंसने वाली इमोजी भेजो!',
-        english: 'If this happens at your home too, drop laughing emojis in comments!',
-      },
-    ],
-    tags: ['shorts', 'phoneaddiction', 'relatablekid', 'cutebaby', 'mummyjokes', 'toddlerlogic', 'viralshorts'],
-  },
-  {
-    concept: 'sneeze_jump_scare',
-    badge: 'SNEEZE JUMP SCARE 🤧',
-    englishTitle: 'When Dad Sneezes At 100 Decibels! 👶😱 Baby Dramatic Shock',
-    visualQuery: 'baby surprised funny face',
-    altQueries: ['cute baby shocked face', 'toddler funny reaction', 'baby laughing'],
-    segments: [
-      {
-        hindi: 'घर में सब कुछ बिल्कुल शांत और प्यारा चल रहा था...',
-        english: 'Everything at home was completely peaceful and calm...',
-      },
-      {
-        hindi: 'तभी अचानक पापा ने 100 की स्पीड में छींक मार दी: आक्छीं!',
-        english: 'Then suddenly Papa sneezed at top volume: ACHOO!',
-      },
-      {
-        hindi: 'अरे बाप रे! मुझे लगा जैसे घर की छत ही उड़ गई हो!',
-        english: 'Goodness me! I thought the roof just blew away!',
-      },
-      {
-        hindi: 'अगर आपके पापा भी ऐसे ही डराते हैं तो कमेंट में बताओ और सब्सक्राइब करो!',
-        english: 'Tell in comments if your dad sneezes like a bomb too, and subscribe!',
-      },
-    ],
-    tags: ['shorts', 'dadsneeze', 'babyshock', 'funnyreactions', 'cutebaby', 'wholesomecomedy', 'fyp'],
-  },
-  {
-    concept: 'baby_discovers_toes',
-    badge: 'TOES DISCOVERY 🦶',
-    englishTitle: 'Baby Discovers Feet Attached To Body! 👶🦶 Shocking Discovery',
-    visualQuery: 'baby holding feet laughing',
-    altQueries: ['cute baby playing toes', 'toddler laughing', 'baby giggling happy'],
-    segments: [
-      {
-        hindi: 'ब्रेकिंग न्यूज़! आज मैंने अपने बिस्तर पर दो नए दोस्त ढूंढे हैं!',
-        english: 'Breaking news! Today I found two brand new friends on my bed!',
-      },
-      {
-        hindi: 'ये दस नन्हीं उंगलियां दिन भर मेरे साथ ही घूमती रहती हैं!',
-        english: 'These ten tiny toes follow me everywhere I go!',
-      },
-      {
-        hindi: 'मैंने इन्हें मुंह में डालने की कोशिश की, पर स्वाद तो कुछ खास नहीं था!',
-        english: 'I tried tasting them, but honestly the flavor was nothing special!',
-      },
-      {
-        hindi: 'देखा नन्हा वैज्ञानिक! रोज़ाना ऐसी प्यारी हरकतों के लिए सब्सक्राइब करो!',
-        english: 'Look at the tiny scientist! Subscribe for daily cute toddler moments!',
-      },
-    ],
-    tags: ['shorts', 'babydiscoversfeet', 'cutenessoverload', 'toddlerlife', 'funnybaby', 'wholesome'],
-  },
-  {
-    concept: 'cat_convo',
-    badge: 'CAT & TODDLER CONVO 🐱',
-    englishTitle: 'Toddler Trying To Speak Cat Language! 👶🐱 Hilarious Meow Debate',
-    visualQuery: 'toddler playing with cat',
-    altQueries: ['cute baby cat playing', 'toddler laughing with pet', 'cute baby laughing'],
-    segments: [
-      {
-        hindi: 'मैंने अपनी बिल्ली से बहुत प्यार से पूछा: म्याऊँ म्याऊँ?',
-        english: 'I politely asked our pet cat: Meow Meow?',
-      },
-      {
-        hindi: 'उसने मुझे ऐसे देखा जैसे मैंने उसकी कोई पुरानी प्रॉपर्टी मांग ली हो!',
-        english: 'She looked at me like I asked for her family inheritance!',
-      },
-      {
-        hindi: 'लगता है मेरी कैट लैंग्वेज में कुछ भारी व्याकरण की गलती हो गई!',
-        english: 'I guess there was a huge grammar mistake in my cat dialect!',
-      },
-      {
-        hindi: 'अगर आपको बिल्लियां पसंद हैं तो लाइक ठोक दो और सब्सक्राइब करो!',
-        english: 'Hit like if you love cats too and don’t forget to subscribe!',
-      },
-    ],
-    tags: ['shorts', 'babyandcat', 'cutepets', 'meow', 'toddlerhumor', 'funnyanimals', 'viralshorts'],
-  },
-];
+        title: 'Gold Medal Walking Baby! 👶🥇 Ice Cream Demand',
+        badge: 'GOLD MEDAL BABY 👶🥇',
+        dialogue: [
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'वाह भाई वाह! आज तुमने बिना गिरे पूरे दस कदम चल लिए, बहुत शानदार!',
+            hinglish: 'Wah bhai wah! Aaj tumne bina gire poore 10 kadam chal liye, bohot shandar!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'दस कदम तो वार्मअप था पापा, अब जल्दी से गोल्ड मेडल और दो स्कूप आइसक्रीम लाओ!',
+            hinglish: 'Das kadam toh warmup tha papa, ab jaldi se gold medal aur 2 scoop ice cream lao!'
+          },
+          {
+            speaker: 'Adult',
+            role: 'Papa',
+            hindi: 'आइसक्रीम कल मिलेगी बेटा, आज सिर्फ शाबाशी से काम चलाओ!',
+            hinglish: 'Ice cream kal milegi beta, aaj sirf shabaashi se kaam chalao!'
+          },
+          {
+            speaker: 'Baby',
+            role: 'Baby',
+            hindi: 'शाबाशी से पेट नहीं भरता पापा, आइसक्रीम नहीं दी तो रात भर रोने का सायरन बजाऊंगा!',
+            hinglish: 'Shabaashi se pet nahi bharta papa, ice cream nahi di toh raat bhar rone ka siren bajaunga!'
+          }
+        ]
+      }
+    ]
+  }
+};
 
 /**
- * Gets next rotation index using history_tracker.json
- * Guarantees zero repetition across runs
+ * Resolves context for arbitrary clip names or Pexels downloads
  */
-function getNextScenarioIndex() {
+function resolveClipContext(clipPath, customTopic = null) {
+  const filename = path.basename(clipPath || '').toLowerCase();
+
+  // 1. Direct registry lookup
+  for (const [key, value] of Object.entries(CLIP_THEME_REGISTRY)) {
+    if (filename.includes(key.replace('.mp4', ''))) {
+      return { ...value, clipFilename: filename };
+    }
+  }
+
+  // 2. Keyword-based visual inference
+  if (filename.includes('dance') || filename.includes('groove')) {
+    return { ...CLIP_THEME_REGISTRY['02_baby_dance.mp4'], clipFilename: filename };
+  }
+  if (filename.includes('mischief') || filename.includes('naughty') || filename.includes('chocolate')) {
+    return { ...CLIP_THEME_REGISTRY['03_baby_mischief.mp4'], clipFilename: filename };
+  }
+  if (filename.includes('laugh') || filename.includes('giggle') || filename.includes('smile')) {
+    return { ...CLIP_THEME_REGISTRY['04_baby_laughing.mp4'], clipFilename: filename };
+  }
+  if (filename.includes('wobble') || filename.includes('car') || filename.includes('scooter') || filename.includes('drive')) {
+    return { ...CLIP_THEME_REGISTRY['05_toddler_wobble.mp4'], clipFilename: filename };
+  }
+  if (filename.includes('curiosity') || filename.includes('mirror') || filename.includes('doctor')) {
+    return { ...CLIP_THEME_REGISTRY['06_baby_curiosity.mp4'], clipFilename: filename };
+  }
+  if (filename.includes('bounce') || filename.includes('jump') || filename.includes('happy')) {
+    return { ...CLIP_THEME_REGISTRY['07_happy_bounce.mp4'], clipFilename: filename };
+  }
+  if (filename.includes('toy') || filename.includes('adventure') || filename.includes('blocks')) {
+    return { ...CLIP_THEME_REGISTRY['09_toy_adventure.mp4'], clipFilename: filename };
+  }
+  if (filename.includes('celebration') || filename.includes('playful') || filename.includes('clapping')) {
+    return { ...CLIP_THEME_REGISTRY['10_playful_celebration.mp4'], clipFilename: filename };
+  }
+
+  // Default to 05_toddler_wobble (Traffic Cop vs Baby) or 01_baby_classic
+  return {
+    context: `A funny cute toddler getting up to adorable mischief in the house: ${customTopic || 'everyday toddler adventure'}`,
+    roles: { adult: 'Papa', baby: 'Little Boss' },
+    badge: 'LITTLE BOSS COMEDY 😂👶',
+    scenarios: CLIP_THEME_REGISTRY['05_toddler_wobble.mp4'].scenarios,
+    clipFilename: filename,
+  };
+}
+
+/**
+ * Tracks rotation index to guarantee zero repeating dialogues across runs
+ */
+function getNextSubThemeIndex(clipKey, numScenarios) {
   let tracker = {};
   if (fs.existsSync(TRACKER_PATH)) {
     try {
       tracker = JSON.parse(fs.readFileSync(TRACKER_PATH, 'utf8'));
-    } catch (e) {
+    } catch (_) {
       tracker = {};
     }
   }
 
-  const currentIndex = tracker.slot1_scenario_index ?? 0;
-  const nextIndex = (currentIndex + 1) % EXPANDED_SCENARIOS.length;
+  if (!tracker.slot1_clip_subthemes) tracker.slot1_clip_subthemes = {};
+  const currentIdx = tracker.slot1_clip_subthemes[clipKey] ?? 0;
+  tracker.slot1_clip_subthemes[clipKey] = (currentIdx + 1) % numScenarios;
 
-  tracker.slot1_scenario_index = nextIndex;
   try {
     fs.writeFileSync(TRACKER_PATH, JSON.stringify(tracker, null, 2), 'utf8');
   } catch (e) {
     logger.warn(`Failed to update history_tracker: ${e.message}`);
   }
 
-  return currentIndex % EXPANDED_SCENARIOS.length;
+  return currentIdx % numScenarios;
 }
 
 /**
- * Calls Gemini 1.5 Flash to generate fresh, unique baby script
+ * Prompts Gemini (gemini-2.5-flash with fallback to gemini-2.0-flash) to write a 2-character comedy dialogue
+ * strictly matched to the selected video footage
  */
-async function generateWithGemini(concept, apiKey) {
+async function generate2CharacterDialogueWithGemini({ clipName, visualContext, roles, apiKey }) {
   if (!apiKey) return null;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const prompt = `You are the lead content creator for India's #1 viral Cute Baby and Toddler Comedy YouTube Shorts channel ("Little Boss").
-Generate a hilarious, heart-melting 25-30s Hindi voiceover script from a cute baby/toddler perspective with crisp English subtitles based on this theme/concept: "${concept}".
+  const twistSeeds = [
+    'Baby acts like a seasoned corporate CEO laying off parents from bedtime duty',
+    'Baby treats traffic police cop like a drive-thru lollipop customer',
+    'Baby defends messy eating as high-fashion modern art',
+    'Baby uses Grandma as an invincible shield against Papa scolding',
+    'Baby refuses to sleep because late-night cartoons have better ratings',
+    'Baby negotiates chocolate allowance like a Wall Street broker'
+  ];
+  const randomTwist = twistSeeds[Math.floor(Math.random() * twistSeeds.length)];
 
-Format Requirements:
-1. Hook (0-3s): Super cute or curious baby question/observation.
-2. Body (4-20s): Innocent toddler logic, hilarious reaction, or funny mishap in 2 parts.
-3. Punchline (21-26s): Laugh-out-loud funny toddler punchline.
-4. CTA (27-30s): Sweet or cheeky comment/subscribe prompt.
-5. Language: Spoken toddler Hindi (Devanagari script) for voiceover, paired with clean English translations for burned-in subtitles.
-6. Visual queries: 1 primary and 3 alternative specific visual queries for vertical B-roll video search on Pexels (e.g. "baby tasting lemon funny", "toddler laughing", "baby puppy playing").
+  const prompt = `You are India's #1 viral YouTube Shorts comedy writer specializing in rapid-fire 2-character funny banter between an Adult and a cheeky witty Baby/Toddler ("Little Boss").
 
-Return ONLY valid JSON without markdown fences:
+CURRENT VIDEO CLIP CONTEXT (MUST 100% MATCH WHAT IS ON SCREEN):
+- Video Clip File: ${clipName}
+- What is visible in the video: ${visualContext}
+- Characters: Adult (${roles.adult}) vs Baby (${roles.baby})
+- Comedic Angle: ${randomTwist}
+
+STRICT CONTENT RULES:
+1. Two-Character Comedy Dialogue: 100% MATCH what is happening in the video footage! NO monologues, NO generic filler like "mera chehra dekho".
+2. Banter Structure (4 lines total, ~20-25 seconds total speech):
+   - Line 1 (${roles.adult}): Catches, questions, or confronts the baby based directly on what the baby is doing in the video clip.
+   - Line 2 (${roles.baby}): Sassy toddler comeback with innocent hilarious logic.
+   - Line 3 (${roles.adult}): Exasperated, shocked counter-question.
+   - Line 4 (${roles.baby}): Laugh-out-loud funny punchline that leaves viewers laughing!
+3. Speech duration: 4 lines, total ~45-55 Hindi words.
+4. Each dialogue line must include:
+   - "speaker": "Adult" or "Baby"
+   - "role": "${roles.adult}" or "${roles.baby}"
+   - "hindi": Natural spoken Hindi in Devanagari script for neural TTS.
+   - "hinglish": Clean Latin transliteration for on-screen subtitles.
+
+Return ONLY a valid JSON object without markdown fences:
 {
-  "title": "Click-worthy English title with emojis (max 50 chars)",
-  "badge": "2-4 word theme badge in caps (e.g. LEMON TEST 🍋)",
-  "visualQuery": "baby tasting lemon funny",
-  "altQueries": ["cute baby sour face", "funny baby tasting", "toddler laughing"],
-  "segments": [
-    { "hindi": "...", "english": "..." },
-    { "hindi": "...", "english": "..." },
-    { "hindi": "...", "english": "..." },
-    { "hindi": "...", "english": "..." }
+  "title": "Click-worthy viral title with emojis (e.g. 'Oye License Dikha! 👶🚗 Baby Traffic Cop Funny Banter')",
+  "badge": "2-4 word theme badge in caps (e.g. 'TRAFFIC COP VS BABY 👮‍♂️')",
+  "characterAdult": "${roles.adult}",
+  "characterBaby": "${roles.baby}",
+  "dialogue": [
+    {
+      "speaker": "Adult",
+      "role": "${roles.adult}",
+      "hindi": "...",
+      "hinglish": "..."
+    },
+    {
+      "speaker": "Baby",
+      "role": "${roles.baby}",
+      "hindi": "...",
+      "hinglish": "..."
+    },
+    {
+      "speaker": "Adult",
+      "role": "${roles.adult}",
+      "hindi": "...",
+      "hinglish": "..."
+    },
+    {
+      "speaker": "Baby",
+      "role": "${roles.baby}",
+      "hindi": "...",
+      "hinglish": "..."
+    }
   ],
-  "tags": ["cutebaby", "funnytoddler", "shorts", "babycomedy", "viralshorts"]
+  "tags": ["shorts", "babycomedy", "viralshorts", "funnybaby", "toddlerhumor", "comedyreels", "fyp"]
 }`;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 600, temperature: 0.8 },
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanJson);
+  for (const model of models) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 7000);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-    if (parsed.title && Array.isArray(parsed.segments) && parsed.segments.length >= 3) {
-      return parsed;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 600, temperature: 0.8 },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        logger.warn(`Gemini (${model}) returned HTTP ${res.status}: ${errText.slice(0, 100)}`);
+        continue;
+      }
+
+      const data = await res.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleanJson = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+
+      if (parsed.title && Array.isArray(parsed.dialogue) && parsed.dialogue.length >= 3) {
+        logger.success(`Gemini (${model}) successfully generated clip-matched 2-character dialogue: "${parsed.title}"`);
+        return parsed;
+      }
+    } catch (err) {
+      logger.warn(`Gemini (${model}) dialogue generation attempt failed: ${err.message}`);
     }
-  } catch (e) {
-    logger.warn(`Gemini Slot 1 dynamic script generation failed: ${e.message}. Using procedural rotation engine.`);
   }
+
   return null;
 }
 
 /**
- * Main Content Generator for Slot 1 (Cute Baby / Toddler Comedy & Dance)
+ * Main Content Generator for Slot 1: Baby & Toddler Reels
+ * REVERSED FLOW: Video clip is selected FIRST, dialogue is generated SECOND to 100% match the footage!
  * @param {string} [customTopic]
  */
 export async function generateSlot1Content(customTopic = null) {
-  logger.info('=== Generating Slot 1 (Cute Toddler / Baby Reels) High-CTR Content ===');
+  logger.info('=== Generating Slot 1 (Cute Baby Reels): Video-First 2-Character Dialogue Revamp ===');
 
-  let chosenConcept = customTopic;
-  if (!chosenConcept) {
-    // Pick concept from rotating list
-    const conceptIdx = Math.floor(Math.random() * DIVERSE_CONCEPTS.length);
-    chosenConcept = DIVERSE_CONCEPTS[conceptIdx];
+  // Step 1: Ensure local video pools exist
+  await ensureSlot1Pool();
+
+  // Step 2: Select the unused moving video clip FIRST
+  let chosenClipPath = null;
+  const babyDir = path.join(config.assetsDir, 'clips', 'baby');
+  const poolClips = [
+    ...getCategoryVideoPool(babyDir),
+    ...getSlot1PoolClips(),
+  ].filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+  // If customTopic is specified, attempt dynamic Pexels search first
+  if (customTopic) {
+    try {
+      const pexelsRes = await fetchSlotBackgroundMedia({ slotType: 'slot1', customTopic });
+      if (pexelsRes?.filePath && fs.existsSync(pexelsRes.filePath)) {
+        chosenClipPath = pexelsRes.filePath;
+      }
+    } catch (_) {}
   }
 
+  // If not chosen via customTopic, pick non-repeating video clip from local pool
+  if (!chosenClipPath) {
+    chosenClipPath = pickUnusedFallbackClip(poolClips, 'baby');
+  }
+
+  // Fallback to default clip if needed
+  if (!chosenClipPath || !fs.existsSync(chosenClipPath)) {
+    const defaultBaby = path.join(config.assetsDir, 'defaults', 'slot1_baby.mp4');
+    chosenClipPath = fs.existsSync(defaultBaby) ? defaultBaby : poolClips[0];
+  }
+
+  const clipFilename = path.basename(chosenClipPath);
+  logger.success(`[Slot 1 Video-First] Selected background video: ${clipFilename}`);
+
+  // Step 3: Extract visual context & character roles for the chosen video clip
+  const clipContextInfo = resolveClipContext(chosenClipPath, customTopic);
+  logger.info(`[Slot 1 Context]: Visual Setting: "${clipContextInfo.context}" | Characters: ${clipContextInfo.roles.adult} vs ${clipContextInfo.roles.baby}`);
+
+  // Step 4: Generate 2-Character Dialogue with Gemini (or procedural fallback)
   let generated = null;
   if (config.geminiApiKey) {
-    logger.info(`Invoking Gemini 1.5 Flash for dynamic Slot 1 concept: "${chosenConcept}"...`);
-    generated = await generateWithGemini(chosenConcept, config.geminiApiKey);
+    logger.info(`Prompting Gemini 2.5 Flash for 2-character comedy dialogue strictly matched to ${clipFilename}...`);
+    generated = await generate2CharacterDialogueWithGemini({
+      clipName: clipFilename,
+      visualContext: clipContextInfo.context,
+      roles: clipContextInfo.roles,
+      apiKey: config.geminiApiKey,
+    });
   }
 
-  // Fallback to rotating procedural scenario library
+  // Fallback: Pick rotating procedural 2-character dialogue mapped to this specific clip
   if (!generated) {
-    const scenarioIdx = getNextScenarioIndex();
-    const scenario = EXPANDED_SCENARIOS[scenarioIdx];
-    logger.info(`[Slot 1 Rotation] Selected non-repeating scenario #${scenarioIdx + 1}: "${scenario.badge}"`);
+    const scenarios = clipContextInfo.scenarios || CLIP_THEME_REGISTRY['05_toddler_wobble.mp4'].scenarios;
+    const scenarioIdx = getNextSubThemeIndex(clipFilename, scenarios.length);
+    const chosenScenario = scenarios[scenarioIdx];
+    logger.info(`[Slot 1 Procedural Rotation] Selected scenario #${scenarioIdx + 1} for ${clipFilename}: "${chosenScenario.badge}"`);
+
     generated = {
-      title: scenario.englishTitle,
-      badge: scenario.badge,
-      visualQuery: scenario.visualQuery,
-      altQueries: scenario.altQueries,
-      segments: scenario.segments,
-      tags: scenario.tags,
+      title: chosenScenario.title,
+      badge: chosenScenario.badge,
+      characterAdult: clipContextInfo.roles.adult,
+      characterBaby: clipContextInfo.roles.baby,
+      dialogue: chosenScenario.dialogue,
+      tags: ['shorts', 'babycomedy', 'viralshorts', 'funnybaby', 'toddlerhumor', 'fyp'],
     };
   }
 
-  // Handle custom topic override if specified
-  if (customTopic) {
-    generated.title = `${customTopic} 👶 Cute Toddler Fun`;
-    generated.visualQuery = `cute baby ${customTopic}`;
-    generated.badge = `${customTopic.toUpperCase().slice(0, 24)} 👶`;
-  }
+  // Step 5: Format dialogue lines and segment data
+  const formattedDialogueLines = generated.dialogue.map((item) => {
+    const isAdult = item.speaker === 'Adult' || item.speaker?.toLowerCase().includes('adult');
+    const roleName = item.role || (isAdult ? clipContextInfo.roles.adult : clipContextInfo.roles.baby);
+    const cleanHindi = (item.hindi || '').trim();
+    const cleanHinglish = (item.hinglish || item.english || cleanHindi).trim().replace(/^[A-Za-z]+:\s*/, '');
 
-  // Pick random upbeat audio bed from available tracks
+    return {
+      speaker: isAdult ? 'Adult' : 'Baby',
+      role: roleName,
+      hindi: cleanHindi,
+      hinglish: `${roleName.toUpperCase()}: ${cleanHinglish}`,
+      text: cleanHindi,
+    };
+  });
+
+  const formattedSegments = formattedDialogueLines.map((line) => ({
+    speaker: line.speaker,
+    role: line.role,
+    hindi: line.hindi,
+    hinglish: line.hinglish,
+    english: line.hinglish,
+  }));
+
+  // Joined voice scripts for single-string fallbacks
+  const fullHindiScript = formattedDialogueLines.map((l) => l.hindi).join(' ');
+  const fullHinglishSubtitles = formattedDialogueLines.map((l) => l.hinglish).join(' ');
+
+  // Select upbeat background music track
   const audioBeds = getSlot1AudioBeds();
   let bgMusicPath = path.join(config.assetsDir, 'audio', 'entertainment.mp3');
   if (audioBeds.length > 0) {
     bgMusicPath = audioBeds[Math.floor(Math.random() * audioBeds.length)];
   }
-  logger.info(`[Slot 1 Audio Bed]: Selected upbeat background music: ${path.basename(bgMusicPath)}`);
-
-  // First-person cute kid voiceover script (Hindi)
-  const voiceScript = generated.segments.map((s) => s.hindi).join(' ');
-  // Subtitles in clean English for global audience
-  const englishSubtitles = generated.segments.map((s) => s.english).join(' ');
-
-  // Reliable fallback clip path
-  const clipPath = path.join(config.assetsDir, 'defaults', 'slot1_baby.mp4');
+  logger.info(`[Slot 1 Audio Bed]: Selected background music: ${path.basename(bgMusicPath)}`);
 
   return {
     slot: 'slot1',
     slotName: 'Entertainment (Cute Baby & Toddler Reels)',
     title: generated.title,
-    description: `${generated.title}\n\nEnjoy the most wholesome and hilarious toddler shorts!\n(Cute kid voiceover in Hindi with bold English Subtitles for global reach).\n\nSubscribe for daily fun, baby jokes, and joyful laughter!`,
-    tags: generated.tags || ['shorts', 'cutebaby', 'funnytoddler', 'viralcomedy', 'fyp'],
+    description: `${generated.title}\n\nEnjoy the most hilarious 2-character baby comedy dialogues!\n(Little Boss vs ${clipContextInfo.roles.adult} comedy banter with bold burned-in subtitles).\n\nSubscribe for daily toddler fun, baby jokes, and joyful laughter!`,
+    tags: generated.tags || ['shorts', 'babycomedy', 'viralshorts', 'funnybaby', 'toddlerhumor', 'fyp'],
     voice: config.voices.slot1 || 'hi-IN-SwaraNeural',
-    pitch: '+38%', // Toddler/child high pitch voice
-    rate: '+6%',   // Upbeat energetic child cadence
+    adultVoice: config.voices.slot1Adult || 'hi-IN-MadhurNeural',
+    pitch: '+38%',     // Baby voice prosody
+    rate: '+6%',      // Baby voice upbeat cadence
+    adultPitch: '+0Hz', // Adult male voice natural prosody
+    adultRate: '+4%',  // Adult clear cadence
     themeType: 'jokes',
-    visualQuery: generated.visualQuery || 'cute baby talking',
-    altQueries: generated.altQueries || ['toddler laughing', 'naughty kid smiling'],
-    clipPath,
-    epicBadge: generated.badge || 'LITTLE BOSS JOKES 😂',
-    voiceScript,
-    englishSubtitles,
-    segments: generated.segments,
+    visualQuery: clipContextInfo.roles.adult ? `toddler ${clipContextInfo.roles.adult.toLowerCase()}` : 'cute baby talking',
+    clipPath: chosenClipPath,
+    epicBadge: generated.badge || `${clipContextInfo.roles.adult.toUpperCase()} VS BABY 👶`,
+    voiceScript: fullHindiScript,
+    subtitleText: fullHinglishSubtitles,
+    englishSubtitles: fullHinglishSubtitles,
+    dialogueLines: formattedDialogueLines,
+    segments: formattedSegments,
     bgMusicPath,
     categoryId: '24', // Entertainment
   };

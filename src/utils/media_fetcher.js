@@ -199,6 +199,12 @@ export async function fetchSlotBackgroundMedia({
   // SLOT 1: BABY & TODDLER REELS (100% Moving Video)
   // =================================================================
   if (slotType === 'slot1') {
+    // 0. If a valid clipPath is already provided (video-first pipeline), honor it directly
+    if (clipPath && fs.existsSync(clipPath) && !clipPath.endsWith('slot1_baby.mp4')) {
+      logger.info(`[Slot 1] Using pre-selected video clip: ${path.basename(clipPath)}`);
+      return { type: 'video', filePath: clipPath };
+    }
+
     // 1. Build cinematic high-retention video queries
     const scenarioQueries = [];
     if (visualQuery) scenarioQueries.push(`${visualQuery} cinematic vertical`);

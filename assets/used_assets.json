@@ -16,14 +16,24 @@
     "07_happy_bounce.mp4",
     "himalayas_kedarnath_shrine.mp4",
     "karna_daan.mp4",
-    "stadium_crowd_lights.mp4"
+    "stadium_crowd_lights.mp4",
+    "04_baby_laughing.mp4",
+    "03_baby_mischief.mp4",
+    "02_baby_dance.mp4",
+    "01_baby_classic.mp4",
+    "05_toddler_wobble.mp4"
   ],
   "byCategory": {
     "baby": [
       "06_baby_curiosity.mp4",
       "10_playful_celebration.mp4",
       "08_naughty_smile.mp4",
-      "07_happy_bounce.mp4"
+      "07_happy_bounce.mp4",
+      "04_baby_laughing.mp4",
+      "03_baby_mischief.mp4",
+      "02_baby_dance.mp4",
+      "01_baby_classic.mp4",
+      "05_toddler_wobble.mp4"
     ],
     "devotional": [
       "shiva_mahadev_darshan.mp4",
@@ -148,6 +158,36 @@
       "file": "stadium_crowd_lights.mp4",
       "category": "cricket",
       "timestamp": "2026-11-13T14:22:07.287Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "04_baby_laughing.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T15:51:58.228Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "03_baby_mischief.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T15:52:04.984Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "02_baby_dance.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T15:52:13.194Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "01_baby_classic.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T15:52:32.398Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "05_toddler_wobble.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T15:56:32.297Z"
     }
   ]
 }

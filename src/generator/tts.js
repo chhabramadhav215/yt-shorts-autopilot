@@ -1,6 +1,9 @@
 import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 import fs from 'fs';
 import path from 'path';
+import { execFile } from 'child_process';
+import ffmpegStatic from 'ffmpeg-static';
+import ffprobeStatic from 'ffprobe-static';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -366,4 +369,263 @@ export async function generateVoiceover({ text, voice, outputDir, pitch, rate })
     logger.error(`Tier 3 Google Translate TTS also failed: ${gErr.message}`);
     throw new Error(`All voice synthesis tiers failed. Last Edge TTS error: ${lastError?.message}. Google TTS error: ${gErr.message}`);
   }
+}
+
+/**
+ * Gets exact duration in seconds of an audio file using ffprobe
+ */
+function getAudioFileDuration(filePath) {
+  return new Promise((resolve) => {
+    execFile(
+      ffprobeStatic.path,
+      [
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        filePath,
+      ],
+      (err, stdout) => {
+        if (err) {
+          try {
+            const size = fs.statSync(filePath).size;
+            return resolve(Math.max(1, size / 6000));
+          } catch (_) {
+            return resolve(3);
+          }
+        }
+        const dur = parseFloat(stdout.trim());
+        resolve(isNaN(dur) || dur <= 0 ? 3 : dur);
+      }
+    );
+  });
+}
+
+/**
+ * Concatenates dialogue audio files with natural speech pauses using FFmpeg
+ */
+function concatDialogueAudioFiles(inputFiles, outputFile, pauseSec = 0.20) {
+  return new Promise((resolve, reject) => {
+    if (inputFiles.length === 1) {
+      fs.copyFileSync(inputFiles[0], outputFile);
+      return resolve(outputFile);
+    }
+    const args = ['-y'];
+    for (const f of inputFiles) {
+      args.push('-i', f);
+    }
+    const filterParts = [];
+    for (let i = 0; i < inputFiles.length; i++) {
+      if (i < inputFiles.length - 1 && pauseSec > 0) {
+        filterParts.push(`[${i}:a]apad=pad_dur=${pauseSec}[a${i}]`);
+      } else {
+        filterParts.push(`[${i}:a]anull[a${i}]`);
+      }
+    }
+    const inputs = inputFiles.map((_, i) => `[a${i}]`).join('');
+    filterParts.push(`${inputs}concat=n=${inputFiles.length}:v=0:a=1[aout]`);
+
+    args.push(
+      '-filter_complex', filterParts.join(';'),
+      '-map', '[aout]',
+      '-c:a', 'libmp3lame',
+      '-b:a', '128k',
+      '-ar', '44100',
+      outputFile
+    );
+
+    execFile(ffmpegStatic, args, (err, stdout, stderr) => {
+      if (err) {
+        logger.warn(`FFmpeg audio concat failed (${stderr || err.message}), falling back to direct stream join.`);
+        try {
+          const bufs = inputFiles.map((f) => fs.readFileSync(f));
+          fs.writeFileSync(outputFile, Buffer.concat(bufs));
+          resolve(outputFile);
+        } catch (e) {
+          reject(err);
+        }
+      } else {
+        resolve(outputFile);
+      }
+    });
+  });
+}
+
+/**
+ * Synthesizes multi-character dialogue with distinct voices, prosody, and natural pauses
+ * @param {Object} options
+ * @param {Array<{ speaker: string, role?: string, hindi?: string, text?: string, voice?: string, pitch?: string, rate?: string }>} options.dialogueLines
+ * @param {string} options.outputDir
+ * @param {string} [options.defaultAdultVoice]
+ * @param {string} [options.defaultBabyVoice]
+ * @param {string} [options.adultPitch]
+ * @param {string} [options.adultRate]
+ * @param {string} [options.babyPitch]
+ * @param {string} [options.babyRate]
+ * @param {number} [options.pauseSec]
+ * @returns {Promise<{ audioPath: string, metadataPath: string | null, activeVoice: string }>}
+ */
+export async function generateDialogueVoiceover({
+  dialogueLines,
+  outputDir,
+  defaultAdultVoice = 'hi-IN-MadhurNeural',
+  defaultBabyVoice = 'hi-IN-SwaraNeural',
+  adultPitch = '+0Hz',
+  adultRate = '+4%',
+  babyPitch = '+38%',
+  babyRate = '+6%',
+  pauseSec = 0.20,
+}) {
+  fs.mkdirSync(outputDir, { recursive: true });
+  cleanupPartialAudio(outputDir);
+
+  if (!dialogueLines || !Array.isArray(dialogueLines) || dialogueLines.length === 0) {
+    throw new Error('generateDialogueVoiceover requires non-empty dialogueLines array');
+  }
+
+  logger.info(`Synthesizing 2-character comedy dialogue (${dialogueLines.length} lines) with distinct voices...`);
+
+  // Map each line to its target voice and options
+  const lineConfigs = dialogueLines.map((line, idx) => {
+    const rawText = line.text || line.hindi || '';
+    const cleanText = sanitizeTtsText(rawText);
+    const speakerLower = (line.speaker || '').toLowerCase();
+    const roleLower = (line.role || '').toLowerCase();
+
+    const isBaby =
+      speakerLower.includes('baby') ||
+      speakerLower.includes('child') ||
+      speakerLower.includes('kid') ||
+      /baby|toddler|little|kid|child/i.test(roleLower);
+
+    const isAdult =
+      !isBaby &&
+      (speakerLower.includes('adult') ||
+       /cop|police|papa|father|uncle|teacher|doctor|trainer|mummy|mother|referee|judge|architect/i.test(roleLower));
+
+    const voice = line.voice || (isAdult ? defaultAdultVoice : defaultBabyVoice);
+    const pitch = line.pitch || (isAdult ? adultPitch : babyPitch);
+    const rate = line.rate || (isAdult ? adultRate : babyRate);
+
+    return {
+      index: idx,
+      speaker: line.speaker || (isAdult ? 'Adult' : 'Baby'),
+      role: line.role || (isAdult ? 'Adult' : 'Baby'),
+      cleanText,
+      voice,
+      pitch,
+      rate,
+    };
+  });
+
+  const tempLineAudioFiles = [];
+  const allMergedMetadata = [];
+  let cumulativeOffsetTicks = 0;
+  let useFallbackGoogle = false;
+
+  try {
+    for (let i = 0; i < lineConfigs.length; i++) {
+      const cfg = lineConfigs[i];
+      const lineAudioPath = path.join(outputDir, `tmp_line_${i}.mp3`);
+      logger.info(`[Dialogue Line ${i + 1}/${lineConfigs.length}] [${cfg.role} (${cfg.voice}, pitch: ${cfg.pitch})]: "${cfg.cleanText.slice(0, 38)}..."`);
+
+      let lineResult = null;
+      let lastErr = null;
+
+      const candidateVoices = getCandidateVoices(cfg.voice);
+      for (const v of candidateVoices) {
+        try {
+          lineResult = await synthesizeEdgeTtsWithChunking({
+            voice: v,
+            cleanText: cfg.cleanText,
+            outputDir: outputDir,
+            pitch: cfg.pitch,
+            rate: cfg.rate,
+          });
+          if (lineResult?.audioFilePath && fs.existsSync(lineResult.audioFilePath)) {
+            fs.renameSync(lineResult.audioFilePath, lineAudioPath);
+            break;
+          }
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+
+      if (!lineResult || !fs.existsSync(lineAudioPath)) {
+        logger.warn(`Edge TTS failed for line ${i + 1}: ${lastErr?.message}. Falling back to Google TTS for this line.`);
+        const googleRes = await synthesizeGoogleTts({
+          cleanText: cfg.cleanText,
+          outputDir,
+          lang: /[\u0900-\u097F]/.test(cfg.cleanText) ? 'hi' : 'en',
+        });
+        fs.renameSync(googleRes.audioPath, lineAudioPath);
+      }
+
+      tempLineAudioFiles.push(lineAudioPath);
+
+      // Measure exact line audio duration
+      const lineDurSec = await getAudioFileDuration(lineAudioPath);
+
+      // Read metadata for this line if present
+      const lineMetaPath = path.join(outputDir, 'metadata.json');
+      if (fs.existsSync(lineMetaPath)) {
+        try {
+          const rawMeta = JSON.parse(fs.readFileSync(lineMetaPath, 'utf8'));
+          if (Array.isArray(rawMeta.Metadata)) {
+            for (const item of rawMeta.Metadata) {
+              if (item.Data) {
+                item.Data.Offset = (item.Data.Offset || 0) + cumulativeOffsetTicks;
+              }
+              allMergedMetadata.push(item);
+            }
+          }
+          fs.rmSync(lineMetaPath, { force: true });
+        } catch (_) {}
+      }
+
+      // Increment cumulative ticks by line duration + pause duration
+      cumulativeOffsetTicks += Math.round((lineDurSec + pauseSec) * 10000000);
+    }
+  } catch (err) {
+    logger.warn(`Edge TTS multi-voice synthesis encountered error: ${err.message}. Falling back to single-script synthesis.`);
+    useFallbackGoogle = true;
+  }
+
+  const finalAudioPath = path.join(outputDir, 'audio.mp3');
+
+  if (!useFallbackGoogle && tempLineAudioFiles.length === dialogueLines.length) {
+    await concatDialogueAudioFiles(tempLineAudioFiles, finalAudioPath, pauseSec);
+
+    // Clean up temporary files
+    for (const f of tempLineAudioFiles) {
+      try {
+        if (fs.existsSync(f)) fs.unlinkSync(f);
+      } catch (_) {}
+    }
+
+    // Write combined metadata.json
+    let metadataPath = null;
+    if (allMergedMetadata.length > 0) {
+      metadataPath = path.join(outputDir, 'metadata.json');
+      fs.writeFileSync(metadataPath, JSON.stringify({ Metadata: allMergedMetadata }, null, 2), 'utf8');
+    }
+
+    const finalDur = await getAudioFileDuration(finalAudioPath);
+    logger.success(`2-Character multi-voice dialogue generated: ${finalAudioPath} (${finalDur.toFixed(1)}s, ${allMergedMetadata.length} word cues)`);
+
+    return {
+      audioPath: finalAudioPath,
+      metadataPath,
+      activeVoice: `${defaultAdultVoice} + ${defaultBabyVoice}`,
+    };
+  }
+
+  // Ultimate fallback: concatenate texts and run standard generateVoiceover
+  const joinedText = dialogueLines.map((l) => l.text || l.hindi || '').join(' ... ');
+  return generateVoiceover({
+    text: joinedText,
+    voice: defaultBabyVoice,
+    outputDir,
+    pitch: babyPitch,
+    rate: babyRate,
+  });
 }

@@ -170,7 +170,7 @@ export async function generateVisualOverlayImage({
 
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
-    execFile(ffmpegPath, args, (err, stdout, stderr) => {
+    execFile(ffmpegPath, args, { maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         logger.error('FFmpeg visual synth error:', stderr || err.message);
         reject(err);
@@ -299,6 +299,7 @@ export async function generateVisualBackground({
     try {
       await runFFmpeg([
         '-y',
+        '-loglevel', 'error',
         '-stream_loop', '-1',
         '-i', resolvedClipPath,
         '-loop', '1',
@@ -348,7 +349,7 @@ export async function generateVisualBackground({
 
   logger.info(`Applying 100% dynamic moving video background: ${path.basename(videoPath)}`);
   const filterParts = [];
-  const ffmpegArgs = ['-y', '-stream_loop', '-1', '-i', videoPath];
+  const ffmpegArgs = ['-y', '-loglevel', 'error', '-stream_loop', '-1', '-i', videoPath];
 
   const overlayPngPath = path.join(path.dirname(outputPath), `${slotType}_overlay_${Date.now()}.png`);
   let nextInputIdx = 1;

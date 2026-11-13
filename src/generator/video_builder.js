@@ -75,7 +75,7 @@ export function hasAudioStream(filePath) {
 
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
-    execFile(ffmpegPath, args, (err, stdout, stderr) => {
+    execFile(ffmpegPath, args, { maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         logger.error('FFmpeg builder error:', stderr || err.message);
         reject(err);
@@ -128,6 +128,7 @@ export async function buildShortVideo({
 
   const args = [
     '-y',
+    '-loglevel', 'error',
     '-stream_loop', '-1', '-i', visualVideoPath,     // [0] Visual background looped
     '-i', voiceoverPath,                              // [1] AI Voiceover track (Hindi commentary)
   ];
