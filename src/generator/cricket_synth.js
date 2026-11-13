@@ -296,13 +296,12 @@ export async function generateCricketVisualBackground({
 
   let centerNode = 'v_canvas';
 
-  // Layer 2 (Center Hero): Player portrait inside central card frame with smooth Ken Burns motion
+  // Layer 2 (Center Hero): Player portrait inside central card frame with clean framing
   if (playerImagePath && fs.existsSync(playerImagePath)) {
     ffmpegArgs.push('-loop', '1', '-i', playerImagePath);
 
-    // Smooth Ken Burns slow zoom (zoompan=z='min(zoom+0.0015,1.25)':d=700:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=760x760:fps=30)
-    filterParts.push(`[1:v]scale=1200:1200:force_original_aspect_ratio=increase,crop=1200:1200,zoompan=z='min(zoom+0.0015,1.25)':d=700:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=760x760:fps=30[player_kb]`);
-    filterParts.push(`[${centerNode}][player_kb]overlay=160:480:shortest=1[v_player]`);
+    filterParts.push(`[1:v]scale=760:760:force_original_aspect_ratio=increase,crop=760:760[player_card]`);
+    filterParts.push(`[${centerNode}][player_card]overlay=160:480:shortest=1[v_player]`);
 
     // Glowing team border framing the player
     filterParts.push(`[v_player]drawbox=x=156:y=476:w=768:h=768:color=${teamTheme.accent}:t=6[v_center]`);

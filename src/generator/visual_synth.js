@@ -5,7 +5,7 @@ import path from 'path';
 import sharp from 'sharp';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
-import { fetchSlotBackgroundMedia, fetchScriptureClip } from '../utils/media_fetcher.js';
+import { fetchSlotBackgroundMedia, fetchScriptureClip, getCategoryVideoPool } from '../utils/media_fetcher.js';
 import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
 import { generateCricketVisualBackground } from './cricket_synth.js';
 
@@ -207,9 +207,11 @@ function wrapText(text, maxChars = 28) {
 }
 
 /**
- * Generates dynamic 1080x1920 vertical video with real footage / Ken Burns pan & zoom imagery
+ * Generates dynamic 1080x1920 vertical video with 100% genuine moving video MP4 footage.
+ * ZERO static image fallbacks. ZERO zoompan / Ken Burns effects.
+ * Every slot (Baby Reels, Sanatan Dharma, Scriptures, News, Cricket) uses moving MP4 video.
  * @param {Object} options
- * @param {string} options.slotType - 'slot1' | 'slot2' | 'slot3' | 'slot4'
+ * @param {string} options.slotType - 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5'
  * @param {number} options.duration - Duration in seconds
  * @param {string} options.outputPath - Destination MP4 file path
  * @param {string} [options.title] - Headline / title for banners
@@ -236,7 +238,6 @@ export async function generateVisualBackground({
   customTopic = null,
 }) {
   const roundDur = Math.ceil(duration) + 1;
-  const totalFrames = roundDur * 30;
 
   // =================================================================
   // SLOT 5 (IPL & Cricket Buzz): Dedicated Sports Visual Synth
@@ -257,10 +258,10 @@ export async function generateVisualBackground({
   }
 
   // =================================================================
-  // SLOT 4 (Epic Hindu Scriptures & Wisdom Clips): 9:16 with BLUR MARGINS
+  // SLOT 4 (Epic Hindu Scriptures & Wisdom Clips): 100% Moving Video
   // =================================================================
   if (slotType === 'slot4') {
-    logger.info(`Synthesizing Slot 4 (Epic Scriptures & Wisdom) with moving center clip (${roundDur}s)...`);
+    logger.info(`Synthesizing Slot 4 (Epic Scriptures & Wisdom) with moving video clip (${roundDur}s)...`);
     const safeBadge = (epicBadge || 'MAHABHARATA & GITA WISDOM').replace(/['":]/g, '').substring(0, 35);
 
     let resolvedClipPath = clipPath;
@@ -273,63 +274,57 @@ export async function generateVisualBackground({
     }
 
     if (!resolvedClipPath || !fs.existsSync(resolvedClipPath)) {
-      // Guaranteed emergency fallback
-      const fallbackCandidate = path.join(config.assetsDir, 'clips', 'scriptures', 'geeta_saar.mp4');
-      if (fs.existsSync(fallbackCandidate)) resolvedClipPath = fallbackCandidate;
+      const scripturesDir = path.join(config.assetsDir, 'clips', 'scriptures');
+      const pool = getCategoryVideoPool(scripturesDir);
+      resolvedClipPath = pool[0] || path.join(config.assetsDir, 'defaults', 'slot1_dance.mp4');
     }
 
-    if (resolvedClipPath && fs.existsSync(resolvedClipPath)) {
-      const isImage = /\.(jpe?g|png|webp)$/i.test(resolvedClipPath);
-      logger.info(`Formatting scripture ${isImage ? 'artwork image' : 'moving clip'} with 9:16 vertical blur margins: ${path.basename(resolvedClipPath)}`);
-      const overlayPngPath = path.join(path.dirname(outputPath), `slot4_overlay_${Date.now()}.png`);
-      await generateVisualOverlayImage({
-        slotType: 'slot4',
-        outputPath: overlayPngPath,
-        title,
-        epicBadge: safeBadge,
-      });
+    logger.info(`Formatting scripture moving clip with 9:16 vertical blur margins: ${path.basename(resolvedClipPath)}`);
+    const overlayPngPath = path.join(path.dirname(outputPath), `slot4_overlay_${Date.now()}.png`);
+    await generateVisualOverlayImage({
+      slotType: 'slot4',
+      outputPath: overlayPngPath,
+      title,
+      epicBadge: safeBadge,
+    });
 
-      const inputArgs = isImage
-        ? ['-loop', '1', '-i', resolvedClipPath]
-        : ['-stream_loop', '-1', '-i', resolvedClipPath];
+    const filter = [
+      `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=16[bg]`,
+      `[0:v]scale=1020:574:force_original_aspect_ratio=decrease[fg]`,
+      `[bg][fg]overlay=(W-w)/2:520[base]`,
+      `[base]drawbox=x=30:y=518:w=1020:h=578:color=0xffaa00:t=5[b0]`,
+      `[b0][1:v]overlay=0:0:shortest=1[vout]`
+    ].join(';');
 
-      const filter = [
-        `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=16[bg]`,
-        `[0:v]scale=1020:574:force_original_aspect_ratio=decrease[fg]`,
-        `[bg][fg]overlay=(W-w)/2:520[base]`,
-        `[base]drawbox=x=30:y=518:w=1020:h=578:color=0xffaa00:t=5[b0]`,
-        `[b0][1:v]overlay=0:0:shortest=1[vout]`
-      ].join(';');
+    try {
+      await runFFmpeg([
+        '-y',
+        '-stream_loop', '-1',
+        '-i', resolvedClipPath,
+        '-loop', '1',
+        '-i', overlayPngPath,
+        '-filter_complex', filter,
+        '-map', '[vout]',
+        '-t', String(roundDur),
+        '-c:v', 'libx264',
+        '-preset', 'fast',
+        '-pix_fmt', 'yuv420p',
+        outputPath
+      ]);
 
+      logger.success(`Slot 4 visual with 100% moving video rendered: ${outputPath}`);
+      return outputPath;
+    } finally {
       try {
-        await runFFmpeg([
-          '-y',
-          ...inputArgs,
-          '-loop', '1',
-          '-i', overlayPngPath,
-          '-filter_complex', filter,
-          '-map', '[vout]',
-          '-t', String(roundDur),
-          '-c:v', 'libx264',
-          '-preset', 'fast',
-          '-pix_fmt', 'yuv420p',
-          outputPath
-        ]);
-
-        logger.success(`Slot 4 visual with moving clip rendered: ${outputPath}`);
-        return outputPath;
-      } finally {
-        try {
-          if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
-        } catch (_) {}
-      }
+        if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
+      } catch (_) {}
     }
   }
 
   // =================================================================
-  // SLOTS 1, 2, 3: Dynamic Backgrounds (Royalty-free HD Video / Ken Burns Image)
+  // SLOTS 1, 2, 3: Dynamic 100% Moving Video Backgrounds
   // =================================================================
-  logger.info(`Fetching dynamic background footage for [${slotType.toUpperCase()}]...`);
+  logger.info(`Fetching dynamic moving video footage for [${slotType.toUpperCase()}]...`);
   const media = await fetchSlotBackgroundMedia({
     slotType,
     title: headline || title,
@@ -341,182 +336,104 @@ export async function generateVisualBackground({
     altQueries,
   });
 
-  // -----------------------------------------------------------------
-  // 1. VIDEO BACKGROUND (Slot 1 Baby Dance, Slot 3 News, etc.)
-  // -----------------------------------------------------------------
-  if (media && media.type === 'video' && fs.existsSync(media.filePath)) {
-    logger.info(`Applying moving video background: ${path.basename(media.filePath)}`);
-    const filterParts = [];
-    const ffmpegArgs = ['-y', '-stream_loop', '-1', '-i', media.filePath];
-
-    const overlayPngPath = path.join(path.dirname(outputPath), `${slotType}_overlay_${Date.now()}.png`);
-    let nextInputIdx = 1;
-
-    if (slotType === 'slot1') {
-      const avatarRest = path.join(config.assetsDir, 'defaults', 'baby_avatar.png');
-      const avatarTalk = path.join(config.assetsDir, 'defaults', 'baby_avatar_talk.png');
-      const hasAvatar = fs.existsSync(avatarRest) && fs.existsSync(avatarTalk);
-
-      await generateVisualOverlayImage({
-        slotType: 'slot1',
-        outputPath: overlayPngPath,
-        title,
-        epicBadge,
-        hasAvatar,
-      });
-
-      filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
-
-      let currentTopNode = 'v0';
-      if (hasAvatar) {
-        ffmpegArgs.push('-loop', '1', '-i', avatarRest);
-        ffmpegArgs.push('-loop', '1', '-i', avatarTalk);
-        filterParts.push(`[1:v]scale=360:360[a1]`);
-        filterParts.push(`[2:v]scale=360:360[a2]`);
-        filterParts.push(`[${currentTopNode}][a1]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),0)'[t1]`);
-        filterParts.push(`[t1][a2]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),1)'[t2]`);
-        currentTopNode = 't2';
-        nextInputIdx = 3;
-      }
-
-      ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
-      filterParts.push(`[${currentTopNode}][${nextInputIdx}:v]overlay=0:0:shortest=1[vout]`);
-
-    } else if (slotType === 'slot3') {
-      const centerTop = 520;
-      const centerBottom = 1128;
-      const centerH = centerBottom - centerTop; // 608px (exact 16:9 ratio)
-
-      const topicQuery = media.topicQuery || media.leaderBadge || 'Special Report';
-      await generateVisualOverlayImage({
-        slotType: 'slot3',
-        outputPath: overlayPngPath,
-        title,
-        headline,
-        topicQuery,
-      });
-
-      let centerNode = 'v_center';
-
-      if (media.isTopicVideo && fs.existsSync(media.filePath)) {
-        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12[bg_blurred]`);
-        filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_topic]`);
-        filterParts.push(`[bg_blurred][center_topic]overlay=0:${centerTop}[v_base]`);
-        filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
-        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
-      } else if (media.topicImage && fs.existsSync(media.topicImage)) {
-        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12[bg_news]`);
-        ffmpegArgs.push('-loop', '1', '-i', media.topicImage);
-        nextInputIdx = 2;
-        filterParts.push(`[1:v]scale=1440:810:force_original_aspect_ratio=increase,crop=1440:810,zoompan=z='min(zoom+0.0006,1.10)':d=${totalFrames}:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=1080x${centerH}:fps=30[leader_kb]`);
-        filterParts.push(`[bg_news][leader_kb]overlay=0:${centerTop}:shortest=1[v_leader]`);
-        filterParts.push(`[v_leader]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
-        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
-      } else {
-        filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12[bg_blur]`);
-        filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_studio]`);
-        filterParts.push(`[bg_blur][center_studio]overlay=0:${centerTop}[v_base]`);
-        filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
-        filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
-      }
-
-      ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
-      filterParts.push(`[${centerNode}][${nextInputIdx}:v]overlay=0:0:shortest=1[vout]`);
-
-    } else {
-      // Slot 2 Video
-      await generateVisualOverlayImage({
-        slotType: 'slot2',
-        outputPath: overlayPngPath,
-        title,
-        epicBadge,
-      });
-
-      filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
-      ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
-      filterParts.push(`[v0][1:v]overlay=0:0:shortest=1[vout]`);
-    }
-
-    ffmpegArgs.push(
-      '-filter_complex', filterParts.join(';'),
-      '-map', '[vout]',
-      '-t', String(roundDur),
-      '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-pix_fmt', 'yuv420p',
-      outputPath
-    );
-
-    try {
-      await runFFmpeg(ffmpegArgs);
-      logger.success(`Dynamic moving video background rendered: ${outputPath}`);
-      return outputPath;
-    } finally {
-      try {
-        if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
-      } catch (_) {}
-    }
+  // Ensure resolved video file path is valid
+  let videoPath = media?.filePath;
+  if (!videoPath || !fs.existsSync(videoPath)) {
+    const fallbackDir = slotType === 'slot2'
+      ? path.join(config.assetsDir, 'clips', 'devotional')
+      : (slotType === 'slot3' ? path.join(config.assetsDir, 'clips', 'news') : path.join(config.assetsDir, 'clips', 'baby'));
+    const pool = getCategoryVideoPool(fallbackDir);
+    videoPath = pool[0] || path.join(config.assetsDir, 'defaults', 'slot1_dance.mp4');
   }
 
-  // -----------------------------------------------------------------
-  // 2. HIGH-RES IMAGE BACKGROUND: Dynamic Ken Burns Pan & Zoom (FFmpeg)
-  // -----------------------------------------------------------------
-  const imagePath = (media && media.filePath && fs.existsSync(media.filePath))
-    ? media.filePath
-    : path.join(config.assetsDir, 'defaults', slotType === 'slot2' ? 'slot2_shiva.jpg' : (slotType === 'slot3' ? 'slot3_news.jpg' : 'slot1_baby.jpg'));
-
-  logger.info(`Applying dynamic Ken Burns pan & zoom on high-res image: ${path.basename(imagePath)} (${roundDur}s)...`);
+  logger.info(`Applying 100% dynamic moving video background: ${path.basename(videoPath)}`);
+  const filterParts = [];
+  const ffmpegArgs = ['-y', '-stream_loop', '-1', '-i', videoPath];
 
   const overlayPngPath = path.join(path.dirname(outputPath), `${slotType}_overlay_${Date.now()}.png`);
-  await generateVisualOverlayImage({
-    slotType,
-    outputPath: overlayPngPath,
-    title,
-    headline,
-    epicBadge,
-    topicQuery: media?.topicQuery || 'Special Report',
-    hasAvatar: false,
-  });
+  let nextInputIdx = 1;
 
-  const kbBase = `scale=1620:2880:force_original_aspect_ratio=increase,zoompan=z='min(zoom+0.0010,1.25)':d=${totalFrames}:x='(iw-iw/zoom)/2+sin(in/30*0.5)*45':y='(ih-ih/zoom)/2+cos(in/30*0.5)*30':s=1080x1920:fps=30,format=yuv420p`;
+  if (slotType === 'slot1') {
+    const avatarRest = path.join(config.assetsDir, 'defaults', 'baby_avatar.png');
+    const avatarTalk = path.join(config.assetsDir, 'defaults', 'baby_avatar_talk.png');
+    const hasAvatar = fs.existsSync(avatarRest) && fs.existsSync(avatarTalk);
 
-  const filterParts = [];
-  if (slotType === 'slot3') {
+    await generateVisualOverlayImage({
+      slotType: 'slot1',
+      outputPath: overlayPngPath,
+      title,
+      epicBadge,
+      hasAvatar,
+    });
+
+    filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
+
+    let currentTopNode = 'v0';
+    if (hasAvatar) {
+      ffmpegArgs.push('-loop', '1', '-i', avatarRest);
+      ffmpegArgs.push('-loop', '1', '-i', avatarTalk);
+      filterParts.push(`[1:v]scale=360:360[a1]`);
+      filterParts.push(`[2:v]scale=360:360[a2]`);
+      filterParts.push(`[${currentTopNode}][a1]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),0)'[t1]`);
+      filterParts.push(`[t1][a2]overlay=x=70:y='980 - 16*abs(sin(t*7.5))':enable='eq(mod(floor(t*4),2),1)'[t2]`);
+      currentTopNode = 't2';
+      nextInputIdx = 3;
+    }
+
+    ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
+    filterParts.push(`[${currentTopNode}][${nextInputIdx}:v]overlay=0:0:shortest=1[vout]`);
+
+  } else if (slotType === 'slot3') {
     const centerTop = 520;
     const centerBottom = 1128;
     const centerH = centerBottom - centerTop; // 608px (exact 16:9 ratio)
-    filterParts.push(
-      `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=16[bg_blurred]`,
-      `[0:v]scale=1440:810:force_original_aspect_ratio=increase,crop=1440:810,zoompan=z='min(zoom+0.0008,1.15)':d=${totalFrames}:x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':s=1080x${centerH}:fps=30[center_kb]`,
-      `[bg_blurred][center_kb]overlay=0:${centerTop}:shortest=1[v_base]`,
-      `[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`,
-      `[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`,
-      `[v_center][1:v]overlay=0:0:shortest=1[vout]`
-    );
+
+    const topicQuery = media?.topicQuery || 'Special Report';
+    await generateVisualOverlayImage({
+      slotType: 'slot3',
+      outputPath: overlayPngPath,
+      title,
+      headline,
+      topicQuery,
+    });
+
+    // 100% Dynamic Moving Video: Center box plays moving video with blurred moving video margins
+    filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12[bg_blurred]`);
+    filterParts.push(`[0:v]scale=1080:${centerH}:force_original_aspect_ratio=increase,crop=1080:${centerH}[center_video]`);
+    filterParts.push(`[bg_blurred][center_video]overlay=0:${centerTop}[v_base]`);
+    filterParts.push(`[v_base]drawbox=x=0:y=${centerTop - 2}:w=1080:h=3:color=0xffcc00:t=fill[v_l0]`);
+    filterParts.push(`[v_l0]drawbox=x=0:y=${centerBottom}:w=1080:h=3:color=0xffcc00:t=fill[v_center]`);
+
+    ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
+    filterParts.push(`[v_center][1:v]overlay=0:0:shortest=1[vout]`);
+
   } else {
-    filterParts.push(
-      `[0:v]${kbBase}[kb]`,
-      `[kb][1:v]overlay=0:0:shortest=1[vout]`
-    );
+    // Slot 2 Devotional Video Background
+    await generateVisualOverlayImage({
+      slotType: 'slot2',
+      outputPath: overlayPngPath,
+      title,
+      epicBadge,
+    });
+
+    filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[v0]`);
+    ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
+    filterParts.push(`[v0][1:v]overlay=0:0:shortest=1[vout]`);
   }
 
-  try {
-    await runFFmpeg([
-      '-y',
-      '-loop', '1',
-      '-i', imagePath,
-      '-loop', '1',
-      '-i', overlayPngPath,
-      '-filter_complex', filterParts.join(';'),
-      '-map', '[vout]',
-      '-t', String(roundDur),
-      '-c:v', 'libx264',
-      '-preset', 'fast',
-      '-pix_fmt', 'yuv420p',
-      outputPath
-    ]);
+  ffmpegArgs.push(
+    '-filter_complex', filterParts.join(';'),
+    '-map', '[vout]',
+    '-t', String(roundDur),
+    '-c:v', 'libx264',
+    '-preset', 'fast',
+    '-pix_fmt', 'yuv420p',
+    outputPath
+  );
 
-    logger.success(`Ken Burns dynamic visual background rendered: ${outputPath}`);
+  try {
+    await runFFmpeg(ffmpegArgs);
+    logger.success(`Dynamic 100% moving video background rendered: ${outputPath}`);
     return outputPath;
   } finally {
     try {

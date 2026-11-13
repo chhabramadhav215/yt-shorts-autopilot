@@ -4,9 +4,9 @@ import { execFile } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { config } from '../config.js';
 import { logger } from './logger.js';
-import { downloadFile } from './media_fetcher.js';
 
-const POOL_DIR = path.join(config.assetsDir, 'defaults', 'slot1_pool');
+const POOL_DIR = path.join(config.assetsDir, 'clips', 'baby');
+const DEFAULTS_POOL_DIR = path.join(config.assetsDir, 'defaults', 'slot1_pool');
 
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
@@ -21,10 +21,13 @@ function runFFmpeg(args) {
 }
 
 /**
- * Ensures a rotating pool of at least 10 distinct, verified video clips for Slot 1
+ * Ensures a rotating pool of at least 10 distinct, verified 100% video clips for Slot 1.
+ * ZERO static image fallbacks, ZERO zoompan.
  */
 export async function ensureSlot1Pool() {
-  if (!fs.existsSync(POOL_DIR)) fs.mkdirSync(POOL_DIR, { recursive: true });
+  [POOL_DIR, DEFAULTS_POOL_DIR].forEach((d) => {
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+  });
 
   const defaultsDir = path.join(config.assetsDir, 'defaults');
   const baseBaby = path.join(defaultsDir, 'slot1_baby.mp4');
@@ -39,8 +42,9 @@ export async function ensureSlot1Pool() {
           await runFFmpeg([
             '-y',
             '-i', baseBaby,
-            '-t', '10',
+            '-t', '12',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
@@ -56,8 +60,9 @@ export async function ensureSlot1Pool() {
           await runFFmpeg([
             '-y',
             '-i', baseDance,
-            '-t', '10',
+            '-t', '12',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
@@ -73,8 +78,9 @@ export async function ensureSlot1Pool() {
           await runFFmpeg([
             '-y',
             '-i', baseMischief,
-            '-t', '10',
+            '-t', '12',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
@@ -88,13 +94,13 @@ export async function ensureSlot1Pool() {
       generate: async (dest) => {
         const src = fs.existsSync(baseBaby) ? baseBaby : baseDance;
         if (fs.existsSync(src)) {
-          // Warm vibrant color grade + gentle zoom
           await runFFmpeg([
             '-y',
             '-i', src,
             '-vf', 'eq=brightness=0.04:contrast=1.12:saturation=1.2,hflip',
-            '-t', '10',
+            '-t', '12',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
@@ -106,13 +112,13 @@ export async function ensureSlot1Pool() {
       generate: async (dest) => {
         const src = fs.existsSync(baseMischief) ? baseMischief : baseBaby;
         if (fs.existsSync(src)) {
-          // Punchy dynamic crop + playful warm grade
           await runFFmpeg([
             '-y',
             '-i', src,
             '-vf', 'crop=iw*0.88:ih*0.88:(iw-iw*0.88)/2:(ih-ih*0.88)/2,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.15:saturation=1.25',
-            '-t', '10',
+            '-t', '12',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
@@ -122,92 +128,76 @@ export async function ensureSlot1Pool() {
     {
       name: '06_baby_curiosity.mp4',
       generate: async (dest) => {
-        const imgPath = path.join(POOL_DIR, 'commons_baby_1.jpg');
-        const imgUrl = 'https://upload.wikimedia.org/wikipedia/commons/2/2e/Baby.jpg';
-        try {
-          if (!fs.existsSync(imgPath)) await downloadFile(imgUrl, imgPath);
+        const src = fs.existsSync(baseBaby) ? baseBaby : baseDance;
+        if (fs.existsSync(src)) {
           await runFFmpeg([
             '-y',
-            '-loop', '1',
-            '-i', imgPath,
-            '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z=\'min(zoom+0.0012,1.25)\':d=300:x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':s=1080x1920',
-            '-t', '10',
+            '-ss', '3',
+            '-t', '12',
+            '-i', src,
+            '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.1:saturation=1.2',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
-        } catch (e) {
-          logger.warn(`Pool 06 generation fallback: ${e.message}`);
-          if (fs.existsSync(baseBaby)) fs.copyFileSync(baseBaby, dest);
         }
       },
     },
     {
       name: '07_happy_bounce.mp4',
       generate: async (dest) => {
-        const imgPath = path.join(POOL_DIR, 'commons_baby_2.jpg');
-        const imgUrl = 'https://upload.wikimedia.org/wikipedia/commons/5/5f/Smiling_Baby.jpg';
-        try {
-          if (!fs.existsSync(imgPath)) await downloadFile(imgUrl, imgPath);
+        const src = fs.existsSync(baseDance) ? baseDance : baseBaby;
+        if (fs.existsSync(src)) {
           await runFFmpeg([
             '-y',
-            '-loop', '1',
-            '-i', imgPath,
-            '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z=\'min(zoom+0.0010,1.20)\':d=300:y=\'if(lte(on,1),0,min(max(0,y+0.5),ih-(ih/zoom)))\':s=1080x1920',
-            '-t', '10',
+            '-ss', '2',
+            '-t', '12',
+            '-i', src,
+            '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,hflip,eq=contrast=1.2:saturation=1.3',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
-        } catch (e) {
-          logger.warn(`Pool 07 generation fallback: ${e.message}`);
-          if (fs.existsSync(baseDance)) fs.copyFileSync(baseDance, dest);
         }
       },
     },
     {
       name: '08_naughty_smile.mp4',
       generate: async (dest) => {
-        const imgPath = path.join(POOL_DIR, 'commons_baby_3.jpg');
-        const imgUrl = 'https://upload.wikimedia.org/wikipedia/commons/a/a0/Smiling_baby_lying_on_towel.jpg';
-        try {
-          if (!fs.existsSync(imgPath)) await downloadFile(imgUrl, imgPath);
+        const src = fs.existsSync(baseMischief) ? baseMischief : baseBaby;
+        if (fs.existsSync(src)) {
           await runFFmpeg([
             '-y',
-            '-loop', '1',
-            '-i', imgPath,
-            '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z=\'min(zoom+0.0015,1.22)\':d=300:x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':s=1080x1920',
-            '-t', '10',
+            '-ss', '4',
+            '-t', '12',
+            '-i', src,
+            '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.15:saturation=1.25:brightness=0.03',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
-        } catch (e) {
-          logger.warn(`Pool 08 generation fallback: ${e.message}`);
-          if (fs.existsSync(baseMischief)) fs.copyFileSync(baseMischief, dest);
         }
       },
     },
     {
       name: '09_toy_adventure.mp4',
       generate: async (dest) => {
-        const imgPath = path.join(POOL_DIR, 'commons_baby_4.jpg');
-        const imgUrl = 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Baby_smiling_and_playing%2C_Baby_eating%2C_Peg_Perego_baby_girl%2C_Moscow%2C_Russia.jpg';
-        try {
-          if (!fs.existsSync(imgPath)) await downloadFile(imgUrl, imgPath);
+        const src = fs.existsSync(baseBaby) ? baseBaby : baseMischief;
+        if (fs.existsSync(src)) {
           await runFFmpeg([
             '-y',
-            '-loop', '1',
-            '-i', imgPath,
-            '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z=\'min(zoom+0.0014,1.24)\':d=300:x=\'iw/2-(iw/zoom/2)\':y=\'ih/2-(ih/zoom/2)\':s=1080x1920',
-            '-t', '10',
+            '-ss', '1',
+            '-t', '12',
+            '-i', src,
+            '-vf', 'crop=iw*0.9:ih*0.9:(iw-iw*0.9)/2:(ih-ih*0.9)/2,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.2:saturation=1.2',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
-        } catch (e) {
-          logger.warn(`Pool 09 generation fallback: ${e.message}`);
-          if (fs.existsSync(baseBaby)) fs.copyFileSync(baseBaby, dest);
         }
       },
     },
@@ -216,13 +206,13 @@ export async function ensureSlot1Pool() {
       generate: async (dest) => {
         const src = fs.existsSync(baseDance) ? baseDance : baseBaby;
         if (fs.existsSync(src)) {
-          // Playful celebration color grade with high vibrance & mirror perspective
           await runFFmpeg([
             '-y',
             '-i', src,
             '-vf', 'hflip,eq=contrast=1.18:saturation=1.3:gamma=1.05',
-            '-t', '10',
+            '-t', '12',
             '-c:v', 'libx264',
+            '-preset', 'fast',
             '-pix_fmt', 'yuv420p',
             dest,
           ]);
@@ -233,31 +223,51 @@ export async function ensureSlot1Pool() {
 
   for (const item of poolClips) {
     const dest = path.join(POOL_DIR, item.name);
+    const defaultsDest = path.join(DEFAULTS_POOL_DIR, item.name);
+
     if (!fs.existsSync(dest) || fs.statSync(dest).size < 10000) {
-      try {
-        logger.info(`Building Slot 1 fallback pool clip: ${item.name}...`);
-        await item.generate(dest);
-      } catch (err) {
-        logger.warn(`Failed to generate ${item.name}: ${err.message}`);
+      if (fs.existsSync(defaultsDest) && fs.statSync(defaultsDest).size > 10000) {
+        fs.copyFileSync(defaultsDest, dest);
+      } else {
+        try {
+          logger.info(`Building Slot 1 fallback pool moving video: ${item.name}...`);
+          await item.generate(dest);
+        } catch (err) {
+          logger.warn(`Failed to generate ${item.name}: ${err.message}`);
+        }
       }
     }
   }
 
   const existing = fs.readdirSync(POOL_DIR).filter((f) => f.endsWith('.mp4'));
-  logger.info(`Slot 1 fallback pool verified: ${existing.length} distinct clips available in assets/defaults/slot1_pool.`);
+  logger.info(`Slot 1 moving video pool verified: ${existing.length} distinct clips available in assets/clips/baby.`);
   return existing.map((f) => path.join(POOL_DIR, f));
 }
 
 /**
- * Returns all available verified fallback clips in the slot 1 pool
+ * Returns all available verified fallback moving video clips in the slot 1 pool
  * @returns {string[]}
  */
 export function getSlot1PoolClips() {
-  if (!fs.existsSync(POOL_DIR)) return [];
-  return fs
-    .readdirSync(POOL_DIR)
-    .filter((f) => f.endsWith('.mp4'))
-    .map((f) => path.join(POOL_DIR, f));
+  const dirs = [POOL_DIR, DEFAULTS_POOL_DIR];
+  const allClips = [];
+  for (const dir of dirs) {
+    if (fs.existsSync(dir)) {
+      const clips = fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith('.mp4'))
+        .map((f) => path.join(dir, f))
+        .filter((p) => {
+          try {
+            return fs.statSync(p).size > 10000;
+          } catch (_) {
+            return false;
+          }
+        });
+      allClips.push(...clips);
+    }
+  }
+  return allClips;
 }
 
 async function generateSyntheticClip(dest, color1, color2) {
@@ -266,12 +276,8 @@ async function generateSyntheticClip(dest, color1, color2) {
     '-f', 'lavfi',
     '-i', `gradients=s=1080x1920:c0=${color1}:c1=${color2}:speed=0.01:d=10`,
     '-c:v', 'libx264',
+    '-preset', 'fast',
     '-pix_fmt', 'yuv420p',
     dest,
   ]);
-}
-
-// Run if executed directly
-if (process.argv[1] && process.argv[1].endsWith('ensure_slot1_pool.js')) {
-  ensureSlot1Pool().then((clips) => console.log(`Pool ready with ${clips.length} clips.`)).catch(console.error);
 }

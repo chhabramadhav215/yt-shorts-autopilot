@@ -1,5 +1,153 @@
 {
   "usedPexelsVideoIds": [],
-  "usedFallbackClips": [],
-  "history": []
+  "usedFallbackClips": [
+    "06_baby_curiosity.mp4",
+    "10_playful_celebration.mp4",
+    "08_naughty_smile.mp4",
+    "shiva_mahadev_darshan.mp4",
+    "hanuman_divine_darshan.mp4",
+    "krishna_vrindavan_darshan.mp4",
+    "tech_digital_globe.mp4",
+    "financial_markets_radar.mp4",
+    "global_geopolitics_network.mp4",
+    "stadium_floodlights.mp4",
+    "stadium_bg.mp4",
+    "stadium_atmosphere_night.mp4",
+    "07_happy_bounce.mp4",
+    "himalayas_kedarnath_shrine.mp4",
+    "karna_daan.mp4",
+    "stadium_crowd_lights.mp4"
+  ],
+  "byCategory": {
+    "baby": [
+      "06_baby_curiosity.mp4",
+      "10_playful_celebration.mp4",
+      "08_naughty_smile.mp4",
+      "07_happy_bounce.mp4"
+    ],
+    "devotional": [
+      "shiva_mahadev_darshan.mp4",
+      "hanuman_divine_darshan.mp4",
+      "krishna_vrindavan_darshan.mp4",
+      "himalayas_kedarnath_shrine.mp4"
+    ],
+    "news": [
+      "financial_markets_radar.mp4",
+      "global_geopolitics_network.mp4",
+      "tech_digital_globe.mp4"
+    ],
+    "cricket": [
+      "stadium_floodlights.mp4",
+      "stadium_bg.mp4",
+      "stadium_atmosphere_night.mp4",
+      "stadium_crowd_lights.mp4"
+    ],
+    "scriptures_gita": [
+      "karna_daan.mp4"
+    ]
+  },
+  "history": [
+    {
+      "type": "fallback_video",
+      "file": "06_baby_curiosity.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T14:21:03.250Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "10_playful_celebration.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T14:21:03.258Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "08_naughty_smile.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T14:21:03.267Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "shiva_mahadev_darshan.mp4",
+      "category": "devotional",
+      "timestamp": "2026-11-13T14:21:03.271Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "hanuman_divine_darshan.mp4",
+      "category": "devotional",
+      "timestamp": "2026-11-13T14:21:03.274Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "krishna_vrindavan_darshan.mp4",
+      "category": "devotional",
+      "timestamp": "2026-11-13T14:21:03.277Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "tech_digital_globe.mp4",
+      "category": "news",
+      "timestamp": "2026-11-13T14:21:03.281Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "financial_markets_radar.mp4",
+      "category": "news",
+      "timestamp": "2026-11-13T14:21:03.285Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "global_geopolitics_network.mp4",
+      "category": "news",
+      "timestamp": "2026-11-13T14:21:03.289Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "stadium_floodlights.mp4",
+      "category": "cricket",
+      "timestamp": "2026-11-13T14:21:03.294Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "stadium_bg.mp4",
+      "category": "cricket",
+      "timestamp": "2026-11-13T14:21:03.298Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "stadium_atmosphere_night.mp4",
+      "category": "cricket",
+      "timestamp": "2026-11-13T14:21:03.304Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "07_happy_bounce.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-13T14:21:37.224Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "himalayas_kedarnath_shrine.mp4",
+      "category": "devotional",
+      "timestamp": "2026-11-13T14:21:40.736Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "tech_digital_globe.mp4",
+      "category": "news",
+      "timestamp": "2026-11-13T14:21:44.312Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "karna_daan.mp4",
+      "category": "scriptures_gita",
+      "timestamp": "2026-11-13T14:21:54.910Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "stadium_crowd_lights.mp4",
+      "category": "cricket",
+      "timestamp": "2026-11-13T14:22:07.287Z"
+    }
+  ]
 }

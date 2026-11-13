@@ -13,47 +13,29 @@ import {
 } from './used_assets.js';
 import { ensureSlot1Pool, getSlot1PoolClips } from './ensure_slot1_pool.js';
 
-const WIKIMEDIA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
 const CACHE_DIR = path.join(config.assetsDir, 'cache');
 const DEFAULTS_DIR = path.join(config.assetsDir, 'defaults');
-const SCRIPTURES_DIR = path.join(config.assetsDir, 'clips', 'scriptures');
+const CLIPS_DIR = path.join(config.assetsDir, 'clips');
+const BABY_DIR = path.join(CLIPS_DIR, 'baby');
+const DEVOTIONAL_DIR = path.join(CLIPS_DIR, 'devotional');
+const NEWS_DIR = path.join(CLIPS_DIR, 'news');
+const CRICKET_DIR = path.join(CLIPS_DIR, 'cricket');
+const SCRIPTURES_DIR = path.join(CLIPS_DIR, 'scriptures');
 const BIN_DIR = path.join(config.assetsDir, 'bin');
 const YTDLP_BIN = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
 const YTDLP_PATH = fs.existsSync(path.join(BIN_DIR, YTDLP_BIN))
   ? path.join(BIN_DIR, YTDLP_BIN)
   : (fs.existsSync(path.join(BIN_DIR, 'yt-dlp.exe')) ? path.join(BIN_DIR, 'yt-dlp.exe') : 'yt-dlp');
 
-// Ensure required directories exist
-[CACHE_DIR, DEFAULTS_DIR, SCRIPTURES_DIR, BIN_DIR].forEach((dir) => {
+// Ensure all clip directories exist
+[CACHE_DIR, DEFAULTS_DIR, CLIPS_DIR, BABY_DIR, DEVOTIONAL_DIR, NEWS_DIR, CRICKET_DIR, SCRIPTURES_DIR, BIN_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
-/**
- * Downloads a file safely with proper headers and size validation
- */
-export async function downloadFile(url, destPath) {
-  const cleanUrl = url.split('?')[0]; // Strip tracking params
-  const res = await fetch(cleanUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': 'https://commons.wikimedia.org/',
-      'Accept': 'image/*,video/*,*/*',
-    },
-  });
-
-  if (!res.ok) throw new Error(`HTTP ${res.status} while fetching ${url}`);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  if (buffer.length < 5000) {
-    throw new Error(`Downloaded payload too small (${buffer.length} bytes), possible rate limit or robot warning.`);
-  }
-
-  fs.writeFileSync(destPath, buffer);
-  return destPath;
-}
+const WIKIMEDIA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 /**
- * Searches Wikimedia Commons API for high-resolution images
+ * Searches Wikimedia Commons API for imagery (used for official player portraits)
  */
 export async function searchWikimediaCommons(query, maxResults = 6) {
   try {
@@ -75,24 +57,9 @@ export async function searchWikimediaCommons(query, maxResults = 6) {
       const isImage = mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/webp';
       const isVideo = mime.includes('webm') || mime.includes('mp4');
 
-      // Block SVGs, vector graphics, and unreadable charts/maps/diagrams
       if (mime.includes('svg') || (info.url || '').toLowerCase().endsWith('.svg')) continue;
 
-      const titleLower = (page.title || '').toLowerCase();
-      const urlLower = (info.url || '').toLowerCase();
-      const isUnwantedGraphic = [
-        'map', 'chart', 'diagram', 'graph', 'locator', 'plan', 'schema',
-        'flag', 'logo', 'symbol', 'icon', 'infographic', 'coat_of_arms',
-        'table', 'plot', 'census', 'poll', 'drawing', 'sketch', 'vector',
-        'illustration', 'line_art', 'contour', 'topographic', 'relief',
-        'satellit', 'geology', 'projection', 'demographic', 'division',
-        'boundary', 'blank', 'template', 'overview', 'infobox', 'sheet',
-        'economic', 'stimulus', 'crisis', 'distribution', 'percentage'
-      ].some((k) => titleLower.includes(k) || urlLower.includes(k));
-
-      if (isUnwantedGraphic) continue;
-
-      if ((isImage || isVideo) && (info.width >= 800 || info.height >= 800)) {
+      if ((isImage || isVideo) && (info.width >= 500 || info.height >= 500)) {
         results.push({
           url: info.url,
           mime,
@@ -110,20 +77,59 @@ export async function searchWikimediaCommons(query, maxResults = 6) {
 }
 
 /**
- * Attempts to download Pexels video if API key is configured
- * Includes random pagination and deduplication to prevent repetitive clips
+ * Gets all verified moving MP4 clips in a category directory
+ * @param {string} dirPath
+ * @returns {string[]}
+ */
+export function getCategoryVideoPool(dirPath) {
+  if (!fs.existsSync(dirPath)) return [];
+  return fs
+    .readdirSync(dirPath)
+    .filter((f) => f.toLowerCase().endsWith('.mp4'))
+    .map((f) => path.join(dirPath, f))
+    .filter((p) => {
+      try {
+        return fs.statSync(p).size > 50000;
+      } catch (_) {
+        return false;
+      }
+    });
+}
+
+/**
+ * Downloads a file safely with proper headers and size validation
+ */
+export async function downloadFile(url, destPath) {
+  const cleanUrl = url.split('?')[0]; // Strip tracking params
+  const res = await fetch(cleanUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'video/*,*/*',
+    },
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status} while fetching ${url}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  if (buffer.length < 5000) {
+    throw new Error(`Downloaded payload too small (${buffer.length} bytes), possible rate limit or robot warning.`);
+  }
+
+  fs.writeFileSync(destPath, buffer);
+  return destPath;
+}
+
+/**
+ * Downloads dynamic moving video from Pexels API if key is available.
+ * Prioritizes 9:16 vertical / high-retention portrait footage with strict non-repeating deduplication.
  * @param {string} query
  * @param {'portrait' | 'all'} [orientation]
  * @param {Object} [options]
- * @param {number} [options.page]
- * @param {number} [options.perPage]
  */
 export async function tryDownloadPexels(query, orientation = 'portrait', options = {}) {
   if (!config.pexelsApiKey) return null;
   try {
     const orientParam = orientation === 'portrait' ? '&orientation=portrait' : '';
-    // Pick a random page/offset (1 to 5) to prevent fetching the exact same top clips
-    const page = options.page || (Math.floor(Math.random() * 5) + 1);
+    const page = options.page || (Math.floor(Math.random() * 4) + 1);
     const perPage = options.perPage || 15;
     const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}${orientParam}&per_page=${perPage}&page=${page}`;
     const res = await fetch(url, {
@@ -139,70 +145,43 @@ export async function tryDownloadPexels(query, orientation = 'portrait', options
     const candidates = unusedVideos.length > 0 ? unusedVideos : videos;
 
     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-    const file = chosen.video_files.find((f) => f.height >= 1080) || chosen.video_files[0];
+    // Prioritize high-resolution 1080p or 720p vertical video files
+    const file = chosen.video_files.find((f) => f.height >= 1080 && f.width >= 720) ||
+      chosen.video_files.find((f) => f.height >= 720) ||
+      chosen.video_files[0];
+
     if (!file || !file.link) return null;
 
     const hash = crypto.createHash('md5').update(`pexels_v_${chosen.id}`).digest('hex');
     const dest = path.join(CACHE_DIR, `pexels_${hash}.mp4`);
     if (!fs.existsSync(dest) || fs.statSync(dest).size < 50000) {
-      logger.info(`Downloading fresh Pexels video for "${query}" (page ${page}, ID ${chosen.id})...`);
+      logger.info(`Downloading fresh Pexels moving video for "${query}" (page ${page}, ID ${chosen.id})...`);
       await downloadFile(file.link, dest);
     } else {
-      logger.info(`Using cached Pexels video (ID ${chosen.id}) for "${query}"`);
+      logger.info(`Using cached Pexels moving video (ID ${chosen.id}) for "${query}"`);
     }
 
-    // Mark this video ID as used in used_assets.json
     markPexelsVideoUsed(chosen.id, query);
     return { type: 'video', filePath: dest, pexelsId: chosen.id };
   } catch (e) {
-    logger.warn(`Pexels video fetch failed: ${e.message}`);
+    logger.warn(`Pexels video fetch failed for "${query}": ${e.message}`);
     return null;
   }
 }
 
 /**
- * Attempts to download high-res Pexels photo if API key is configured
- */
-async function tryDownloadPexelsPhoto(query) {
-  if (!config.pexelsApiKey) return null;
-  try {
-    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=5`;
-    const res = await fetch(url, {
-      headers: { Authorization: config.pexelsApiKey },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const photos = data.photos || [];
-    if (photos.length === 0) return null;
-
-    const chosen = photos[Math.floor(Math.random() * photos.length)];
-    const imgUrl = chosen.src?.large2x || chosen.src?.large || chosen.src?.original;
-    if (!imgUrl) return null;
-
-    const hash = crypto.createHash('md5').update(`pexels_p_${query}_${chosen.id}`).digest('hex');
-    const dest = path.join(CACHE_DIR, `pexels_${hash}.jpg`);
-    if (fs.existsSync(dest) && fs.statSync(dest).size > 20000) return { type: 'image', filePath: dest };
-
-    logger.info(`Downloading Pexels photo for "${query}"...`);
-    await downloadFile(imgUrl, dest);
-    return { type: 'image', filePath: dest };
-  } catch (e) {
-    logger.warn(`Pexels photo fetch failed: ${e.message}`);
-    return null;
-  }
-}
-
-/**
- * Fetches background HD media (video or high-res image) for Slots 1, 2, and 3
+ * Fetches 100% dynamic moving video MP4 background footage for any slot.
+ * ZERO static image fallbacks. Every slot returns guaranteed moving video.
  * @param {Object} params
- * @param {string} params.slotType - 'slot1' | 'slot2' | 'slot3'
- * @param {string} [params.title] - Content headline or title
- * @param {string} [params.customTopic] - User custom topic
- * @param {string} [params.clipPath] - Optional direct video clip path
- * @param {string} [params.themeType] - Optional theme type (e.g. 'jokes', 'dance', 'mischief')
- * @param {string} [params.visualQuery] - Specific context query for dynamic video matching
- * @param {string[]} [params.altQueries] - Alternative fallback queries for dynamic matching
- * @returns {Promise<{ type: 'video' | 'image', filePath: string }>}
+ * @param {string} params.slotType - 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5'
+ * @param {string} [params.title]
+ * @param {string} [params.customTopic]
+ * @param {string} [params.clipPath]
+ * @param {string} [params.themeType]
+ * @param {string} [params.visualQuery]
+ * @param {string} [params.secondaryQuery]
+ * @param {string[]} [params.altQueries]
+ * @returns {Promise<{ type: 'video', filePath: string, isTopicVideo?: boolean, topicQuery?: string }>}
  */
 export async function fetchSlotBackgroundMedia({
   slotType,
@@ -216,103 +195,145 @@ export async function fetchSlotBackgroundMedia({
 }) {
   const combinedText = `${customTopic || ''} ${title || ''}`.trim();
 
-  // Determine query list & fallback asset per slot
-  let queries = [];
-  let defaultAsset = null;
-
+  // =================================================================
+  // SLOT 1: BABY & TODDLER REELS (100% Moving Video)
+  // =================================================================
   if (slotType === 'slot1') {
-    // 1. Build prioritized search queries matching the specific context of the joke/concept
+    // 1. Build cinematic high-retention video queries
     const scenarioQueries = [];
-    if (visualQuery) scenarioQueries.push(visualQuery);
+    if (visualQuery) scenarioQueries.push(`${visualQuery} cinematic vertical`);
     if (Array.isArray(altQueries) && altQueries.length > 0) {
-      // Shuffle altQueries to add variety
       const shuffledAlt = [...altQueries].sort(() => 0.5 - Math.random());
-      scenarioQueries.push(...shuffledAlt);
+      scenarioQueries.push(...shuffledAlt.map((q) => `${q} cute toddler`));
     }
 
-    // Add theme-relevant contextual queries
     const contextualPool = themeType === 'dance'
-      ? ['toddler dancing funny', 'cute baby dancing', 'baby grooving music', 'toddler dance happy', 'baby jumping rhythm']
+      ? ['cute toddler dancing energetic vertical', 'baby grooving funny music 4k', 'happy toddler dance rhythm reels']
       : themeType === 'mischief'
-      ? ['naughty kid smiling', 'cute baby playing', 'toddler mischief funny', 'baby funny expressions', 'toddler sneaking']
-      : ['cute baby talking', 'toddler laughing', 'baby tasting lemon', 'baby funny reaction', 'cute baby smiling giggling'];
+      ? ['naughty toddler smiling funny expressions', 'cute baby playing mischief reels', 'funny toddler surprise reaction']
+      : ['cute baby laughing hysterically vertical', 'baby funny reaction tasting 4k', 'happy toddler giggling smiles'];
 
-    const randomContextual = contextualPool.sort(() => 0.5 - Math.random()).slice(0, 2);
-    scenarioQueries.push(...randomContextual);
+    scenarioQueries.push(...contextualPool);
 
-    // 2. Query dynamic Pexels video clips matching the specific context of the generated joke
+    // 2. Query dynamic Pexels video clips
     for (const q of scenarioQueries) {
-      const pexelsVideo = await tryDownloadPexels(q);
+      const pexelsVideo = await tryDownloadPexels(q, 'portrait');
       if (pexelsVideo) {
-        logger.success(`Dynamic Pexels vertical video matched for context "${q}": ${path.basename(pexelsVideo.filePath)}`);
+        logger.success(`Dynamic Pexels moving video matched for [Slot 1] "${q}": ${path.basename(pexelsVideo.filePath)}`);
         return pexelsVideo;
       }
     }
 
-    // 3. Fallback: Rotate through the pool of at least 8-10 distinct clips
-    await ensureSlot1Pool();
-    const poolClips = getSlot1PoolClips();
-    if (poolClips.length > 0) {
-      const chosenFallback = pickUnusedFallbackClip(poolClips);
+    // 3. Fallback: Rotate through expanded local moving video pool in assets/clips/baby/
+    const babyPool = [
+      ...getCategoryVideoPool(BABY_DIR),
+      ...getSlot1PoolClips(),
+    ].filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+    if (babyPool.length > 0) {
+      const chosenFallback = pickUnusedFallbackClip(babyPool, 'baby');
       if (chosenFallback && fs.existsSync(chosenFallback)) {
-        logger.info(`Selected non-repeating fallback clip from Slot 1 pool: ${path.basename(chosenFallback)}`);
+        logger.success(`[Slot 1] Selected non-repeating moving video: ${path.basename(chosenFallback)}`);
         return { type: 'video', filePath: chosenFallback };
       }
     }
 
-    // 4. Emergency fallback to curated theme clip or default baby video
-    if (clipPath && fs.existsSync(clipPath)) {
-      logger.info(`Using theme clip for Slot 1: ${path.basename(clipPath)}`);
-      return { type: 'video', filePath: clipPath };
-    }
-
+    // 4. Default baby video fallback
     const defaultMp4 = path.join(DEFAULTS_DIR, 'slot1_baby.mp4');
     if (fs.existsSync(defaultMp4)) {
       return { type: 'video', filePath: defaultMp4 };
     }
-    defaultAsset = path.join(DEFAULTS_DIR, 'slot1_baby.jpg');
-  } else if (slotType === 'slot2') {
-    const textLower = combinedText.toLowerCase();
-    if (textLower.includes('shiva') || textLower.includes('mahadev') || textLower.includes('neelkanth') || textLower.includes('bhole')) {
-      queries = [
-        'Lord Shiva statue Dharmasthala',
-        'Lord Shiva statue meditation Himalayas',
-        'Shiva temple kedarnath darshan',
-      ];
-      defaultAsset = path.join(DEFAULTS_DIR, 'slot2_shiva.jpg');
-    } else if (textLower.includes('hanuman') || textLower.includes('bajrangbali') || textLower.includes('ramayan')) {
-      queries = [
-        'Hanuman Hindu deity statue temple',
-        'Hanuman Pushkar temple statue',
-        'Lord Rama Hanuman devotion',
-      ];
-      defaultAsset = path.join(DEFAULTS_DIR, 'slot2_hanuman.jpg');
-    } else if (textLower.includes('krishna') || textLower.includes('sudama') || textLower.includes('dwarka')) {
-      queries = [
-        'Lord Krishna deity temple statue',
-        'Krishna Vrindavan temple sacred',
-        'Lord Krishna idol darshan',
-      ];
-      defaultAsset = path.join(DEFAULTS_DIR, 'slot2_shiva.jpg');
-    } else if (textLower.includes('ganesh') || textLower.includes('ganpati')) {
-      queries = [
-        'Lord Ganesha idol temple sacred',
-        'Ganesha statue Hindu deity',
-      ];
-      defaultAsset = path.join(DEFAULTS_DIR, 'slot2_shiva.jpg');
-    } else {
-      queries = [
-        'Hindu temple sanctum prayer darshan',
-        'Ancient Hindu temple architecture sacred',
-        'Lord Shiva statue Dharmasthala',
-      ];
-      defaultAsset = path.join(DEFAULTS_DIR, 'slot2_shiva.jpg');
-    }
-  } else if (slotType === 'slot3') {
-    // Slot 3: Dynamic newsroom video background + smart topic footage / leader photo
-    const newsVideo = path.join(DEFAULTS_DIR, 'slot3_news.mp4');
+    const danceMp4 = path.join(DEFAULTS_DIR, 'slot1_dance.mp4');
+    return { type: 'video', filePath: danceMp4 };
+  }
 
-    // 1. Build smart search queries (extracting broad visual terms rather than raw headline)
+  // =================================================================
+  // SLOT 2: DEVOTIONAL & SANATAN DHARMA (100% Moving Video)
+  // =================================================================
+  if (slotType === 'slot2') {
+    const textLower = combinedText.toLowerCase();
+
+    // 1. Build deity-aware cinematic spiritual video queries
+    const devotionalQueries = [];
+    if (textLower.includes('shiva') || textLower.includes('mahadev') || textLower.includes('neelkanth') || textLower.includes('bhole')) {
+      devotionalQueries.push(
+        'shiva temple sacred smoke meditation',
+        'himalayas sacred mountain sunrise clouds',
+        'hindu temple sanctum prayer darshan',
+        'sacred incense smoke golden spiritual'
+      );
+    } else if (textLower.includes('hanuman') || textLower.includes('bajrangbali') || textLower.includes('ramayan') || textLower.includes('rama')) {
+      devotionalQueries.push(
+        'hindu temple aarti golden lamp flame',
+        'ancient hindu temple stone architecture sacred',
+        'sacred diya flame spiritual prayer',
+        'hindu ritual temple bells flags'
+      );
+    } else if (textLower.includes('krishna') || textLower.includes('sudama') || textLower.includes('dwarka') || textLower.includes('gita')) {
+      devotionalQueries.push(
+        'sacred temple lamps golden spiritual light',
+        'hindu temple sanctum prayer darshan',
+        'spiritual meditation holy river ganga'
+      );
+    } else if (textLower.includes('ganesh') || textLower.includes('ganpati')) {
+      devotionalQueries.push(
+        'sacred diya lamp temple flame night',
+        'hindu festival temple celebrations colors',
+        'hindu temple prayer flowers aarti'
+      );
+    } else {
+      devotionalQueries.push(
+        'hindu temple sanctum prayer darshan',
+        'ancient hindu temple architecture sacred',
+        'sacred diya lamp temple spiritual',
+        'golden temple lamps peaceful spirituality'
+      );
+    }
+
+    // 2. Query Pexels videos
+    for (const q of devotionalQueries) {
+      let pexelsVideo = await tryDownloadPexels(q, 'portrait');
+      if (!pexelsVideo) pexelsVideo = await tryDownloadPexels(q, 'all');
+      if (pexelsVideo) {
+        logger.success(`Dynamic Pexels moving video matched for [Slot 2] "${q}": ${path.basename(pexelsVideo.filePath)}`);
+        return pexelsVideo;
+      }
+    }
+
+    // 3. Fallback: Context-aware selection from assets/clips/devotional/
+    const allDevotionalClips = getCategoryVideoPool(DEVOTIONAL_DIR);
+    let matchedCandidates = [];
+
+    if (textLower.includes('shiva') || textLower.includes('mahadev') || textLower.includes('kedarnath')) {
+      matchedCandidates = allDevotionalClips.filter((f) => /shiva|kedarnath|himalayas/i.test(f));
+    } else if (textLower.includes('hanuman') || textLower.includes('bajrangbali')) {
+      matchedCandidates = allDevotionalClips.filter((f) => /hanuman|aarti/i.test(f));
+    } else if (textLower.includes('krishna') || textLower.includes('sudama') || textLower.includes('gita')) {
+      matchedCandidates = allDevotionalClips.filter((f) => /krishna|aarti/i.test(f));
+    } else if (textLower.includes('ganesh') || textLower.includes('ganpati')) {
+      matchedCandidates = allDevotionalClips.filter((f) => /ganesha|aarti/i.test(f));
+    }
+
+    const candidatePool = matchedCandidates.length > 0 ? matchedCandidates : allDevotionalClips;
+    const chosenClip = pickUnusedFallbackClip(candidatePool, 'devotional') ||
+      pickUnusedFallbackClip(allDevotionalClips, 'devotional');
+
+    if (chosenClip && fs.existsSync(chosenClip)) {
+      logger.success(`[Slot 2 Devotional] Selected non-repeating moving video: ${path.basename(chosenClip)}`);
+      return { type: 'video', filePath: chosenClip };
+    }
+
+    // Guaranteed fallback to any available devotional or scripture video
+    const scripturePool = getCategoryVideoPool(SCRIPTURES_DIR);
+    const emergencyClip = scripturePool[0] || path.join(DEFAULTS_DIR, 'slot1_dance.mp4');
+    return { type: 'video', filePath: emergencyClip };
+  }
+
+  // =================================================================
+  // SLOT 3: NEWS EXPLAINER (100% Moving Video)
+  // =================================================================
+  if (slotType === 'slot3') {
+    // 1. Build prioritized search queries
     const queriesToTry = [];
     if (visualQuery) queriesToTry.push(visualQuery);
     if (secondaryQuery) queriesToTry.push(secondaryQuery);
@@ -323,16 +344,10 @@ export async function fetchSlotBackgroundMedia({
       queriesToTry.push(extracted.primaryQuery, extracted.secondaryQuery, ...(extracted.altQueries || []));
     }
 
-    logger.info(`[SLOT 3] Smart news visual queries to search: ${queriesToTry.slice(0, 3).map((q) => `"${q}"`).join(', ')}`);
-
     // 2. Query dynamic Pexels video clips matching the specific context of the news topic
     for (const q of queriesToTry) {
-      // First try portrait orientation
       let pexelsVideo = await tryDownloadPexels(q, 'portrait');
-      // If no portrait video, try any orientation (landscape fits into center 16:9 box or blurred canvas)
-      if (!pexelsVideo) {
-        pexelsVideo = await tryDownloadPexels(q, 'all');
-      }
+      if (!pexelsVideo) pexelsVideo = await tryDownloadPexels(q, 'all');
       if (pexelsVideo) {
         logger.success(`Matched dynamic Pexels video for News topic "${q}": ${path.basename(pexelsVideo.filePath)}`);
         return {
@@ -344,23 +359,18 @@ export async function fetchSlotBackgroundMedia({
       }
     }
 
-    // 2b. If topic queries returned 0 results, retry with generic news fallbacks on Pexels
+    // 2b. Generic high-motion news video queries
     const GENERIC_NEWS_FALLBACKS = [
-      'breaking news studio',
-      'geopolitics briefing',
-      'breaking news reporter',
-      'military press conference',
-      'press conference microphones',
-      'geopolitics world map',
+      'breaking news studio reporter',
+      'city skyline drone motion',
+      'global finance trading data screen',
+      'press conference microphones reporter',
+      'geopolitics world map network',
     ];
-
-    logger.warn(`[SLOT 3] Topic queries returned 0 Pexels videos. Retrying with generic news fallbacks: ${GENERIC_NEWS_FALLBACKS.slice(0, 3).map((g) => `"${g}"`).join(', ')}...`);
 
     for (const gq of GENERIC_NEWS_FALLBACKS) {
       let pexelsVideo = await tryDownloadPexels(gq, 'portrait');
-      if (!pexelsVideo) {
-        pexelsVideo = await tryDownloadPexels(gq, 'all');
-      }
+      if (!pexelsVideo) pexelsVideo = await tryDownloadPexels(gq, 'all');
       if (pexelsVideo) {
         logger.success(`Matched generic news fallback Pexels video "${gq}": ${path.basename(pexelsVideo.filePath)}`);
         return {
@@ -372,229 +382,65 @@ export async function fetchSlotBackgroundMedia({
       }
     }
 
-    // 3. If no video from Pexels, search Pexels for high-res topic photos (topic queries, then generic fallbacks)
-    const photoQueries = [...queriesToTry, ...GENERIC_NEWS_FALLBACKS];
-    for (const q of photoQueries) {
-      const pexelsPhoto = await tryDownloadPexelsPhoto(q);
-      if (pexelsPhoto) {
-        logger.success(`Matched dynamic Pexels photo for News topic "${q}": ${path.basename(pexelsPhoto.filePath)}`);
-        return {
-          type: 'video',
-          filePath: fs.existsSync(newsVideo) ? newsVideo : pexelsPhoto.filePath,
-          topicImage: pexelsPhoto.filePath,
-          leaderBadge: q.toUpperCase().slice(0, 24),
-        };
-      }
-    }
-
-    // 4. Detect high-impact leaders or institutions mentioned in headline
+    // 3. Fallback: Context-aware selection from assets/clips/news/
+    const allNewsClips = getCategoryVideoPool(NEWS_DIR);
     const textLower = combinedText.toLowerCase();
-    let leaderQuery = null;
-    let leaderBadge = null;
-    let localLeaderFile = null;
+    let newsCandidates = [];
 
-    if (textLower.includes('modi')) {
-      leaderQuery = 'Narendra Modi official portrait';
-      leaderBadge = 'PM NARENDRA MODI';
-      localLeaderFile = path.join(DEFAULTS_DIR, 'leaders', 'modi.jpg');
-    } else if (textLower.includes('zelensky') || textLower.includes('zelenskyy')) {
-      leaderQuery = 'Volodymyr Zelenskyy official portrait';
-      leaderBadge = 'VOLODYMYR ZELENSKYY';
-      localLeaderFile = path.join(DEFAULTS_DIR, 'leaders', 'zelenskyy.jpg');
-    } else if (textLower.includes('jaishankar')) {
-      leaderQuery = 'Subrahmanyam Jaishankar official portrait';
-      leaderBadge = 'S. JAISHANKAR';
-      localLeaderFile = path.join(DEFAULTS_DIR, 'leaders', 'jaishankar.jpg');
-    } else if (textLower.includes('putin')) {
-      leaderQuery = 'Vladimir Putin official portrait';
-      leaderBadge = 'VLADIMIR PUTIN';
-      localLeaderFile = path.join(DEFAULTS_DIR, 'leaders', 'putin.jpg');
-    } else if (textLower.includes('trump')) {
-      leaderQuery = 'Donald Trump official portrait';
-      leaderBadge = 'DONALD TRUMP';
-      localLeaderFile = path.join(DEFAULTS_DIR, 'leaders', 'trump.jpg');
-    } else if (textLower.includes('biden')) {
-      leaderQuery = 'Joe Biden official portrait';
-      leaderBadge = 'JOE BIDEN';
-      localLeaderFile = path.join(DEFAULTS_DIR, 'leaders', 'biden.jpg');
-    } else if (textLower.includes('clinton')) {
-      leaderQuery = 'Bill Clinton official portrait';
-      leaderBadge = 'BILL CLINTON';
-    } else if (textLower.includes('sonia')) {
-      leaderQuery = 'Sonia Gandhi portrait';
-      leaderBadge = 'SONIA GANDHI';
-    } else if (textLower.includes('rahul')) {
-      leaderQuery = 'Rahul Gandhi portrait';
-      leaderBadge = 'RAHUL GANDHI';
-    } else if (textLower.includes('obama')) {
-      leaderQuery = 'Barack Obama official portrait';
-      leaderBadge = 'BARACK OBAMA';
-    } else if (textLower.includes('harris') || textLower.includes('kamala')) {
-      leaderQuery = 'Kamala Harris official portrait';
-      leaderBadge = 'KAMALA HARRIS';
-    } else if (textLower.includes('netanyahu')) {
-      leaderQuery = 'Benjamin Netanyahu official portrait';
-      leaderBadge = 'BENJAMIN NETANYAHU';
-    } else if (textLower.includes('sunita') || textLower.includes('williams')) {
-      leaderQuery = 'Sunita Williams astronaut';
-      leaderBadge = 'SUNITA WILLIAMS';
-    } else if (textLower.includes('isro')) {
-      leaderQuery = 'ISRO rocket launch spacecraft';
-      leaderBadge = 'ISRO MISSION';
-    } else if (textLower.includes('supreme court')) {
-      leaderQuery = 'Supreme Court of India courtroom';
-      leaderBadge = 'SUPREME COURT';
-    } else if (textLower.includes('parliament') || textLower.includes('lok sabha')) {
-      leaderQuery = 'Parliament of India building';
-      leaderBadge = 'PARLIAMENT';
-    } else if (textLower.includes('rbi') || textLower.includes('shaktikanta')) {
-      leaderQuery = 'Reserve Bank of India building';
-      leaderBadge = 'RESERVE BANK';
-    } else if (textLower.includes('adani')) {
-      leaderQuery = 'Gautam Adani photograph portrait';
-      leaderBadge = 'BUSINESS REPORT';
-    } else if (textLower.includes('ambani')) {
-      leaderQuery = 'Mukesh Ambani photograph portrait';
-      leaderBadge = 'BUSINESS REPORT';
-    } else if (textLower.includes('kohli') || textLower.includes('cricket')) {
-      leaderQuery = 'Virat Kohli photograph';
-      leaderBadge = 'INDIAN CRICKET';
+    if (/tech|ai|cyber|digital|space|satellite|globe/i.test(textLower)) {
+      newsCandidates = allNewsClips.filter((f) => /tech|globe|network/i.test(f));
+    } else if (/finance|market|stock|bank|rbi|economy|tax|money|trade/i.test(textLower)) {
+      newsCandidates = allNewsClips.filter((f) => /financial|radar|traffic/i.test(f));
+    } else if (/traffic|transport|highway|city|delhi|pollution|roads|train|flight/i.test(textLower)) {
+      newsCandidates = allNewsClips.filter((f) => /city|traffic/i.test(f));
+    } else if (/parliament|election|govt|minister|court|police|briefing/i.test(textLower)) {
+      newsCandidates = allNewsClips.filter((f) => /geopolitics|network|newsroom/i.test(f));
     }
 
-    let topicImage = null;
-    if (localLeaderFile && fs.existsSync(localLeaderFile)) {
-      topicImage = localLeaderFile;
-      logger.info(`Using curated official portrait for leader [${leaderBadge}]: ${path.basename(localLeaderFile)}`);
-    } else if (leaderQuery) {
-      const cacheKey = crypto.createHash('md5').update(`wiki_leader_${leaderQuery}`).digest('hex');
-      const cachedJpg = path.join(CACHE_DIR, `${cacheKey}.jpg`);
-      if (fs.existsSync(cachedJpg) && fs.statSync(cachedJpg).size > 20000) {
-        topicImage = cachedJpg;
-      } else {
-        logger.info(`Searching high-impact official portrait for news: "${leaderQuery}"...`);
-        const results = await searchWikimediaCommons(leaderQuery, 4);
-        if (results.length > 0) {
-          results.sort((a, b) => (b.width * b.height) - (a.width * a.height));
-          try {
-            await downloadFile(results[0].url, cachedJpg);
-            topicImage = cachedJpg;
-            logger.success(`Fetched high-impact leader portrait: ${path.basename(cachedJpg)}`);
-          } catch (e) {
-            logger.warn(`Could not download leader portrait: ${e.message}`);
-          }
-        }
-      }
-    }
+    const candidatePool = newsCandidates.length > 0 ? newsCandidates : allNewsClips;
+    const chosenNewsClip = pickUnusedFallbackClip(candidatePool, 'news') ||
+      pickUnusedFallbackClip(allNewsClips, 'news');
 
-    if (!topicImage) {
-      // Intelligent fallback: search photo for headline topic (strictly excluding charts/maps/diagrams)
-      const cleanNewsHeadline = combinedText
-        .replace(/^(EXPLAINED|BREAKING UPDATE|BREAKING NEWS|BREAKING|WATCH|JUST IN|ALERT|REPORT|VIRAL):\s*/i, '')
-        .trim();
-      const stopWords = new Set(['explained', 'breaking', 'update', 'watch', 'just', 'news', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'is', 'are', 'was', 'were', 'by', 'with', 'from', 'as', 'that', 'this', 'after', 'over', 'into', 'says', 'amid', 'will', 'have', 'been']);
-      const words = cleanNewsHeadline.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
-      const searchTopic = words.slice(0, 2).join(' ');
-      if (searchTopic) {
-        const cacheKey = crypto.createHash('md5').update(`wiki_topic_${searchTopic}`).digest('hex');
-        const cachedJpg = path.join(CACHE_DIR, `${cacheKey}.jpg`);
-        if (fs.existsSync(cachedJpg) && fs.statSync(cachedJpg).size > 20000) {
-          topicImage = cachedJpg;
-          leaderBadge = searchTopic.toUpperCase().slice(0, 24);
-        } else {
-          const results = await searchWikimediaCommons(`${searchTopic} press photograph portrait`, 4);
-          if (results.length > 0) {
-            results.sort((a, b) => (b.width * b.height) - (a.width * a.height));
-            try {
-              await downloadFile(results[0].url, cachedJpg);
-              topicImage = cachedJpg;
-              leaderBadge = searchTopic.toUpperCase().slice(0, 24);
-              logger.success(`Fetched high-impact topic image: ${path.basename(cachedJpg)}`);
-            } catch (e) {
-              logger.warn(`Could not download topic photo: ${e.message}`);
-            }
-          }
-        }
-      }
-    }
-
-    const newsDefaultsDir = path.join(DEFAULTS_DIR, 'news');
-    const localNewsroomMp4 = path.join(newsDefaultsDir, 'newsroom_bg.mp4');
-    const localCityTrafficMp4 = path.join(newsDefaultsDir, 'city_traffic.mp4');
-    const localTechGlobeMp4 = path.join(newsDefaultsDir, 'tech_globe.mp4');
-    const defaultNewsMp4 = path.join(DEFAULTS_DIR, 'slot3_news.mp4');
-    const activeNewsVideo = fs.existsSync(localNewsroomMp4) ? localNewsroomMp4 : (fs.existsSync(defaultNewsMp4) ? defaultNewsMp4 : null);
-
-    const localDelhiSmogJpg = path.join(newsDefaultsDir, 'delhi_smog.jpg');
-    const localParliamentJpg = path.join(newsDefaultsDir, 'parliament_building.jpg');
-    const localCityTrafficJpg = path.join(newsDefaultsDir, 'city_traffic.jpg');
-    const localTechGlobeJpg = path.join(newsDefaultsDir, 'tech_globe.jpg');
-    const localNewsroomJpg = path.join(newsDefaultsDir, 'newsroom_studio.jpg');
-    const defaultNewsJpg = path.join(DEFAULTS_DIR, 'slot3_news.jpg');
-
-    if (topicImage && fs.existsSync(topicImage)) {
+    if (chosenNewsClip && fs.existsSync(chosenNewsClip)) {
+      logger.success(`[Slot 3 News] Selected non-repeating moving video: ${path.basename(chosenNewsClip)}`);
       return {
         type: 'video',
-        filePath: activeNewsVideo || defaultNewsJpg,
-        topicImage,
-        leaderBadge: leaderBadge || 'SPECIAL REPORT',
+        filePath: chosenNewsClip,
+        isTopicVideo: true,
+        topicQuery: (visualQuery || 'NEWS DESK REPORT').toUpperCase().slice(0, 24),
       };
     }
 
-    // 5. Guaranteed Local Visual Fallback Pool (Context-aware selection)
-    if (/delhi|pollution|smog|aqi|cpcb|air|emission/i.test(textLower) && fs.existsSync(localDelhiSmogJpg)) {
-      logger.info('Using local fallback image for pollution/smog: delhi_smog.jpg');
-      return { type: 'image', filePath: localDelhiSmogJpg, isTopicImage: true, topicQuery: 'AIR POLLUTION ALERT' };
-    }
+    // Emergency news fallback video
+    const defaultNewsMp4 = path.join(DEFAULTS_DIR, 'slot3_news.mp4');
+    return {
+      type: 'video',
+      filePath: fs.existsSync(defaultNewsMp4) ? defaultNewsMp4 : path.join(DEFAULTS_DIR, 'slot1_dance.mp4'),
+      isTopicVideo: true,
+      topicQuery: 'BREAKING UPDATE',
+    };
+  }
 
-    if (/parliament|lok sabha|rajya sabha|election|minister|cabinet|govt|policy|bill|bjp|congress/i.test(textLower) && fs.existsSync(localParliamentJpg)) {
-      logger.info('Using local fallback image for government/parliament: parliament_building.jpg');
-      return { type: 'image', filePath: localParliamentJpg, isTopicImage: true, topicQuery: 'PARLIAMENT REPORT' };
-    }
-
-    if (/tech|ai|cyber|space|globe|satellite|digital|internet/i.test(textLower) && fs.existsSync(localTechGlobeMp4)) {
-      logger.info('Using local fallback video for tech/world: tech_globe.mp4');
-      return { type: 'video', filePath: localTechGlobeMp4, isTopicVideo: true, topicQuery: 'GLOBAL REPORT' };
-    }
-
-    if (/traffic|highway|transport|city|train|flight|roads/i.test(textLower) && fs.existsSync(localCityTrafficMp4)) {
-      logger.info('Using local fallback video for city/traffic: city_traffic.mp4');
-      return { type: 'video', filePath: localCityTrafficMp4, isTopicVideo: true, topicQuery: 'CITY DEVELOPMENTS' };
-    }
-
-    // General news fallback: rotate between high-res newsroom video, city traffic, or tech globe
-    const fallbackClips = [localNewsroomMp4, localCityTrafficMp4, localTechGlobeMp4, defaultNewsMp4].filter(f => f && fs.existsSync(f));
-    if (fallbackClips.length > 0) {
-      const selectedClip = fallbackClips[Math.floor(Math.random() * fallbackClips.length)];
-      logger.info(`Using guaranteed evergreen news B-roll clip: ${path.basename(selectedClip)}`);
-      return { type: 'video', filePath: selectedClip, isTopicVideo: true, topicQuery: 'NEWS DESK REPORT' };
-    }
-
-    const fallbackImages = [localNewsroomJpg, defaultNewsJpg, localParliamentJpg].filter(f => f && fs.existsSync(f));
-    const selectedImage = fallbackImages[0] || defaultNewsJpg;
-    logger.info(`Using guaranteed evergreen news photo: ${path.basename(selectedImage)}`);
-    return { type: 'image', filePath: selectedImage, isTopicImage: true, topicQuery: 'BREAKING UPDATE' };
-  } else if (slotType === 'slot5') {
-    // Slot 5: Cricket & IPL Stadium dynamic background footage
+  // =================================================================
+  // SLOT 5: CRICKET & IPL BUZZ (100% Moving Video)
+  // =================================================================
+  if (slotType === 'slot5') {
     const stadiumQueries = [];
     if (visualQuery) stadiumQueries.push(visualQuery);
     if (secondaryQuery) stadiumQueries.push(secondaryQuery);
     if (Array.isArray(altQueries)) stadiumQueries.push(...altQueries);
-    // Broad, highly reliable Pexels cricket/stadium queries
     stadiumQueries.push(
-      'cricket ground',
-      'sports stadium lights',
-      'cricket pitch',
-      'cricket stadium floodlights',
-      'stadium crowd cheering'
+      'cricket stadium floodlights night cinematic',
+      'cricket match stadium crowd cheering 4k',
+      'cricket ground night lights',
+      'sports stadium floodlights'
     );
 
     for (const q of stadiumQueries) {
       let pexelsVideo = await tryDownloadPexels(q, 'portrait');
-      if (!pexelsVideo) {
-        pexelsVideo = await tryDownloadPexels(q, 'all');
-      }
+      if (!pexelsVideo) pexelsVideo = await tryDownloadPexels(q, 'all');
       if (pexelsVideo) {
-        logger.success(`Matched dynamic Pexels cricket stadium video for Slot 5 "${q}": ${path.basename(pexelsVideo.filePath)}`);
+        logger.success(`Matched dynamic Pexels cricket video for Slot 5 "${q}": ${path.basename(pexelsVideo.filePath)}`);
         return {
           type: 'video',
           filePath: pexelsVideo.filePath,
@@ -603,80 +449,26 @@ export async function fetchSlotBackgroundMedia({
       }
     }
 
-    // Persistent local fallback stadium clips from assets/defaults/cricket/
-    const cricketDefaultsDir = path.join(DEFAULTS_DIR, 'cricket');
-    const localStadiumBg = path.join(cricketDefaultsDir, 'stadium_bg.mp4');
-    const localStadiumLights = path.join(cricketDefaultsDir, 'stadium_floodlights.mp4');
+    // Local fallback cricket moving video pool in assets/clips/cricket/
+    const allCricketClips = getCategoryVideoPool(CRICKET_DIR);
+    const chosenCricketClip = pickUnusedFallbackClip(allCricketClips, 'cricket');
 
-    if (fs.existsSync(localStadiumBg)) {
-      logger.info(`Using persistent local cricket stadium background: stadium_bg.mp4`);
-      return { type: 'video', filePath: localStadiumBg, isCricketStadium: true };
-    }
-    if (fs.existsSync(localStadiumLights)) {
-      logger.info(`Using persistent local cricket stadium floodlights: stadium_floodlights.mp4`);
-      return { type: 'video', filePath: localStadiumLights, isCricketStadium: true };
+    if (chosenCricketClip && fs.existsSync(chosenCricketClip)) {
+      logger.success(`[Slot 5 Cricket] Selected non-repeating stadium video: ${path.basename(chosenCricketClip)}`);
+      return { type: 'video', filePath: chosenCricketClip, isCricketStadium: true };
     }
 
-    const defaultFallback = path.join(DEFAULTS_DIR, 'slot1_dance.mp4');
+    const defaultStadium = path.join(DEFAULTS_DIR, 'cricket', 'stadium_bg.mp4');
     return {
       type: 'video',
-      filePath: fs.existsSync(defaultFallback) ? defaultFallback : path.join(DEFAULTS_DIR, 'slot1_baby.mp4'),
-      isDefaultFallback: true,
+      filePath: fs.existsSync(defaultStadium) ? defaultStadium : path.join(DEFAULTS_DIR, 'slot1_dance.mp4'),
+      isCricketStadium: true,
     };
   }
 
-  // 1. Try Pexels video if API key configured
-  for (const q of queries) {
-    const pexelsResult = await tryDownloadPexels(q);
-    if (pexelsResult) return pexelsResult;
-  }
-
-  // 2. Search Wikimedia Commons for high-res royalty-free imagery
-  for (const q of queries) {
-    const cacheKey = crypto.createHash('md5').update(`wiki_${slotType}_${q}`).digest('hex');
-    const cachedJpg = path.join(CACHE_DIR, `${cacheKey}.jpg`);
-    const cachedMp4 = path.join(CACHE_DIR, `${cacheKey}.mp4`);
-
-    if (fs.existsSync(cachedMp4) && fs.statSync(cachedMp4).size > 50000) {
-      return { type: 'video', filePath: cachedMp4 };
-    }
-    if (fs.existsSync(cachedJpg) && fs.statSync(cachedJpg).size > 20000) {
-      return { type: 'image', filePath: cachedJpg };
-    }
-
-    logger.info(`Searching royalty-free HD imagery on Wikimedia Commons: "${q}"...`);
-    const results = await searchWikimediaCommons(q, 4);
-    if (results.length > 0) {
-      // Pick best resolution
-      results.sort((a, b) => (b.width * b.height) - (a.width * a.height));
-      const chosen = results[0];
-      const ext = chosen.type === 'video' ? '.mp4' : '.jpg';
-      const dest = path.join(CACHE_DIR, `${cacheKey}${ext}`);
-
-      try {
-        await downloadFile(chosen.url, dest);
-        logger.success(`Fetched HD royalty-free asset (${chosen.width}x${chosen.height}): ${path.basename(dest)}`);
-        return { type: chosen.type, filePath: dest };
-      } catch (err) {
-        logger.warn(`Download failed for ${chosen.url}: ${err.message}`);
-      }
-    }
-  }
-
-  // 3. Fallback to pre-cached curated default HD asset
-  if (defaultAsset && fs.existsSync(defaultAsset)) {
-    const isVideo = defaultAsset.toLowerCase().endsWith('.mp4');
-    logger.info(`Using pre-cached curated ${isVideo ? 'moving video' : 'high-res asset'} for ${slotType}: ${path.basename(defaultAsset)}`);
-    return { type: isVideo ? 'video' : 'image', filePath: defaultAsset };
-  }
-
-  // 4. Absolute fallback: Shiva or News default if available
-  const anyDefault = fs.readdirSync(DEFAULTS_DIR).find((f) => f.endsWith('.jpg') || f.endsWith('.png'));
-  if (anyDefault) {
-    return { type: 'image', filePath: path.join(DEFAULTS_DIR, anyDefault) };
-  }
-
-  return null;
+  // Absolute fallback: pick any verified moving video
+  const anyClip = getCategoryVideoPool(BABY_DIR)[0] || path.join(DEFAULTS_DIR, 'slot1_dance.mp4');
+  return { type: 'video', filePath: anyClip };
 }
 
 /**
@@ -722,22 +514,22 @@ export function detectScriptureEpic(item = {}) {
 }
 
 /**
- * Ensures high-quality 30-45s clip exists for Slot 4 (Epic Scriptures & Wisdom)
- * Downloads or slices via yt-dlp.exe, with fallback to pre-cached or local clip
+ * Ensures high-quality moving video clip exists for Slot 4 (Epic Scriptures & Wisdom)
+ * 100% MP4 video. ZERO static image fallbacks.
  * @param {Object} item - Scripture topic item
- * @returns {Promise<string>} Path to local video clip or image
+ * @returns {Promise<string>} Path to local moving video clip
  */
 export async function fetchScriptureClip(item = {}) {
   const filename = item.clipFilename || `${item.id || 'scripture'}.mp4`;
   const targetPath = path.join(SCRIPTURES_DIR, filename);
 
-  // 1. If clip already exists and is healthy (> 100KB), reuse it
+  // 1. If dedicated clip already exists and is healthy (> 100KB), reuse it
   if (fs.existsSync(targetPath) && fs.statSync(targetPath).size > 100000) {
     logger.info(`Using cached scripture video clip: ${filename}`);
     return targetPath;
   }
 
-  // 2. Use yt-dlp to automatically slice high-quality clip from YouTube
+  // 2. Try yt-dlp slicing if yt-dlp is available
   if (fs.existsSync(YTDLP_PATH) || YTDLP_PATH === 'yt-dlp') {
     const theme = item.dialogueTheme || item.englishTitle || 'Mahabharat Krishna Arjun Geeta';
     const searchQuery = `ytsearch1:${theme} animation scene`;
@@ -754,13 +546,9 @@ export async function fetchScriptureClip(item = {}) {
 
     try {
       await new Promise((resolve, reject) => {
-        const proc = execFile(YTDLP_PATH, ytdlpArgs, { timeout: 60000 }, (err, stdout, stderr) => {
-          if (err) {
-            logger.warn(`yt-dlp slice error: ${stderr || err.message}`);
-            reject(err);
-          } else {
-            resolve(stdout);
-          }
+        execFile(YTDLP_PATH, ytdlpArgs, { timeout: 45000 }, (err, stdout, stderr) => {
+          if (err) reject(err);
+          else resolve(stdout);
         });
       });
 
@@ -768,40 +556,26 @@ export async function fetchScriptureClip(item = {}) {
         logger.success(`Successfully sliced and saved scripture clip: ${filename}`);
         return targetPath;
       }
-    } catch (e) {
-      logger.warn(`yt-dlp clip extraction failed (${e.message}), checking category-matched fallbacks.`);
+    } catch (_) {
+      logger.info('yt-dlp slice skipped or failed; selecting from verified category video pool.');
     }
   }
 
-  // 3. Category-Aware Local Fallback Pool (NEVER mix Ramayana with Mahabharata)
+  // 3. Category-Aware Local Moving Video Pool (100% MP4 videos, ZERO static images)
   const epicCategory = detectScriptureEpic(item);
-  logger.info(`Resolving local scripture fallback for category: [${epicCategory.toUpperCase()}] (topic: "${item.englishTitle || item.id || ''}")`);
+  logger.info(`Resolving local scripture moving video for category: [${epicCategory.toUpperCase()}] (topic: "${item.englishTitle || item.id || ''}")`);
 
   let candidates = [];
   if (epicCategory === 'ramayana') {
-    const isHanuman = `${item.id || ''} ${item.englishTitle || ''} ${item.dialogueTheme || ''}`.toLowerCase().includes('hanuman');
-    if (isHanuman) {
-      candidates = [
-        path.join(SCRIPTURES_DIR, 'hanuman_ravana.mp4'),
-        path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4'),
-        path.join(SCRIPTURES_DIR, 'hanuman_ravana.jpg'),
-        path.join(DEFAULTS_DIR, 'slot2_hanuman.jpg'),
-        path.join(SCRIPTURES_DIR, 'ram_durbar.jpg'),
-      ];
-    } else {
-      candidates = [
-        path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4'),
-        path.join(SCRIPTURES_DIR, 'hanuman_ravana.mp4'),
-        path.join(SCRIPTURES_DIR, 'ram_durbar.jpg'),
-        path.join(DEFAULTS_DIR, 'slot2_hanuman.jpg'),
-        path.join(SCRIPTURES_DIR, 'hanuman_ravana.jpg'),
-      ];
-    }
+    candidates = [
+      path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4'),
+      path.join(SCRIPTURES_DIR, 'hanuman_ravana.mp4'),
+    ];
   } else if (epicCategory === 'gita') {
     candidates = [
       path.join(SCRIPTURES_DIR, 'geeta_saar.mp4'),
+      path.join(SCRIPTURES_DIR, 'vishwaroop_darshan.mp4'),
       path.join(SCRIPTURES_DIR, 'karna_daan.mp4'),
-      path.join(SCRIPTURES_DIR, 'bhishma_pratigya.mp4'),
     ];
   } else if (epicCategory === 'mahabharata') {
     const itemText = `${item.id || ''} ${item.englishTitle || ''} ${item.dialogueTheme || ''}`.toLowerCase();
@@ -825,23 +599,17 @@ export async function fetchScriptureClip(item = {}) {
       ];
     }
   } else {
-    // General / festival fallback pool
-    candidates = [
-      path.join(SCRIPTURES_DIR, 'geeta_saar.mp4'),
-      path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4'),
-      path.join(SCRIPTURES_DIR, 'hanuman_ravana.mp4'),
-      path.join(DEFAULTS_DIR, 'slot2_shiva.jpg'),
-      path.join(DEFAULTS_DIR, 'slot2_hanuman.jpg'),
-    ];
+    candidates = getCategoryVideoPool(SCRIPTURES_DIR);
   }
 
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate) && fs.statSync(candidate).size > 50000) {
-      logger.success(`Matched local ${epicCategory.toUpperCase()} scripture asset: ${path.basename(candidate)}`);
-      return candidate;
-    }
+  const validCandidates = candidates.filter((f) => fs.existsSync(f) && fs.statSync(f).size > 50000);
+  const pool = validCandidates.length > 0 ? validCandidates : getCategoryVideoPool(SCRIPTURES_DIR);
+  const chosen = pickUnusedFallbackClip(pool, `scriptures_${epicCategory}`);
+
+  if (chosen && fs.existsSync(chosen)) {
+    logger.success(`Matched local ${epicCategory.toUpperCase()} scripture moving video: ${path.basename(chosen)}`);
+    return chosen;
   }
 
-  // 4. Return null if no clip available
-  return null;
+  return path.join(SCRIPTURES_DIR, 'geeta_saar.mp4');
 }
