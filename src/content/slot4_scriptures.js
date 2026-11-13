@@ -3,6 +3,7 @@ import fs from 'fs';
 import { config } from '../config.js';
 import { getTodayOccasion, getRotationIndex } from './festival_calendar.js';
 import { fetchScriptureClip } from '../utils/media_fetcher.js';
+import { transliterateHindiToHinglish } from '../utils/text_utils.js';
 
 export const SCRIPTURES_EPICS = [
   {
@@ -19,15 +20,18 @@ export const SCRIPTURES_EPICS = [
     segments: [
       {
         hindi: 'कुरुक्षेत्र के भीषण मैदान में जब अर्जुन मोह और शोक में डूब गए, तब भगवान श्री कृष्ण ने उन्हें कर्म का अमर संदेश दिया।',
-        english: 'When Arjuna fell into despair on the battlefield of Kurukshetra, Lord Krishna revealed eternal truth.',
+        hinglish: 'Kurukshetra ke bheeshan maidan mein jab Arjun moh aur shok mein doob gaye, tab Bhagwan Shri Krishna ne unhein karm ka amar sandesh diya.',
+        english: 'Kurukshetra ke bheeshan maidan mein jab Arjun moh aur shok mein doob gaye, tab Bhagwan Shri Krishna ne unhein karm ka amar sandesh diya.',
       },
       {
         hindi: 'श्री कृष्ण ने कहा कि तुम्हारा अधिकार केवल निष्ठापूर्वक कर्म करने पर है, उसके फलों पर कभी नहीं।',
-        english: 'Krishna declared that your right is to perform your duties, never to obsess over results.',
+        hinglish: 'Shri Krishna ne kaha ki tumhara adhikaar keval nishthapoorvak karm karne par hai, uske phalon par kabhi nahi.',
+        english: 'Shri Krishna ne kaha ki tumhara adhikaar keval nishthapoorvak karm karne par hai, uske phalon par kabhi nahi.',
       },
       {
         hindi: 'परिणाम की चिंता छोड़कर अपने कर्तव्य को पूरी शक्ति से निभाएं, सच्ची विजय स्वतः आपकी होगी।',
-        english: 'Release anxiety over outcomes, perform your duty with pure intent, and righteous victory will follow.',
+        hinglish: 'Parinaam ki chinta chhodkar apne kartavya ko poori shakti se nibhayein, sachhi vijay swatah aapki hogi.',
+        english: 'Parinaam ki chinta chhodkar apne kartavya ko poori shakti se nibhayein, sachhi vijay swatah aapki hogi.',
       },
     ],
     tags: ['shorts', 'bhagavadgita', 'krishna', 'arjuna', 'mahabharata', 'geetasaar', 'karmayoga', 'hinduism', 'wisdom'],
@@ -46,15 +50,18 @@ export const SCRIPTURES_EPICS = [
     segments: [
       {
         hindi: 'महाभारत का इतिहास गवाह है देवव्रत की उस कठोर प्रतिज्ञा का, जिसने उन्हें पितामह भीष्म बना दिया।',
-        english: 'History stands witness to Devavrata sacred vow that transformed him into Grandfather Bhishma.',
+        hinglish: 'Mahabharata ka itihaas gawaah hai Devavrata ki us kathor pratigya ka, jisne unhein Pitamah Bhishma bana diya.',
+        english: 'Mahabharata ka itihaas gawaah hai Devavrata ki us kathor pratigya ka, jisne unhein Pitamah Bhishma bana diya.',
       },
       {
         hindi: 'अपने पिता महाराज शांतनु के सुख के लिए उन्होंने आजीवन ब्रह्मचर्य और हस्तिनापुर के सिंहासन का त्याग कर दिया।',
-        english: 'For his father happiness, he renounced the golden throne and took a lifelong vow of celibacy.',
+        hinglish: 'Apne pita Maharaj Shantanu ke sukh ke liye unhone ajeevan brahmacharya aur Hastinapur ke singhasan ka tyaag kar diya.',
+        english: 'Apne pita Maharaj Shantanu ke sukh ke liye unhone ajeevan brahmacharya aur Hastinapur ke singhasan ka tyaag kar diya.',
       },
       {
         hindi: 'यह दृश्य हमें सिखाता है कि माता-पिता के सम्मान और सत्य के लिए दिया गया बलिदान सदा अमर रहता है।',
-        english: 'This epic moment teaches that sacrifice for parents and upholding honor echoes through eternity.',
+        hinglish: 'Yeh drishya humein sikhata hai ki mata-pita ke samman aur satya ke liye diya gaya balidaan sada amar rehta hai.',
+        english: 'Yeh drishya humein sikhata hai ki mata-pita ke samman aur satya ke liye diya gaya balidaan sada amar rehta hai.',
       },
     ],
     tags: ['shorts', 'mahabharata', 'bhishma', 'bhishmapratigya', 'epicwisdom', 'dharma', 'sanatan', 'sacrifice'],
@@ -73,15 +80,18 @@ export const SCRIPTURES_EPICS = [
     segments: [
       {
         hindi: 'दानवीर कर्ण जानते थे कि उनके दिव्य कवच और कुंडल ही उनकी जीवन रक्षा का एकमात्र साधन थे।',
-        english: 'Daanveer Karna knew that his celestial armor was the only shield protecting his mortal life.',
+        hinglish: 'Daanveer Karna jaante the ki unke divya kavach aur kundal hi unki jeevan raksha ka ekmaatra saadhan the.',
+        english: 'Daanveer Karna jaante the ki unke divya kavach aur kundal hi unki jeevan raksha ka ekmaatra saadhan the.',
       },
       {
         hindi: 'फिर भी जब देवराज इंद्र भिक्षुक बनकर आए, तो कर्ण ने मुस्कुराते हुए अपने अमर कवच को दान कर दिया।',
-        english: 'Yet when Indra arrived disguised as a beggar, Karna cleaved his armor and gifted it with a smile.',
+        hinglish: 'Phir bhi jab Devraj Indra bhikshuk bankar aaye, toh Karna ne muskuraate hue apne amar kavach ko daan kar diya.',
+        english: 'Phir bhi jab Devraj Indra bhikshuk bankar aaye, toh Karna ne muskuraate hue apne amar kavach ko daan kar diya.',
       },
       {
         hindi: 'सच्ची उदारता वही है जो संकट के समय भी दूसरों की सहायता से पीछे न हटे। कर्ण का नाम आज भी अमर है।',
-        english: 'True nobility never refuses an earnest request. Karna charity remains immortal in history.',
+        hinglish: 'Sachhi udaarta wahi hai jo sankat ke samay bhi doosron ki sahayata se peeche na hate. Karna ka naam aaj bhi amar hai.',
+        english: 'Sachhi udaarta wahi hai jo sankat ke samay bhi doosron ki sahayata se peeche na hate. Karna ka naam aaj bhi amar hai.',
       },
     ],
     tags: ['shorts', 'karna', 'daanveerkarna', 'mahabharata', 'epicdialogue', 'generosity', 'karma', 'dharma'],
@@ -100,15 +110,18 @@ export const SCRIPTURES_EPICS = [
     segments: [
       {
         hindi: 'जब लंका के स्वर्ण दरबार में रावण ने अपने अहंकार का प्रदर्शन किया, तब वीर हनुमान निर्भय होकर बोले।',
-        english: 'When Ravana displayed blinding arrogance in Lanka court, Hanuman stood completely fearless.',
+        hinglish: 'Jab Lanka ke swarn darbaar mein Ravana ne apne ahankaar ka pradarshan kiya, tab veer Hanuman nirbhay hokar bole.',
+        english: 'Jab Lanka ke swarn darbaar mein Ravana ne apne ahankaar ka pradarshan kiya, tab veer Hanuman nirbhay hokar bole.',
       },
       {
         hindi: 'हनुमान जी ने रावण को चेतावनी दी कि अधर्म और पराई स्त्री के हरण का परिणाम निश्चित विनाश ही होता है।',
-        english: 'Hanuman warned the demon king that unrighteousness and greed inevitably invite complete ruin.',
+        hinglish: 'Hanuman ji ne Ravana ko chetavni di ki adharma aur paraayi stree ke haran ka parinaam nishchit vinaash hi hota hai.',
+        english: 'Hanuman ji ne Ravana ko chetavni di ki adharma aur paraayi stree ke haran ka parinaam nishchit vinaash hi hota hai.',
       },
       {
         hindi: 'सत्य और धर्म के मार्ग पर चलने वाले को किसी शक्ति का भय नहीं होता। जय श्री राम!',
-        english: 'Those who walk the sacred path of Truth and Dharma fear no power on earth. Jai Shri Ram!',
+        hinglish: 'Satya aur dharma ke maarg par chalne wale ko kisi shakti ka bhay nahi hota. Jai Shri Ram!',
+        english: 'Satya aur dharma ke maarg par chalne wale ko kisi shakti ka bhay nahi hota. Jai Shri Ram!',
       },
     ],
     tags: ['shorts', 'ramayana', 'hanuman', 'jaishriram', 'ravana', 'sundarkand', 'fearless', 'dharma'],
@@ -127,15 +140,18 @@ export const SCRIPTURES_EPICS = [
     segments: [
       {
         hindi: 'श्री राम का संपूर्ण जीवन हमें सिखाता है कि एक आदर्श राजा और मनुष्य का कर्तव्य क्या होता है।',
-        english: 'The life of Lord Rama exemplifies the highest duties of an ideal leader and noble human.',
+        hinglish: 'Shri Ram ka sampoorna jeevan humein sikhata hai ki ek aadarsh raja aur manushya ka kartavya kya hota hai.',
+        english: 'Shri Ram ka sampoorna jeevan humein sikhata hai ki ek aadarsh raja aur manushya ka kartavya kya hota hai.',
       },
       {
         hindi: 'रामराज्य का अर्थ है ऐसा समाज जहाँ न्याय, करुणा और सत्य की विजय हो, और किसी के साथ अन्याय न हो।',
-        english: 'Ram Rajya signifies a just realm where truth and compassion prevail, and none suffer injustice.',
+        hinglish: 'Ramrajya ka arth hai aisa samaaj jahan nyaay, karuna aur satya ki vijay ho, aur kisi ke saath anyaay na ho.',
+        english: 'Ramrajya ka arth hai aisa samaaj jahan nyaay, karuna aur satya ki vijay ho, aur kisi ke saath anyaay na ho.',
       },
       {
         hindi: 'जब नेतृत्व निस्वार्थ सेवा बन जाता है, तभी समाज में शांति और समृद्धि का वास होता है। जय श्री राम!',
-        english: 'When leadership transforms into selfless service, peace and prosperity flourish. Jai Shri Ram!',
+        hinglish: 'Jab netritva niswaarth seva ban jaata hai, tabhi samaaj mein shaanti aur samriddhi ka vaas hota hai. Jai Shri Ram!',
+        english: 'Jab netritva niswaarth seva ban jaata hai, tabhi samaaj mein shaanti aur samriddhi ka vaas hota hai. Jai Shri Ram!',
       },
     ],
     tags: ['shorts', 'ramayana', 'shriram', 'ramrajya', 'dharma', 'jaishriram', 'sanatandharma', 'wisdom'],
@@ -154,15 +170,18 @@ export const SCRIPTURES_EPICS = [
     segments: [
       {
         hindi: 'जब भगवान श्री कृष्ण ने अर्जुन को अपना विराट विश्वरूप दिखाया, तो संपूर्ण ब्रह्मांड उनके भीतर समाया दिखा।',
-        english: 'When Lord Krishna unveiled His cosmic form to Arjuna, all universal dimensions appeared within Him.',
+        hinglish: 'Jab Bhagwan Shri Krishna ne Arjuna ko apna viraat vishwaroop dikhaya, toh sampoorna brahmaand unke bheetar samaya dikha.',
+        english: 'Jab Bhagwan Shri Krishna ne Arjuna ko apna viraat vishwaroop dikhaya, toh sampoorna brahmaand unke bheetar samaya dikha.',
       },
       {
         hindi: 'प्रभु ने कहा: कालोऽस्मि लोकक्षयकृत्प्रवृद्धो। मैं संपूर्ण लोकों का संहार करने वाला महाकाल हूँ।',
-        english: 'The Lord proclaimed: I am mighty all-consuming Time, the mover and transformer of every world.',
+        hinglish: 'Prabhu ne kaha: Kaalo asmi lokakshayakrit pravriddho. Main sampoorna lokon ka samhaar karne wala Mahakaal hoon.',
+        english: 'Prabhu ne kaha: Kaalo asmi lokakshayakrit pravriddho. Main sampoorna lokon ka samhaar karne wala Mahakaal hoon.',
       },
       {
         hindi: 'यह दृश्य हमें याद दिलाता है कि समय सबसे बलवान है। विनम्र रहें और ईश्वर की इच्छा को पहचानें।',
-        english: 'This revelation teaches that Time reigns supreme. Cultivate humility and align with Dharma.',
+        hinglish: 'Yeh drishya humein yaad dilata hai ki samay sabse balwaan hai. Vinamra rahein aur Ishwar ki ichha ko pehchaanein.',
+        english: 'Yeh drishya humein yaad dilata hai ki samay sabse balwaan hai. Vinamra rahein aur Ishwar ki ichha ko pehchaanein.',
       },
     ],
     tags: ['shorts', 'krishna', 'vishwaroop', 'bhagavadgita', 'cosmicvision', 'hinduism', 'spiritual', 'god'],
@@ -193,11 +212,13 @@ export async function generateSlot4Content(customTopic = null) {
     segments = [
       {
         hindi: fest.hindi,
-        english: fest.english,
+        hinglish: transliterateHindiToHinglish(fest.hindi),
+        english: transliterateHindiToHinglish(fest.hindi),
       },
       {
         hindi: `इस पावन पर्व पर यह संदेश हमें धर्म और सच्चाई के मार्ग पर अडिग रहने की प्रेरणा देता है।`,
-        english: `On this auspicious occasion, this sacred message inspires us to stand firm in Dharma.`,
+        hinglish: 'Is paawan parv par yeh sandesh humein dharma aur sachhai ke maarg par adig rehne ki prerna deta hai.',
+        english: 'Is paawan parv par yeh sandesh humein dharma aur sachhai ke maarg par adig rehne ki prerna deta hai.',
       },
     ];
   } else if (customTopic) {
@@ -209,15 +230,18 @@ export async function generateSlot4Content(customTopic = null) {
     segments = [
       {
         hindi: `आज हम ${customTopic} के उस ऐतिहासिक और प्रेरक प्रसंग को याद करते हैं जो हमें जीवन की दिशा दिखाता है।`,
-        english: `Today we examine the historic and inspirational scene of ${customTopic} that illuminates our life path.`,
+        hinglish: `Aaj hum ${customTopic} ke us aitihaasik aur prerak prasang ko yaad karte hain jo humein jeevan ki disha dikhaata hai.`,
+        english: `Aaj hum ${customTopic} ke us aitihaasik aur prerak prasang ko yaad karte hain jo humein jeevan ki disha dikhaata hai.`,
       },
       {
         hindi: `सनातन शास्त्रों का प्रत्येक संवाद हमें धर्म, सत्य और निष्ठा की सबसे ऊंची सीख देता है।`,
-        english: `Every scripture dialogue offers profound guidance on righteousness, truth, and duty.`,
+        hinglish: 'Sanatan shaastron ka pratyek samvaad humein dharma, satya aur nishtha ki sabse unchi seekh deta hai.',
+        english: 'Sanatan shaastron ka pratyek samvaad humein dharma, satya aur nishtha ki sabse unchi seekh deta hai.',
       },
       {
         hindi: `इस पावन संदेश को अपने जीवन में उतारें और धर्म के मार्ग पर अडिग रहें। हर हर महादेव! जय श्री राम!`,
-        english: `Embrace this sacred wisdom in daily life and stand firm in Dharma. Har Har Mahadev! Jai Shri Ram!`,
+        hinglish: 'Is paawan sandesh ko apne jeevan mein utaarein aur dharma ke maarg par adig rahein. Har Har Mahadev! Jai Shri Ram!',
+        english: 'Is paawan sandesh ko apne jeevan mein utaarein aur dharma ke maarg par adig rahein. Har Har Mahadev! Jai Shri Ram!',
       },
     ];
   } else {
@@ -248,7 +272,7 @@ export async function generateSlot4Content(customTopic = null) {
   }
 
   const voiceScript = segments.map((s) => s.hindi).join(' ');
-  const englishSubtitles = segments.map((s) => s.english).join(' ');
+  const subtitleText = segments.map((s) => s.hinglish || transliterateHindiToHinglish(s.hindi)).join(' ');
 
   // Comprehensive Transformative Fair Use, Moral Takeaway, and Section 107 Disclaimer
   const description = `${title}\n\n` +
@@ -273,7 +297,8 @@ export async function generateSlot4Content(customTopic = null) {
     ],
     voice: config.voices.slot4 || config.voices.slot2,
     voiceScript,
-    englishSubtitles,
+    subtitleText,
+    englishSubtitles: subtitleText,
     segments,
     shlokSanskrit,
     shlokEnglish,

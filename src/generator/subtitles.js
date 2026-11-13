@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../utils/logger.js';
+import { transliterateHindiToHinglish } from '../utils/text_utils.js';
 
 /**
  * Format milliseconds into ASS timecode (H:MM:SS.cs)
@@ -118,7 +119,8 @@ export function generateAssSubtitles({
 
     for (let i = 0; i < segments.length; i++) {
       const span = segmentTimeSpans[i];
-      const text = (segments[i].hinglish || segments[i].english || segments[i].hindi || '').trim();
+      // Ensure subtitles always use exact transliterated Hinglish matching spoken Hindi voiceover
+      const text = (segments[i].hinglish || (segments[i].hindi ? transliterateHindiToHinglish(segments[i].hindi) : segments[i].english) || '').trim();
       const words = text.replace(/[#*`_~]/g, ' ').split(/\s+/).filter(Boolean);
       if (words.length === 0) continue;
 
@@ -146,8 +148,11 @@ export function generateAssSubtitles({
 
   // Fallback if segments was empty
   if (subtitleCues.length === 0) {
-    const cleanEnglish = (englishText || '').replace(/[#*`_~]/g, ' ').trim();
-    const words = cleanEnglish.split(/\s+/).filter(Boolean);
+    let cleanSubtitle = (englishText || '').replace(/[#*`_~]/g, ' ').trim();
+    if (/[\u0900-\u097F]/.test(cleanSubtitle)) {
+      cleanSubtitle = transliterateHindiToHinglish(cleanSubtitle);
+    }
+    const words = cleanSubtitle.split(/\s+/).filter(Boolean);
 
     if (words.length > 0) {
       const chunkSize = 3;

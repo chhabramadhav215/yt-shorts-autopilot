@@ -52,6 +52,17 @@ export function sanitizeTtsText(text) {
  * @returns {string[]}
  */
 export function splitIntoTtsChunks(text, maxLen = 140) {
+  // If text contains SSML break tags (e.g. injected between dialogue lines), split by break tag first
+  if (/<break[^>]*>/i.test(text)) {
+    const rawSegments = text.split(/<break[^>]*>/i);
+    const finalChunks = [];
+    for (const seg of rawSegments) {
+      const segChunks = splitIntoTtsChunks(seg, maxLen);
+      finalChunks.push(...segChunks);
+    }
+    return finalChunks.filter((c) => c.trim().length > 0);
+  }
+
   const clean = sanitizeTtsText(text);
   if (clean.length <= maxLen) return [clean];
 
@@ -473,7 +484,7 @@ export async function generateDialogueVoiceover({
   adultRate = '+4%',
   babyPitch = '+38%',
   babyRate = '+6%',
-  pauseSec = 0.20,
+  pauseSec = 0.30,
 }) {
   fs.mkdirSync(outputDir, { recursive: true });
   cleanupPartialAudio(outputDir);

@@ -6,6 +6,7 @@ import { getSlot1AudioBeds } from '../utils/audio_beds.js';
 import { fetchSlotBackgroundMedia, getCategoryVideoPool } from '../utils/media_fetcher.js';
 import { pickUnusedFallbackClip } from '../utils/used_assets.js';
 import { ensureSlot1Pool, getSlot1PoolClips } from '../utils/ensure_slot1_pool.js';
+import { transliterateHindiToHinglish } from '../utils/text_utils.js';
 
 const TRACKER_PATH = path.join(config.assetsDir, 'history_tracker.json');
 
@@ -787,9 +788,9 @@ CURRENT VIDEO CLIP CONTEXT (MUST 100% MATCH WHAT IS ON SCREEN):
 - Comedic Angle: ${randomTwist}
 
 STRICT CONTENT RULES:
-1. Two-Character Comedy Dialogue: 100% MATCH what is happening in the video footage! NO monologues, NO generic filler like "mera chehra dekho".
+1. Two-Character Comedy Dialogue: 100% MATCH what is happening in the video footage! ABSOLUTELY NO MONOLOGUES! NO SINGLE-CHARACTER SPEECHES! The script MUST be a rapid, back-and-forth funny conversation between Character 1 (Adult: e.g. Cop, Teacher, Dad, Doctor) and Character 2 (Kid: Little Boss).
 2. Banter Structure (4 lines total, ~20-25 seconds total speech):
-   - Line 1 (${roles.adult}): Catches, questions, or confronts the baby based directly on what the baby is doing in the video clip.
+   - Line 1 (${roles.adult}): Catches, questions, or confronts the kid based directly on what the kid is doing in the video clip.
    - Line 2 (${roles.baby}): Sassy toddler comeback with innocent hilarious logic.
    - Line 3 (${roles.adult}): Exasperated, shocked counter-question.
    - Line 4 (${roles.baby}): Laugh-out-loud funny punchline that leaves viewers laughing!
@@ -798,7 +799,7 @@ STRICT CONTENT RULES:
    - "speaker": "Adult" or "Baby"
    - "role": "${roles.adult}" or "${roles.baby}"
    - "hindi": Natural spoken Hindi in Devanagari script for neural TTS.
-   - "hinglish": Clean Latin transliteration for on-screen subtitles.
+   - "hinglish": Clean Latin transliteration matching the exact spoken Hindi words for subtitles.
 
 Return ONLY a valid JSON object without markdown fences:
 {
@@ -958,13 +959,14 @@ export async function generateSlot1Content(customTopic = null) {
     const isAdult = item.speaker === 'Adult' || item.speaker?.toLowerCase().includes('adult');
     const roleName = item.role || (isAdult ? clipContextInfo.roles.adult : clipContextInfo.roles.baby);
     const cleanHindi = (item.hindi || '').trim();
-    const cleanHinglish = (item.hinglish || item.english || cleanHindi).trim().replace(/^[A-Za-z]+:\s*/, '');
+    const rawHinglish = item.hinglish || transliterateHindiToHinglish(cleanHindi) || cleanHindi;
+    const cleanHinglish = rawHinglish.trim().replace(/^[A-Za-z]+:\s*/, '');
 
     return {
       speaker: isAdult ? 'Adult' : 'Baby',
       role: roleName,
       hindi: cleanHindi,
-      hinglish: `${roleName.toUpperCase()}: ${cleanHinglish}`,
+      hinglish: cleanHinglish,
       text: cleanHindi,
     };
   });
@@ -977,8 +979,8 @@ export async function generateSlot1Content(customTopic = null) {
     english: line.hinglish,
   }));
 
-  // Joined voice scripts for single-string fallbacks
-  const fullHindiScript = formattedDialogueLines.map((l) => l.hindi).join(' ');
+  // Injected SSML breaks between character dialogue lines for natural conversational cadence
+  const fullHindiScript = formattedDialogueLines.map((l) => l.hindi).join(' <break time="0.3s"/> ');
   const fullHinglishSubtitles = formattedDialogueLines.map((l) => l.hinglish).join(' ');
 
   // Select upbeat background music track

@@ -403,3 +403,140 @@ export function extractNewsVisualQueries(headline = '') {
     detectedCategory: 'general_news',
   };
 }
+
+const HINDI_WORD_DICT = {
+  'है': 'hai', 'हैं': 'hain', 'हो': 'ho', 'हूँ': 'hoon', 'था': 'tha', 'थी': 'thi', 'थे': 'the',
+  'का': 'ka', 'के': 'ke', 'की': 'ki', 'को': 'ko', 'में': 'mein', 'से': 'se', 'ने': 'ne', 'पर': 'par',
+  'और': 'aur', 'या': 'ya', 'तो': 'toh', 'भी': 'bhi', 'ही': 'hi', 'ना': 'na', 'नहीं': 'nahi',
+  'यह': 'yeh', 'वह': 'woh', 'ये': 'ye', 'वे': 've', 'इस': 'is', 'उस': 'us', 'इन': 'in', 'उन': 'un',
+  'क्या': 'kya', 'क्यों': 'kyun', 'कैसे': 'kaise', 'कब': 'kab', 'कहाँ': 'kahan', 'कहा': 'kaha',
+  'बोले': 'bole', 'बोला': 'bola', 'बोली': 'boli',
+  'आप': 'aap', 'तुम': 'tum', 'तू': 'tu', 'हम': 'hum', 'मैं': 'main', 'मुझे': 'mujhe', 'तुम्हें': 'tumhein',
+  'उनका': 'unka', 'उनकी': 'unki', 'उनके': 'unke', 'इसका': 'iska', 'इसकी': 'iski', 'इसके': 'iske',
+  'अपना': 'apna', 'अपनी': 'apni', 'अपने': 'apne', 'हमारा': 'hamara', 'हमारी': 'hamari', 'हमारे': 'hamare',
+  'कर': 'kar', 'करना': 'karna', 'किया': 'kiya', 'किए': 'kiye', 'कीजिए': 'kijiye', 'करो': 'karo',
+  'रहा': 'raha', 'रही': 'rahi', 'रहे': 'rahe',
+  'गया': 'gaya', 'गई': 'gayi', 'गए': 'gaye', 'जा': 'ja', 'जाना': 'jaana', 'जाता': 'jaata', 'जाती': 'jaati',
+  'जब': 'jab', 'तब': 'tab', 'अब': 'ab', 'सब': 'sab', 'उन्हें': 'unhein',
+  'एक': 'ek', 'दो': 'do', 'तीन': 'teen', 'चार': 'chaar', 'पांच': 'paanch',
+  'भगवान': 'Bhagwan', 'प्रभु': 'Prabhu', 'श्री': 'Shri', 'कृष्ण': 'Krishna', 'अर्जुन': 'Arjun',
+  'राम': 'Ram', 'सीता': 'Sita', 'लक्ष्मण': 'Lakshman', 'हनुमान': 'Hanuman', 'रावण': 'Ravana',
+  'भीष्म': 'Bhishma', 'कर्ण': 'Karna', 'शांतनु': 'Shantanu', 'देवव्रत': 'Devavrata',
+  'कुरुक्षेत्र': 'Kurukshetra', 'हस्तिनापुर': 'Hastinapur', 'द्वारका': 'Dwarka',
+  'महाभारत': 'Mahabharata', 'रामायण': 'Ramayana', 'गीता': 'Gita', 'धर्म': 'Dharma',
+  'कर्म': 'Karma', 'सत्य': 'Satya', 'न्याय': 'Nyaay', 'शान्ति': 'Shaanti', 'शांति': 'Shaanti',
+  'सुदामा': 'Sudama', 'शिव': 'Shiva', 'महादेव': 'Mahadev', 'नीलकंठ': 'Neelkanth',
+  'गणेश': 'Ganesh', 'पार्वती': 'Parvati', 'कार्तिकेय': 'Kartikeya', 'ब्रह्मांड': 'Brahmaand',
+  'जय': 'Jai', 'हर': 'Har', 'राधे': 'Radhe', 'ॐ': 'Om',
+  'छोटे': 'chhote', 'छोटा': 'chhota', 'छोटी': 'chhoti', 'बच्चा': 'bachha', 'बच्चे': 'bachhe',
+  'पापा': 'Papa', 'मम्मी': 'Mummy', 'दादी': 'Dadi', 'दादा': 'Dada', 'अंकल': 'Uncle',
+  'गाड़ी': 'gaadi', 'कार': 'car', 'चालान': 'chalan', 'लाइसेंस': 'license', 'हेलमेट': 'helmet',
+  'लॉलीपॉप': 'lollipop', 'चॉकलेट': 'chocolate', 'फ्रिज': 'fridge', 'दूध': 'doodh',
+  'डॉक्टर': 'Doctor', 'चींटी': 'cheenti', 'सुई': 'sui', 'इंजेक्शन': 'injection',
+  'पुशअप्स': 'pushups', 'जंप्स': 'jumps', 'सोफे': 'sofa', 'स्प्रिंग': 'spring',
+  'पहलवान': 'pehlwaan', 'ट्रेनर': 'trainer', 'खीर': 'kheer', 'बैटरी': 'battery',
+  'शीशे': 'sheeshe', 'चेहरा': 'chehra', 'मुंह': 'muh', 'हंसी': 'hansi', 'चुटकुला': 'chutkula',
+  'इंजीनियर': 'engineer', 'मीनार': 'minaar', 'बिल्डिंग': 'building', 'ट्रेन': 'train',
+  'टिकट': 'ticket', 'पैसेंजर': 'passenger', 'जेल': 'jail', 'मैच': 'match',
+  'गोल्ड': 'gold', 'मेडल': 'medal', 'आइसक्रीम': 'ice cream', 'स्कूप': 'scoop',
+  'टीचर': 'Teacher', 'होमवर्क': 'homework', 'स्कूल': 'school', 'क्लास': 'class',
+  'दुकानदार': 'Shopkeeper', 'पैसे': 'paise', 'रुपये': 'rupaye',
+  'धन': 'dhan', 'दौलत': 'daulat', 'केवल': 'keval', 'प्रेम': 'prem', 'सच्ची': 'sachhi', 'भावना': 'bhavana',
+};
+
+const DEV_DIGITS = {
+  '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+  '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
+};
+
+const DEV_VOWELS = {
+  'अ': 'a', 'आ': 'aa', 'इ': 'i', 'ई': 'ee', 'उ': 'u', 'ऊ': 'oo', 'ऋ': 'ri',
+  'ए': 'e', 'ऐ': 'ai', 'ओ': 'o', 'औ': 'au',
+};
+
+const DEV_MATRAS = {
+  'ा': 'a', 'ि': 'i', 'ी': 'ee', 'ु': 'u', 'ू': 'oo', 'ृ': 'ri',
+  'े': 'e', 'ै': 'ai', 'ो': 'o', 'ौ': 'au',
+};
+
+const DEV_CONSONANTS = {
+  'क': 'k', 'ख': 'kh', 'ग': 'g', 'घ': 'gh', 'ङ': 'ng',
+  'च': 'ch', 'छ': 'chh', 'ज': 'j', 'झ': 'jh', 'ञ': 'ny',
+  'ट': 't', 'ठ': 'th', 'ड': 'd', 'ढ': 'dh', 'ण': 'n',
+  'त': 't', 'थ': 'th', 'द': 'd', 'ध': 'dh', 'न': 'n',
+  'प': 'p', 'फ': 'ph', 'ब': 'b', 'भ': 'bh', 'म': 'm',
+  'य': 'y', 'र': 'r', 'ल': 'l', 'व': 'v', 'श': 'sh', 'ष': 'sh', 'स': 's', 'ह': 'h',
+  'क्ष': 'ksh', 'त्र': 'tr', 'ज्ञ': 'gya', 'श्र': 'shr',
+  'क़': 'q', 'ख़': 'kh', 'ग़': 'gh', 'ज़': 'z', 'ड़': 'r', 'ढ़': 'rh', 'फ़': 'f',
+};
+
+/**
+ * Transliterates Hindi Devanagari text into natural, readable Hinglish (Latin alphabet).
+ * Guarantees exact 1-to-1 audio-subtitle matching when voiceover is in Hindi.
+ * @param {string} text
+ * @returns {string}
+ */
+export function transliterateHindiToHinglish(text) {
+  if (!text) return '';
+  const devanagariCount = (text.match(/[\u0900-\u097F]/g) || []).length;
+  if (devanagariCount === 0) return text;
+
+  // 1. Pre-normalize unicode and decomposed characters (Nuktas, Purna Virams)
+  let normalized = text
+    .normalize('NFC')
+    .replace(/क[\u093c]/g, 'क़')
+    .replace(/ख[\u093c]/g, 'ख़')
+    .replace(/ग[\u093c]/g, 'ग़')
+    .replace(/ज[\u093c]/g, 'ज़')
+    .replace(/ड[\u093c]/g, 'ड़')
+    .replace(/ढ[\u093c]/g, 'ढ़')
+    .replace(/फ[\u093c]/g, 'फ़')
+    .replace(/॥/g, '.')
+    .replace(/।/g, '.')
+    .replace(/[\u093c]/g, ''); // strip any dangling nuktas
+
+  // 2. Transliterate all contiguous Devanagari blocks, preserving punctuation, spaces, and Latin words
+  return normalized.replace(/[\u0900-\u097F]+/g, (word) => {
+    // Check dictionary first (exact and lowercase)
+    if (HINDI_WORD_DICT[word]) {
+      return HINDI_WORD_DICT[word];
+    }
+    if (HINDI_WORD_DICT[word.toLowerCase()]) {
+      return HINDI_WORD_DICT[word.toLowerCase()];
+    }
+
+    // Character-by-character phonetic transliteration
+    let transliterated = '';
+    const len = word.length;
+
+    for (let i = 0; i < len; i++) {
+      const c = word[i];
+      const next = word[i + 1] || '';
+
+      if (DEV_DIGITS[c]) {
+        transliterated += DEV_DIGITS[c];
+      } else if (DEV_VOWELS[c]) {
+        transliterated += DEV_VOWELS[c];
+      } else if (DEV_CONSONANTS[c]) {
+        transliterated += DEV_CONSONANTS[c];
+        // Inherent 'a' unless next is a matra, halant, or end of word (schwa deletion)
+        if (!DEV_MATRAS[next] && next !== '्' && i < len - 1) {
+          transliterated += 'a';
+        }
+      } else if (DEV_MATRAS[c]) {
+        transliterated += DEV_MATRAS[c];
+      } else if (c === 'ं' || c === 'ँ') {
+        transliterated += 'n';
+      } else if (c === 'ः') {
+        transliterated += 'h';
+      } else if (c === 'ॐ') {
+        transliterated += 'Om';
+      } else if (c === '्') {
+        // Halant suppresses inherent 'a', outputs nothing
+      }
+      // Any unmapped characters within \u0900-\u097F are safely omitted
+    }
+
+    return transliterated;
+  });
+}

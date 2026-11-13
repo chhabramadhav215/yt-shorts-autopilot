@@ -1,7 +1,7 @@
 import path from 'path';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
-import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
+import { summarizeNewsHeadline, toTitleCase, transliterateHindiToHinglish } from '../utils/text_utils.js';
 
 /**
  * Fetches latest trending IPL/Cricket news from Google News RSS
@@ -257,24 +257,28 @@ export async function generateSlot5Content(customTopic = null) {
   const segments = [
     {
       hindi: generated.hookHindi,
-      english: generated.hookEnglish,
+      hinglish: transliterateHindiToHinglish(generated.hookHindi),
+      english: transliterateHindiToHinglish(generated.hookHindi),
     },
     {
       hindi: generated.bodyPart1Hindi,
-      english: generated.bodyPart1English,
+      hinglish: transliterateHindiToHinglish(generated.bodyPart1Hindi),
+      english: transliterateHindiToHinglish(generated.bodyPart1Hindi),
     },
     {
       hindi: generated.bodyPart2Hindi,
-      english: generated.bodyPart2English,
+      hinglish: transliterateHindiToHinglish(generated.bodyPart2Hindi),
+      english: transliterateHindiToHinglish(generated.bodyPart2Hindi),
     },
     {
       hindi: generated.ctaHindi,
-      english: generated.ctaEnglish,
+      hinglish: transliterateHindiToHinglish(generated.ctaHindi),
+      english: transliterateHindiToHinglish(generated.ctaHindi),
     },
   ];
 
   const voiceScript = segments.map((s) => s.hindi).join(' ');
-  const englishSubtitles = segments.map((s) => s.english).join(' ');
+  const subtitleText = segments.map((s) => s.hinglish).join(' ');
 
   const tags = [
     'IPL2026',
@@ -318,7 +322,8 @@ export async function generateSlot5Content(customTopic = null) {
     pitch: '+0Hz',
     rate: '+10%', // Fast-paced high-energy sports commentary
     voiceScript,
-    englishSubtitles,
+    subtitleText,
+    englishSubtitles: subtitleText,
     segments,
     bgMusicPath,
     sfxAudioPath,
