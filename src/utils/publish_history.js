@@ -47,6 +47,7 @@ export function loadPublishHistory() {
         publishedTopics: Array.isArray(data.publishedTopics) ? data.publishedTopics : [],
         usedVideoClips: Array.isArray(data.usedVideoClips) ? data.usedVideoClips : [],
         usedScriptures: Array.isArray(data.usedScriptures) ? data.usedScriptures : [],
+        usedStories: Array.isArray(data.usedStories) ? data.usedStories : [],
       };
     }
   } catch (err) {
@@ -59,6 +60,7 @@ export function loadPublishHistory() {
     publishedTopics: [],
     usedVideoClips: [],
     usedScriptures: [],
+    usedStories: [],
   };
 }
 
@@ -74,6 +76,7 @@ export function savePublishHistory(data) {
       publishedTopics: (data.publishedTopics || []).filter((item) => new Date(item.publishedAt).getTime() > cutoff),
       usedVideoClips: (data.usedVideoClips || []).filter((item) => new Date(item.usedAt).getTime() > cutoff),
       usedScriptures: (data.usedScriptures || []).filter((item) => new Date(item.usedAt).getTime() > cutoff),
+      usedStories: (data.usedStories || []).filter((item) => new Date(item.usedAt).getTime() > cutoff),
     };
 
     const dir = path.dirname(HISTORY_FILE);
@@ -133,61 +136,159 @@ export function recordPublishedTopic({ slot, title = '', headline = '', url = ''
 }
 
 /**
- * Checks if a video clip (Pexels ID or local filename) was used within the last 60 days
+ * Gets the timestamp (in ms) when a video clip or photo was last used.
+ * If slot is provided, checks usage in that specific slot; otherwise checks globally.
+ * @param {string} clipIdOrName - Filename or Pexels ID
+ * @param {string} [slot] - Optional slot filter ('slot1', 'slot2', etc.)
+ * @returns {number} Timestamp in ms (0 if never used)
  */
-export function isClipRecentlyUsed(clipIdOrName, days = 60) {
-  if (!clipIdOrName) return false;
-  const idStr = String(clipIdOrName).toLowerCase();
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+export function getClipLastUsedTime(clipIdOrName, slot = null) {
+  if (!clipIdOrName) return 0;
+  const idStr = path.basename(String(clipIdOrName)).toLowerCase();
   const history = loadPublishHistory();
 
-  return history.usedVideoClips.some((c) => {
-    return String(c.id).toLowerCase() === idStr && new Date(c.usedAt).getTime() > cutoff;
+  let maxTime = 0;
+  for (const c of history.usedVideoClips) {
+    if (slot && c.slot && c.slot.toLowerCase() !== slot.toLowerCase()) {
+      continue;
+    }
+    const cId = path.basename(String(c.id)).toLowerCase();
+    if (cId === idStr) {
+      const t = new Date(c.usedAt).getTime();
+      if (t > maxTime) maxTime = t;
+    }
+  }
+
+  return maxTime;
+}
+
+/**
+ * Checks if a clip/image is on cooldown for a slot (or globally).
+ * @param {string} clipIdOrName - Filename or asset ID
+ * @param {string} [slot] - Target slot
+ * @param {number} [cooldownDays=7] - Number of days cooldown
+ * @returns {boolean}
+ */
+export function isClipOnCooldown(clipIdOrName, slot = null, cooldownDays = 7) {
+  const lastUsed = getClipLastUsedTime(clipIdOrName, slot);
+  if (lastUsed === 0) return false;
+  const cooldownMs = cooldownDays * 24 * 60 * 60 * 1000;
+  return Date.now() - lastUsed < cooldownMs;
+}
+
+/**
+ * Backwards compatible check: checks if clip was used within N days
+ */
+export function isClipRecentlyUsed(clipIdOrName, days = 60, slot = null) {
+  return isClipOnCooldown(clipIdOrName, slot, days);
+}
+
+/**
+ * Sorts an array of candidate file paths or clip names strictly by
+ * Least Recently Used (LRU) in the specified slot.
+ * Unused clips come first (timestamp = 0), followed by clips used longest ago.
+ * @param {string[]} clipPaths - Array of file paths or clip IDs
+ * @param {string} [slot] - Optional target slot
+ * @returns {string[]} Sorted array with least recently used at the front
+ */
+export function sortClipsByLeastRecentlyUsed(clipPaths, slot = null) {
+  if (!Array.isArray(clipPaths) || clipPaths.length === 0) return [];
+  const history = loadPublishHistory();
+
+  // Precompute last used timestamps
+  const times = new Map();
+  for (const p of clipPaths) {
+    const idStr = path.basename(String(p)).toLowerCase();
+    let maxTime = 0;
+    for (const c of history.usedVideoClips) {
+      if (slot && c.slot && c.slot.toLowerCase() !== slot.toLowerCase()) {
+        continue;
+      }
+      if (path.basename(String(c.id)).toLowerCase() === idStr) {
+        const t = new Date(c.usedAt).getTime();
+        if (t > maxTime) maxTime = t;
+      }
+    }
+    times.set(p, maxTime);
+  }
+
+  return [...clipPaths].sort((a, b) => {
+    const timeA = times.get(a) || 0;
+    const timeB = times.get(b) || 0;
+    if (timeA !== timeB) return timeA - timeB;
+    // Tie breaker: deterministic pseudo-random jitter
+    return (crypto.createHash('md5').update(a).digest()[0] || 0) - (crypto.createHash('md5').update(b).digest()[0] || 0);
   });
 }
 
 /**
- * Records a used video clip to ensure varied visual B-roll across videos
+ * Records a used video clip or photo to guarantee per-slot and global cooldown
  */
-export function recordUsedClip(clipIdOrName, slot = '') {
+export function recordUsedClip(clipIdOrName, slot = '', metadata = {}) {
   if (!clipIdOrName) return;
   const history = loadPublishHistory();
-  const idStr = String(clipIdOrName);
+  const idStr = path.basename(String(clipIdOrName));
 
   history.usedVideoClips.push({
     id: idStr,
-    slot,
+    slot: slot || '',
+    type: metadata.type || 'video',
+    usedAt: new Date().toISOString(),
+    ...metadata,
+  });
+
+  savePublishHistory(history);
+  logger.info(`[Publish History] Recorded media: "${idStr}" [Slot: ${slot || 'global'}]`);
+}
+
+/**
+ * Checks if a story / dialogue / shloka ID is on cooldown in a given slot
+ * @param {string} slot - 'slot2', 'slot4', etc.
+ * @param {string} storyId - Unique story or scripture ID
+ * @param {number} [cooldownDays=14] - Cooldown period in days
+ * @returns {boolean}
+ */
+export function isStoryOnCooldown(slot, storyId, cooldownDays = 14) {
+  if (!storyId) return false;
+  const history = loadPublishHistory();
+  const cutoff = Date.now() - cooldownDays * 24 * 60 * 60 * 1000;
+  const sId = String(storyId).toLowerCase();
+
+  return (history.usedStories || []).some((item) => {
+    return (
+      item.slot?.toLowerCase() === (slot || '').toLowerCase() &&
+      item.id?.toLowerCase() === sId &&
+      new Date(item.usedAt).getTime() > cutoff
+    );
+  });
+}
+
+/**
+ * Records story usage in history
+ */
+export function recordUsedStory(slot, storyId, title = '') {
+  if (!storyId) return;
+  const history = loadPublishHistory();
+  if (!Array.isArray(history.usedStories)) history.usedStories = [];
+
+  history.usedStories.push({
+    id: String(storyId),
+    slot: slot || '',
+    title: (title || '').slice(0, 100),
     usedAt: new Date().toISOString(),
   });
 
   savePublishHistory(history);
+  logger.info(`[Publish History] Recorded story: "${storyId}" [Slot: ${slot}]`);
 }
 
 /**
- * Checks if a scripture story ID (e.g. 'hanuman_ravana') was used within the last 60 days
+ * Backwards compatible scripture tracking
  */
 export function isScriptureRecentlyUsed(scriptureId, days = 60) {
-  if (!scriptureId) return false;
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  const history = loadPublishHistory();
-
-  return history.usedScriptures.some((s) => {
-    return s.id === scriptureId && new Date(s.usedAt).getTime() > cutoff;
-  });
+  return isStoryOnCooldown('slot4', scriptureId, days);
 }
 
-/**
- * Records scripture episode usage
- */
 export function recordUsedScripture(scriptureId) {
-  if (!scriptureId) return;
-  const history = loadPublishHistory();
-
-  history.usedScriptures.push({
-    id: scriptureId,
-    usedAt: new Date().toISOString(),
-  });
-
-  savePublishHistory(history);
-  logger.info(`[Publish History] Recorded scripture episode: "${scriptureId}"`);
+  recordUsedStory('slot4', scriptureId);
 }

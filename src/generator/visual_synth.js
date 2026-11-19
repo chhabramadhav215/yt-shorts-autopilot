@@ -260,6 +260,7 @@ export async function generateVisualBackground({
     '-c:v', 'libx264',
     '-preset', 'fast',
     '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart',
     outputPath
   );
 

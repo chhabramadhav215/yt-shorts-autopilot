@@ -136,14 +136,31 @@ async function run() {
       description: result.description,
       tags: result.tags,
     });
+
+    // Explicitly print status for each platform so no failures or skips are silent
     if (metaResult.instagram?.permalink) {
       console.log(`• Instagram:    ${metaResult.instagram.permalink}`);
+    } else if (metaResult.instagramError) {
+      console.log(`• Instagram:    FAILED -> ${metaResult.instagramError}`);
+    } else if (metaResult.instagramSkipped) {
+      console.log(`• Instagram:    SKIPPED -> ${metaResult.instagramSkipReason || 'Not configured'}`);
+    } else if (metaResult.skipped) {
+      console.log(`• Instagram:    SKIPPED -> ${metaResult.reason || 'Meta credentials missing'}`);
     }
+
     if (metaResult.facebook?.permalink) {
       console.log(`• Facebook:     ${metaResult.facebook.permalink}`);
+    } else if (metaResult.facebookError) {
+      console.log(`• Facebook:     FAILED -> ${metaResult.facebookError}`);
+    } else if (metaResult.facebookSkipped) {
+      console.log(`• Facebook:     SKIPPED -> ${metaResult.facebookSkipReason || 'Not configured'}`);
+    } else if (metaResult.skipped) {
+      console.log(`• Facebook:     SKIPPED -> ${metaResult.reason || 'Meta credentials missing'}`);
     }
   } catch (err) {
     logger.warn(`Meta publishing encountered an error: ${err.message}`);
+    console.log(`• Instagram:    FAILED -> ${err.message}`);
+    console.log(`• Facebook:     FAILED -> ${err.message}`);
   }
 
   // Optional: Send Telegram notification if configured
@@ -156,9 +173,13 @@ async function run() {
         `*YouTube:* ${result.upload?.url || 'Skipped (YouTube daily upload limit reached)'}\n`;
       if (metaResult?.instagram?.permalink) {
         text += `*Instagram Reel:* ${metaResult.instagram.permalink}\n`;
+      } else if (metaResult?.instagramError) {
+        text += `*Instagram Reel:* ❌ Failed (${metaResult.instagramError.slice(0, 80)})\n`;
       }
       if (metaResult?.facebook?.permalink) {
         text += `*Facebook Reel:* ${metaResult.facebook.permalink}\n`;
+      } else if (metaResult?.facebookError) {
+        text += `*Facebook Reel:* ❌ Failed (${metaResult.facebookError.slice(0, 80)})\n`;
       }
       text += `*Time:* ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`;
 

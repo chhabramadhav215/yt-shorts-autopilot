@@ -12,8 +12,14 @@ import {
   markPexelsVideoUsed,
   pickUnusedFallbackClip,
 } from './used_assets.js';
-import { isClipRecentlyUsed, recordUsedClip } from './publish_history.js';
+import {
+  isClipRecentlyUsed,
+  isClipOnCooldown,
+  sortClipsByLeastRecentlyUsed,
+  recordUsedClip,
+} from './publish_history.js';
 import { ensureSlot1Pool, getSlot1PoolClips } from './ensure_slot1_pool.js';
+import { ensureCategoryPools } from './ensure_category_pools.js';
 
 const CACHE_DIR = path.join(config.assetsDir, 'cache');
 const DEFAULTS_DIR = path.join(config.assetsDir, 'defaults');
@@ -280,16 +286,14 @@ export async function fetchMultiClipSequence({
   if (selectedClips.length < targetCount && localPool.length > 0) {
     const available = localPool.filter((f) => !selectedKeys.has(path.basename(f).toLowerCase()));
 
-    // Sort so least recently used comes first
-    available.sort((a, b) => {
-      const aUsed = isClipRecentlyUsed(path.basename(a), 60);
-      const bUsed = isClipRecentlyUsed(path.basename(b), 60);
-      if (aUsed && !bUsed) return 1;
-      if (!aUsed && bUsed) return -1;
-      return 0.5 - Math.random();
-    });
+    // Sort strictly by Least Recently Used (LRU) in this slot
+    const sortedAvailable = sortClipsByLeastRecentlyUsed(available, slotType);
 
-    for (const clip of available) {
+    // Prefer clips not on cooldown (7 days); if all are on cooldown, LRU ensures the oldest is picked
+    const offCooldown = sortedAvailable.filter((clip) => !isClipOnCooldown(clip, slotType, 7));
+    const candidates = offCooldown.length >= (targetCount - selectedClips.length) ? offCooldown : sortedAvailable;
+
+    for (const clip of candidates) {
       if (selectedClips.length >= targetCount) break;
       const base = path.basename(clip).toLowerCase();
       if (!selectedKeys.has(base)) {
@@ -298,6 +302,7 @@ export async function fetchMultiClipSequence({
           selectedClips.push(clip);
           selectedKeys.add(base);
           recordUsedClip(path.basename(clip), slotType);
+          logger.info(`[Multi-Clip] Selected LRU local clip ${selectedClips.length}/${targetCount} for [${slotType}]: ${path.basename(clip)}`);
         }
       }
     }
@@ -312,7 +317,12 @@ export async function fetchMultiClipSequence({
       getCategoryVideoPool(SCRIPTURES_DIR),
     ].flat();
 
-    for (const clip of backupPools) {
+    const sortedBackups = sortClipsByLeastRecentlyUsed(
+      backupPools.filter((f) => !selectedKeys.has(path.basename(f).toLowerCase())),
+      slotType
+    );
+
+    for (const clip of sortedBackups) {
       if (selectedClips.length >= targetCount) break;
       const base = path.basename(clip).toLowerCase();
       if (!selectedKeys.has(base)) {
@@ -321,6 +331,7 @@ export async function fetchMultiClipSequence({
           selectedClips.push(clip);
           selectedKeys.add(base);
           recordUsedClip(path.basename(clip), slotType);
+          logger.info(`[Multi-Clip] Selected LRU backup clip ${selectedClips.length}/${targetCount} for [${slotType}]: ${path.basename(clip)}`);
         }
       }
     }
@@ -490,11 +501,14 @@ export async function fetchSlotBackgroundMedia({
     }
 
     const candidatePool = matchedCandidates.length > 0 ? matchedCandidates : allDevotionalClips;
-    const chosenClip = pickUnusedFallbackClip(candidatePool, 'devotional') ||
-      pickUnusedFallbackClip(allDevotionalClips, 'devotional');
+    const sortedPool = sortClipsByLeastRecentlyUsed(candidatePool, 'slot2');
+    const offCooldown = sortedPool.filter((c) => !isClipOnCooldown(c, 'slot2', 7));
+    const chosenClip = (offCooldown.length > 0 ? offCooldown[0] : sortedPool[0]) ||
+      pickUnusedFallbackClip(candidatePool, 'devotional');
 
     if (chosenClip && fs.existsSync(chosenClip)) {
-      logger.success(`[Slot 2 Devotional] Selected non-repeating moving video: ${path.basename(chosenClip)}`);
+      recordUsedClip(path.basename(chosenClip), 'slot2');
+      logger.success(`[Slot 2 Devotional] Selected LRU non-repeating moving video: ${path.basename(chosenClip)}`);
       return { type: 'video', filePath: chosenClip };
     }
 
@@ -779,9 +793,13 @@ export async function fetchScriptureClip(item = {}) {
 
   const validCandidates = candidates.filter((f) => fs.existsSync(f) && fs.statSync(f).size > 50000);
   const pool = validCandidates.length > 0 ? validCandidates : getCategoryVideoPool(SCRIPTURES_DIR);
-  const chosen = pickUnusedFallbackClip(pool, `scriptures_${epicCategory}`);
+  const sortedScriptures = sortClipsByLeastRecentlyUsed(pool, 'slot4');
+  const offCooldown = sortedScriptures.filter((c) => !isClipOnCooldown(c, 'slot4', 7));
+  const chosen = (offCooldown.length > 0 ? offCooldown[0] : sortedScriptures[0]) ||
+    pickUnusedFallbackClip(pool, `scriptures_${epicCategory}`);
 
   if (chosen && fs.existsSync(chosen)) {
+    recordUsedClip(path.basename(chosen), 'slot4');
     logger.success(`Matched local ${epicCategory.toUpperCase()} scripture moving video: ${path.basename(chosen)}`);
     return chosen;
   }

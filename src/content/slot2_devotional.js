@@ -2,9 +2,11 @@ import path from 'path';
 import { config } from '../config.js';
 import { getTodayOccasion } from './festival_calendar.js';
 import { transliterateHindiToHinglish } from '../utils/text_utils.js';
+import { isStoryOnCooldown, recordUsedStory } from '../utils/publish_history.js';
 
 const DEVOTIONAL_STORIES = [
   {
+    id: 'hanuman_pearl_necklace',
     englishTitle: 'The Power of True Faith 🕉️ Hanuman Ji Divine Devotion | Daily Darshan',
     segments: [
       {
@@ -31,6 +33,7 @@ const DEVOTIONAL_STORIES = [
     tags: ['shorts', 'hanuman', 'jaishriram', 'bhakti', 'sanatandharma', 'devotional', 'hinduism', 'mahadev', 'krishna'],
   },
   {
+    id: 'krishna_sudama_friendship',
     englishTitle: 'Lord Krishna & Sudama: The Sacred Bond of True Friendship 🌸',
     segments: [
       {
@@ -57,6 +60,7 @@ const DEVOTIONAL_STORIES = [
     tags: ['shorts', 'krishna', 'sudama', 'radheradhe', 'bhakti', 'devotional', 'sanatan', 'god', 'dailywisdom'],
   },
   {
+    id: 'shiva_neelkanth_sacrifice',
     englishTitle: 'Lord Shiva as Neelkanth Mahadev 🔱 The Supreme Sacrifice',
     segments: [
       {
@@ -83,6 +87,7 @@ const DEVOTIONAL_STORIES = [
     tags: ['shorts', 'mahadev', 'shiva', 'omnamahshivaya', 'bholenath', 'hinduism', 'devotional', 'spritual', 'kedarnath'],
   },
   {
+    id: 'ganesha_parents_pradakshina',
     englishTitle: 'Lord Ganesha Supreme Wisdom 🕉️ Respecting Loving Parents',
     segments: [
       {
@@ -109,6 +114,7 @@ const DEVOTIONAL_STORIES = [
     tags: ['shorts', 'ganesha', 'ganpatibappamorya', 'shiva', 'parvati', 'sanatanwisdom', 'hindu', 'devotional', 'darshan'],
   },
   {
+    id: 'ram_mata_shabari_berries',
     englishTitle: 'Shri Ram and Mata Shabari: The Sweet Berries of Pure Love 🌺',
     segments: [
       {
@@ -134,17 +140,65 @@ const DEVOTIONAL_STORIES = [
     ],
     tags: ['shorts', 'ramayana', 'shriram', 'jaishriram', 'shabari', 'bhakti', 'ayodhya', 'sanatan', 'devotional'],
   },
+  {
+    id: 'bhakt_prahlad_narasimha',
+    englishTitle: 'Bhakt Prahlad Unshakable Faith 🕉️ Lord Narasimha Protection',
+    segments: [
+      {
+        hindi: 'जब अत्याचारी हिरण्यकश्यप ने अपने ही पुत्र प्रह्लाद पर भीषण अत्याचार किए,',
+        english: 'When tyrant Hiranyakashipu inflicted terrible suffering upon his son Prahlad,',
+      },
+      {
+        hindi: 'तो बालक प्रह्लाद ने भयभीत हुए बिना केवल भगवान विष्णु के नाम का स्मरण किया।',
+        english: 'Young Prahlad remained fearless, holding steadfast faith in Lord Vishnu.',
+      },
+      {
+        hindi: 'भक्त की पुकार सुनकर खंभे को चीरकर भगवान नृसिंह प्रकट हुए और धर्म की रक्षा की।',
+        english: 'Answering his devotee prayer, Lord Narasimha emerged from the pillar to protect Dharma.',
+      },
+      {
+        hindi: 'ईश्वर हर उस हृदय के साथ खड़े हैं जो सत्य और भक्ति के मार्ग पर अडिग रहता है।',
+        english: 'The Divine always shields those who stand courageously with truth and pure faith.',
+      },
+    ],
+    tags: ['shorts', 'narasimha', 'prahlad', 'vishnu', 'bhakti', 'dharma', 'sanatan', 'devotional'],
+  },
+  {
+    id: 'meera_bai_krishna_bhakti',
+    englishTitle: 'Meera Bai Divine Ecstasy 🌸 Unconditional Krishna Love',
+    segments: [
+      {
+        hindi: 'राजमहल के सारे सुख और वैभव त्यागकर मीरा बाई केवल गिरधर गोपाल की भक्ति में लीन रहीं।',
+        english: 'Renouncing royal luxury, Meera Bai devoted her entire existence to Lord Krishna.',
+      },
+      {
+        hindi: 'जब उन्हें विष का प्याला दिया गया, तो उन्होंने मुस्कुराकर उसे प्रभु का चरणामृत मानकर पी लिया।',
+        english: 'When handed a cup of deadly poison, she drank it smilingly as sacred nectar.',
+      },
+      {
+        hindi: 'श्री कृष्ण की कृपा से वह विष भी अमृत बन गया और मीरा की भक्ति सदा के लिए अमर हो गई।',
+        english: 'By divine grace, the poison turned into nectar, immortalizing her pure devotion.',
+      },
+      {
+        hindi: 'सच्चा समर्पण वही है जो हर परिस्थिति में प्रभु पर अटूट विश्वास रखे। राधे राधे!',
+        english: 'True surrender is unwavering faith in the Divine through every storm. Radhe Radhe!',
+      },
+    ],
+    tags: ['shorts', 'meerabai', 'krishna', 'radheradhe', 'bhakti', 'vrindavan', 'sanatan', 'devotional'],
+  },
 ];
 
 export async function generateSlot2Content(customTopic = null) {
   let title = '';
   let segments = [];
   let tags = ['shorts', 'bhakti', 'sanatandharma', 'devotional', 'hinduism', 'krishna', 'mahadev'];
+  let chosenStoryId = null;
 
   // Check Festival Calendar
   const occasion = getTodayOccasion();
   if (occasion.isFestival && occasion.slot2 && !customTopic) {
     title = occasion.slot2.title;
+    chosenStoryId = `festival_${occasion.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     segments = [
       {
         hindi: occasion.slot2.hindi,
@@ -157,6 +211,7 @@ export async function generateSlot2Content(customTopic = null) {
     ];
   } else if (customTopic) {
     title = `${customTopic} 🕉️ Sacred Divine Wisdom | Daily Darshan`;
+    chosenStoryId = `custom_${customTopic.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     segments = [
       {
         hindi: `आज हम ${customTopic} की असीम कृपा और पावन संदेश का स्मरण करते हैं।`,
@@ -172,10 +227,19 @@ export async function generateSlot2Content(customTopic = null) {
       },
     ];
   } else {
-    const story = DEVOTIONAL_STORIES[Math.floor(Math.random() * DEVOTIONAL_STORIES.length)];
+    // Select story enforcing 14-day cooldown
+    const availableStories = DEVOTIONAL_STORIES.filter((s) => !isStoryOnCooldown('slot2', s.id, 14));
+    const candidates = availableStories.length > 0 ? availableStories : DEVOTIONAL_STORIES;
+
+    const story = candidates[Math.floor(Math.random() * candidates.length)];
     title = story.englishTitle;
     segments = story.segments;
     tags = story.tags;
+    chosenStoryId = story.id;
+  }
+
+  if (chosenStoryId) {
+    recordUsedStory('slot2', chosenStoryId, title);
   }
 
   const formattedSegments = segments.map((s) => {
@@ -212,7 +276,7 @@ export async function generateSlot2Content(customTopic = null) {
       'sacred diya flame spiritual prayer',
       'hindu ritual temple bells flags'
     ];
-  } else if (titleLower.includes('krishna')) {
+  } else if (titleLower.includes('krishna') || titleLower.includes('meera')) {
     visualSceneQueries = [
       'sacred temple lamps golden spiritual light',
       'hindu temple sanctum prayer darshan',
