@@ -178,28 +178,18 @@ export function generateAssSubtitles({
     }
   }
 
-  // Select styling based on slot theme
-  // Bright Yellow: &H0000FFFF
-  // Radiant Divine Gold: &H0033D1FF
-  // Pure White: &H00FFFFFF
-  let primaryColor = '&H0000FFFF'; // Bright Yellow
-  let outlineColor = '&H00000000'; // Deep Black
-  let backColor = '&H80000000';
-  let fontSize = 72;
+  // Select high-contrast viral styling
+  // Bright Yellow: &H0000FFFF, Pure White: &H00FFFFFF, Outline: Deep Black (&H00000000)
+  const primaryColor = '&H0000FFFF'; // Bright Yellow
+  const outlineColor = '&H00000000'; // Deep Black
+  const backColor = '&H80000000';
+  const fontSize = 68;
 
-  let marginV = 520;
-  if (slotType === 'slot2' || slotType === 'slot4') {
-    primaryColor = '&H0033D1FF'; // Radiant Divine Gold
-    fontSize = 70;
-  } else if (slotType === 'slot3') {
-    primaryColor = '&H00FFFFFF'; // Crisp White
-    fontSize = 66;
-    marginV = 540; // Safe zone: centered in subtitle bar (y ≈ 1380), safely clear of bottom 20% UI
-  } else if (slotType === 'slot5') {
-    primaryColor = '&H0000FFFF'; // Electric Sports Yellow
-    fontSize = 70;
-    marginV = 520; // Safe zone: centered in subtitle bed (y ≈ 1400), safely clear of bottom 20% UI
-  }
+  // Lower-middle safe zone: marginV=500 -> baseline at y = 1920 - 500 = 1420 (fits y=1320 to 1480)
+  // Leaves bottom 15% (y > 1620) and right edge (x > 940) completely empty
+  const marginV = 500;
+  const marginL = 80;
+  const marginR = 160;
 
   // Generate ASS script header (1080x1920)
   let ass = `[Script Info]
@@ -213,8 +203,8 @@ PlayResY: 1920
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: ShortsDefault,Noto Sans,${fontSize},${primaryColor},&H000000FF,${outlineColor},${backColor},-1,0,0,0,100,100,0,0,1,7,3,2,60,60,${marginV},1
-Style: ShlokStyle,Noto Sans Devanagari,58,&H002BD7FF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,70,70,580,1
+Style: ShortsDefault,Noto Sans,${fontSize},${primaryColor},&H000000FF,${outlineColor},${backColor},-1,0,0,0,100,100,0,0,1,6,3,2,${marginL},${marginR},${marginV},1
+Style: ShlokStyle,Noto Sans Devanagari,56,&H002BD7FF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,${marginL},${marginR},540,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -234,23 +224,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     ass += `Dialogue: 0,0:00:00.60,${formatASSTime(shlokEndMs)},ShlokStyle,,0,0,0,,{\\b1}${cleanShlok}{\\b0}\n`;
   }
 
-  // Display the bold English commentary subtitles
+  // Display the bold English commentary subtitles with viral pop highlighting
   for (const cue of subtitleCues) {
     const startCode = formatASSTime(cue.startMs);
     const endCode = formatASSTime(cue.endMs);
-    if (slotType === 'slot5' || slotType === 'slot1' || slotType === 'slot3') {
-      // Dynamic animated karaoke / pop highlighting
-      const words = cue.text.split(' ');
-      let styledText = '';
-      if (words.length >= 2) {
-        styledText = `{\\c&H0000FFFF&}${words[0]} {\\c&H00FFFFFF&}${words.slice(1).join(' ')}`;
-      } else {
-        styledText = `{\\c&H0000FFFF&}${cue.text}`;
-      }
-      ass += `Dialogue: 0,${startCode},${endCode},ShortsDefault,,0,0,0,,{\\b1}${styledText}{\\b0}\n`;
+    const words = cue.text.split(' ');
+    let styledText = '';
+    if (words.length >= 2) {
+      // First word in bright yellow, remaining words in pure white
+      styledText = `{\\c&H0000FFFF&}${words[0]} {\\c&H00FFFFFF&}${words.slice(1).join(' ')}`;
     } else {
-      ass += `Dialogue: 0,${startCode},${endCode},ShortsDefault,,0,0,0,,{\\b1}${cue.text}{\\b0}\n`;
+      styledText = `{\\c&H0000FFFF&}${cue.text}`;
     }
+    ass += `Dialogue: 0,${startCode},${endCode},ShortsDefault,,0,0,0,,{\\b1}${styledText}{\\b0}\n`;
   }
 
   fs.writeFileSync(outputPath, ass, 'utf8');

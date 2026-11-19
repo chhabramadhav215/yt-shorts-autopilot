@@ -129,7 +129,8 @@ export async function downloadFile(url, destPath) {
 export async function tryDownloadPexels(query, orientation = 'portrait', options = {}) {
   if (!config.pexelsApiKey) return null;
   try {
-    const orientParam = orientation === 'portrait' ? '&orientation=portrait' : '';
+    // ALWAYS force native vertical portrait orientation for true 9:16 Shorts
+    const orientParam = '&orientation=portrait';
     const page = options.page || (Math.floor(Math.random() * 4) + 1);
     const perPage = options.perPage || 15;
     const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}${orientParam}&per_page=${perPage}&page=${page}`;
@@ -146,10 +147,13 @@ export async function tryDownloadPexels(query, orientation = 'portrait', options
     const candidates = unusedVideos.length > 0 ? unusedVideos : videos;
 
     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-    // Prioritize high-resolution 1080p or 720p vertical video files
-    const file = chosen.video_files.find((f) => f.height >= 1080 && f.width >= 720) ||
-      chosen.video_files.find((f) => f.height >= 720) ||
-      chosen.video_files[0];
+    // Strictly prioritize native vertical (9:16) video files where height > width
+    const verticalFiles = (chosen.video_files || []).filter((f) => f.height && f.width && f.height > f.width);
+    const candidateFiles = verticalFiles.length > 0 ? verticalFiles : (chosen.video_files || []);
+    const file = candidateFiles.find((f) => f.height >= 1920 && f.width >= 1080) ||
+      candidateFiles.find((f) => f.height >= 1280 && f.width >= 720) ||
+      candidateFiles.find((f) => f.height >= 720) ||
+      candidateFiles[0];
 
     if (!file || !file.link) return null;
 

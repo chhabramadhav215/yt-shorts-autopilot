@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-19T16:55:24.928Z",
+  "lastUpdated": "2026-11-19T17:08:02.596Z",
   "publishedTopics": [],
   "usedVideoClips": [
     {
@@ -82,6 +82,46 @@
       "id": "stadium_atmosphere_night.mp4",
       "slot": "slot5",
       "usedAt": "2026-11-19T16:55:24.928Z"
+    },
+    {
+      "id": "stadium_bg.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T17:07:48.411Z"
+    },
+    {
+      "id": "cricket_pitch_floodlights.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T17:07:48.413Z"
+    },
+    {
+      "id": "stadium_floodlights.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T17:07:48.413Z"
+    },
+    {
+      "id": "stadium_atmosphere_night.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T17:07:48.413Z"
+    },
+    {
+      "id": "tech_digital_globe.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T17:08:02.594Z"
+    },
+    {
+      "id": "financial_markets_radar.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T17:08:02.595Z"
+    },
+    {
+      "id": "global_geopolitics_network.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T17:08:02.596Z"
+    },
+    {
+      "id": "city_traffic.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T17:08:02.596Z"
     }
   ],
   "usedScriptures": []
