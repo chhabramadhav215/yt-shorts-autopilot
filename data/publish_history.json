@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-11-19T16:55:24.928Z",
+  "publishedTopics": [],
+  "usedVideoClips": [
+    {
+      "id": "breaking_news_anchor.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T16:55:19.012Z"
+    },
+    {
+      "id": "tech_digital_globe.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T16:55:19.013Z"
+    },
+    {
+      "id": "city_traffic.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T16:55:19.013Z"
+    },
+    {
+      "id": "financial_markets_radar.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T16:55:19.014Z"
+    },
+    {
+      "id": "stadium_crowd_lights.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T16:55:19.019Z"
+    },
+    {
+      "id": "stadium_atmosphere_night.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T16:55:19.020Z"
+    },
+    {
+      "id": "stadium_floodlights.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T16:55:19.020Z"
+    },
+    {
+      "id": "cricket_pitch_floodlights.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T16:55:19.021Z"
+    },
+    {
+      "id": "newsroom_studio.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T16:55:19.026Z"
+    },
+    {
+      "id": "global_geopolitics_network.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T16:55:19.026Z"
+    },
+    {
+      "id": "breaking_news_anchor.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T16:55:19.027Z"
+    },
+    {
+      "id": "financial_markets_radar.mp4",
+      "slot": "slot3",
+      "usedAt": "2026-11-19T16:55:19.028Z"
+    },
+    {
+      "id": "stadium_bg.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T16:55:24.926Z"
+    },
+    {
+      "id": "stadium_floodlights.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T16:55:24.927Z"
+    },
+    {
+      "id": "cricket_pitch_floodlights.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T16:55:24.928Z"
+    },
+    {
+      "id": "stadium_atmosphere_night.mp4",
+      "slot": "slot5",
+      "usedAt": "2026-11-19T16:55:24.928Z"
+    }
+  ],
+  "usedScriptures": []
+}

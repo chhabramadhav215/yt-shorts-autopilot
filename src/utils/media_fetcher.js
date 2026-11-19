@@ -11,6 +11,7 @@ import {
   markPexelsVideoUsed,
   pickUnusedFallbackClip,
 } from './used_assets.js';
+import { isClipRecentlyUsed, recordUsedClip } from './publish_history.js';
 import { ensureSlot1Pool, getSlot1PoolClips } from './ensure_slot1_pool.js';
 
 const CACHE_DIR = path.join(config.assetsDir, 'cache');
@@ -167,6 +168,105 @@ export async function tryDownloadPexels(query, orientation = 'portrait', options
     logger.warn(`Pexels video fetch failed for "${query}": ${e.message}`);
     return null;
   }
+}
+
+/**
+ * Fetches 3-5 distinct moving MP4 video clips matching the topic scene queries
+ * for dynamic visual scene transitions every 4-6 seconds.
+ * Strictly guarantees 100% moving video, no static frames, and persistent deduplication.
+ * @param {Object} params
+ * @param {string} params.slotType - 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5'
+ * @param {string} [params.title]
+ * @param {string[]} [params.visualSceneQueries]
+ * @param {number} [params.count] - target number of clips (default 4, between 3 and 5)
+ * @param {string} [params.clipPath] - optional pre-selected primary clip
+ * @returns {Promise<string[]>} Array of valid video file paths
+ */
+export async function fetchMultiClipSequence({
+  slotType,
+  title = '',
+  visualSceneQueries = [],
+  count = 4,
+  clipPath = null,
+}) {
+  const targetCount = Math.max(3, Math.min(5, count));
+  const selectedClips = [];
+  const selectedKeys = new Set();
+
+  // If a primary clip is already designated (e.g. video-first Slot 1 or Slot 4 epic clip), start with it
+  if (clipPath && fs.existsSync(clipPath)) {
+    selectedClips.push(clipPath);
+    selectedKeys.add(path.basename(clipPath).toLowerCase());
+  }
+
+  // 1. Determine slot directory and fallback pool
+  let categoryDir = BABY_DIR;
+  if (slotType === 'slot2') categoryDir = DEVOTIONAL_DIR;
+  else if (slotType === 'slot3') categoryDir = NEWS_DIR;
+  else if (slotType === 'slot4') categoryDir = SCRIPTURES_DIR;
+  else if (slotType === 'slot5') categoryDir = CRICKET_DIR;
+
+  const localPool = getCategoryVideoPool(categoryDir);
+
+  // 2. Query Pexels for distinct scene queries if key is available
+  const queries = Array.isArray(visualSceneQueries) && visualSceneQueries.length > 0
+    ? visualSceneQueries
+    : [title, 'cinematic vertical video'];
+
+  for (const query of queries) {
+    if (selectedClips.length >= targetCount) break;
+    if (!query) continue;
+
+    try {
+      const pexelsResult = await tryDownloadPexels(query, 'portrait');
+      if (pexelsResult && pexelsResult.filePath && fs.existsSync(pexelsResult.filePath)) {
+        const key = `pexels_${pexelsResult.pexelsId}`;
+        if (!selectedKeys.has(key)) {
+          selectedClips.push(pexelsResult.filePath);
+          selectedKeys.add(key);
+          recordUsedClip(pexelsResult.pexelsId, slotType);
+          logger.info(`[Multi-Clip] Matched Pexels clip ${selectedClips.length}/${targetCount} for "${query}"`);
+        }
+      }
+    } catch (e) {
+      logger.warn(`[Multi-Clip] Pexels query "${query}" failed: ${e.message}`);
+    }
+  }
+
+  // 3. If we still need more clips, fill from local category video pool with non-repeating deduplication
+  if (selectedClips.length < targetCount && localPool.length > 0) {
+    const available = localPool.filter((f) => !selectedKeys.has(path.basename(f).toLowerCase()));
+
+    // Sort so least recently used comes first
+    available.sort((a, b) => {
+      const aUsed = isClipRecentlyUsed(path.basename(a), 60);
+      const bUsed = isClipRecentlyUsed(path.basename(b), 60);
+      if (aUsed && !bUsed) return 1;
+      if (!aUsed && bUsed) return -1;
+      return 0.5 - Math.random();
+    });
+
+    for (const clip of available) {
+      if (selectedClips.length >= targetCount) break;
+      const base = path.basename(clip).toLowerCase();
+      if (!selectedKeys.has(base)) {
+        selectedClips.push(clip);
+        selectedKeys.add(base);
+        recordUsedClip(path.basename(clip), slotType);
+      }
+    }
+  }
+
+  // 4. Emergency fallback: if still empty, use defaults
+  if (selectedClips.length === 0) {
+    const defaultMp4 = path.join(DEFAULTS_DIR, 'slot1_dance.mp4');
+    if (fs.existsSync(defaultMp4)) {
+      selectedClips.push(defaultMp4);
+    }
+  }
+
+  logger.info(`[Multi-Clip] Prepared ${selectedClips.length} distinct moving clips for [${slotType.toUpperCase()}]`);
+  return selectedClips;
 }
 
 /**

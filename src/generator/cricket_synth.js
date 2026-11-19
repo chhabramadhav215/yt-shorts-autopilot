@@ -7,7 +7,12 @@ import sharp from 'sharp';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
 import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
-import { fetchSlotBackgroundMedia, searchWikimediaCommons, downloadFile } from '../utils/media_fetcher.js';
+import {
+  fetchSlotBackgroundMedia,
+  fetchMultiClipSequence,
+  searchWikimediaCommons,
+  downloadFile,
+} from '../utils/media_fetcher.js';
 
 const require = createRequire(import.meta.url);
 
@@ -60,7 +65,7 @@ const TEAM_COLORS = {
   GT: { primary: '0x1b2133', accent: '0xc89b3c', name: 'GUJARAT TITANS' },
   LSG: { primary: '0x00838f', accent: '0x002171', name: 'LUCKNOW SUPER GIANTS' },
   PBKS: { primary: '0xb71c1c', accent: '0xd7ccc8', name: 'PUNJAB KINGS' },
-  DEFAULT: { primary: '0x003366', accent: '0xff9900', name: 'IPL 2026' },
+  DEFAULT: { primary: '0x003366', accent: '0xff9900', name: 'IPL 2027' },
 };
 
 const CRICKET_DEFAULTS_DIR = path.join(config.assetsDir, 'defaults', 'cricket');
@@ -161,10 +166,10 @@ async function generateCricketOverlayImage({
   const primaryHex = toHex(teamTheme.primary || '0x003366');
   const accentHex = toHex(teamTheme.accent || '0xffcc00');
 
-  const badgeText = escapeXml(topic ? toTitleCase(topic).toUpperCase().slice(0, 28) : 'IPL 2026 • CRICKET BUZZ 🏏');
+  const badgeText = escapeXml(topic ? toTitleCase(topic).toUpperCase().slice(0, 28) : 'IPL 2027 • CRICKET BUZZ 🏏');
   const playerText = escapeXml(toTitleCase(primaryPlayer).toUpperCase().slice(0, 22));
-  const statText = escapeXml((statBadge || 'IPL 2026 BUZZ').toUpperCase().slice(0, 48));
-  const tickerText = escapeXml(`LIVE IPL 2026 • ${toTitleCase(headline).slice(0, 75)} • TRADE RUMORS • RECORD BIDS • `);
+  const statText = escapeXml((statBadge || 'IPL 2027 BUZZ').toUpperCase().slice(0, 48));
+  const tickerText = escapeXml(`LIVE IPL 2027 • ${toTitleCase(headline).slice(0, 75)} • TRADE RUMORS • RECORD BIDS • `);
 
   const headlineBlock = line2
     ? `<text x="540" y="415" class="title" fill="${accentHex}">${escapeXml(line1)}</text>
@@ -240,34 +245,33 @@ export async function generateCricketVisualBackground({
   playerTitle,
   topic,
   team = 'RCB',
-  statBadge = 'IPL 2026 BUZZ',
+  statBadge = 'IPL 2027 BUZZ',
   visualQuery = 'cricket ground',
   secondaryQuery = 'sports stadium lights',
+  visualSceneQueries = [],
 }) {
   const roundDur = Math.max(5, Math.ceil(duration));
-  const totalFrames = Math.ceil(roundDur * 30);
   const teamTheme = TEAM_COLORS[team] || TEAM_COLORS.DEFAULT;
 
   const rawPlayer = playerTitle || primaryPlayer || 'Virat Kohli';
-  const rawHeadline = headline || topic || 'IPL 2026 CRICKET BUZZ';
+  const rawHeadline = headline || topic || 'IPL 2027 CRICKET BUZZ';
 
-  // 1. Fetch sports stadium background video from Pexels or local fallback
-  const media = await fetchSlotBackgroundMedia({
+  // 1. Fetch dynamic multi-clip cricket background sequence (stadium floodlights, crowd, pitch, action)
+  const clips = await fetchMultiClipSequence({
     slotType: 'slot5',
     title: rawHeadline,
-    visualQuery,
-    secondaryQuery,
-    altQueries: ['cricket pitch', 'cricket stadium floodlights', 'stadium crowd cheering'],
+    visualSceneQueries: visualSceneQueries.length > 0 ? visualSceneQueries : [
+      visualQuery || 'cricket stadium floodlights',
+      secondaryQuery || 'cricket match stadium crowd',
+      'cricket batsman aggressive shot',
+      'sports stadium lights night'
+    ],
+    count: 4,
   });
 
-  const localStadiumFallback = path.join(CRICKET_DEFAULTS_DIR, 'stadium_bg.mp4');
-  const localStadiumLights = path.join(CRICKET_DEFAULTS_DIR, 'stadium_floodlights.mp4');
-
-  const bgVideoPath = media?.filePath && fs.existsSync(media.filePath)
-    ? media.filePath
-    : (fs.existsSync(localStadiumFallback)
-        ? localStadiumFallback
-        : (fs.existsSync(localStadiumLights) ? localStadiumLights : path.join(config.assetsDir, 'defaults', 'slot1_dance.mp4')));
+  const numClips = clips.length;
+  const segDur = roundDur / numClips;
+  logger.info(`Stitching ${numClips} cricket stadium clips (~${segDur.toFixed(1)}s per scene) for Slot 5`);
 
   // 2. Fetch player portrait for Ken Burns slow zoom (Guaranteed non-null)
   const playerImagePath = await fetchPlayerPortrait(rawPlayer);
@@ -284,28 +288,36 @@ export async function generateCricketVisualBackground({
     teamTheme,
   });
 
-  const ffmpegArgs = ['-y', '-stream_loop', '-1', '-i', bgVideoPath];
+  const ffmpegArgs = ['-y', '-loglevel', 'error'];
   const filterParts = [];
 
-  // Layer 1 (Background): Looped stadium video with subtle dark vignette overlay (gblur for smooth performance)
-  filterParts.push(`[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=12,vignette=PI/4[bg_stadium]`);
+  clips.forEach((c, idx) => {
+    ffmpegArgs.push('-stream_loop', '-1', '-i', c);
+    filterParts.push(`[${idx}:v]trim=0:${segDur.toFixed(3)},setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=10,setsar=1,fps=30[bg_seg_${idx}]`);
+  });
+
+  const segConcatInputs = clips.map((_, idx) => `[bg_seg_${idx}]`).join('');
+  filterParts.push(`${segConcatInputs}concat=n=${numClips}:v=1:a=0[bg_stadium]`);
+
   // Top Scrim (y=0 to 490) for Header & Headline
   filterParts.push(`[bg_stadium]drawbox=x=0:y=0:w=1080:h=490:color=0x000511@0.75:t=fill[scrim_top]`);
   // Bottom Scrim (y=1180 to 1920) for Lower-Third & Subtitles
   filterParts.push(`[scrim_top]drawbox=x=0:y=1180:w=1080:h=740:color=0x000511@0.85:t=fill[v_canvas]`);
 
   let centerNode = 'v_canvas';
+  let nextInputIdx = numClips;
 
   // Layer 2 (Center Hero): Player portrait inside central card frame with clean framing
   if (playerImagePath && fs.existsSync(playerImagePath)) {
     ffmpegArgs.push('-loop', '1', '-i', playerImagePath);
 
-    filterParts.push(`[1:v]scale=760:760:force_original_aspect_ratio=increase,crop=760:760[player_card]`);
+    filterParts.push(`[${nextInputIdx}:v]scale=760:760:force_original_aspect_ratio=increase,crop=760:760[player_card]`);
     filterParts.push(`[${centerNode}][player_card]overlay=160:480:shortest=1[v_player]`);
 
     // Glowing team border framing the player
     filterParts.push(`[v_player]drawbox=x=156:y=476:w=768:h=768:color=${teamTheme.accent}:t=6[v_center]`);
     centerNode = 'v_center';
+    nextInputIdx++;
   } else {
     // Fallback Stadium Action Center Box
     filterParts.push(`[0:v]scale=1080:608:force_original_aspect_ratio=increase,crop=1080:608[center_stadium]`);
@@ -316,9 +328,8 @@ export async function generateCricketVisualBackground({
   }
 
   // Layer 3 (Overlay UI Graphics): Transparent 1080x1920 PNG with all headlines, badges & UI
-  const overlayInputIndex = (playerImagePath && fs.existsSync(playerImagePath)) ? 2 : 1;
   ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
-  filterParts.push(`[${centerNode}][${overlayInputIndex}:v]overlay=0:0:shortest=1[vout]`);
+  filterParts.push(`[${centerNode}][${nextInputIdx}:v]overlay=0:0:shortest=1[vout]`);
 
   ffmpegArgs.push(
     '-filter_complex', filterParts.join(';'),

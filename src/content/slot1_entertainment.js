@@ -878,7 +878,7 @@ STRICT CONTENT RULES:
 4. Dual-Language Requirement:
    - "speaker": "Adult" or "Baby"
    - "role": "${roles.adult}" or "${roles.baby}"
-   - "hindi": Natural spoken Hindi in Devanagari script for neural TTS to speak.
+   - "hindi": Natural spoken Hindi in Devanagari script for neural TTS to speak. All proper nouns and English loan words MUST be written phonetically in Devanagari (e.g. "लाइसेंस", "ऑफिस", "टैक्स", "सैलरी", "चॉकलेट", "बॉस"). NEVER use Latin/English letters inside Hindi fields.
    - "english": High-quality, hilarious, punchy English translation of each line for burned-in on-screen subtitles.
 
 Return ONLY a valid JSON object without markdown fences:
@@ -1086,6 +1086,12 @@ export async function generateSlot1Content(customTopic = null) {
     visualQuery: clipContextInfo.roles.adult ? `toddler ${clipContextInfo.roles.adult.toLowerCase()}` : 'cute baby talking',
     clipPath: chosenClipPath,
     epicBadge: generated.badge || `${clipContextInfo.roles.adult.toUpperCase()} VS BABY 👶`,
+    visualSceneQueries: [
+      'cute baby laughing smiling',
+      'funny toddler playful mischief',
+      'cute toddler playing with toys',
+      'happy baby excited expressions'
+    ],
     voiceScript: fullHindiScript,
     subtitleText: fullEnglishSubtitles,
     englishSubtitles: fullEnglishSubtitles,

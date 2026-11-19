@@ -13,6 +13,7 @@ import { generateAssSubtitles } from './generator/subtitles.js';
 import { generateVisualBackground } from './generator/visual_synth.js';
 import { buildShortVideo, getMediaDuration } from './generator/video_builder.js';
 import { uploadShort, isUploadLimitExceeded } from './youtube/uploader.js';
+import { recordPublishedTopic, recordUsedClip } from './utils/publish_history.js';
 
 /**
  * Generates the complete 1080x1920 Short video without uploading
@@ -107,6 +108,7 @@ export async function generateShortVideo(slot, customTopic = null) {
     visualQuery: content.visualQuery,
     secondaryQuery: content.secondaryQuery,
     altQueries: content.altQueries,
+    visualSceneQueries: content.visualSceneQueries,
     primaryPlayer: content.primaryPlayer,
     team: content.team,
     statBadge: content.statBadge,
@@ -126,6 +128,20 @@ export async function generateShortVideo(slot, customTopic = null) {
     isDualAudio,
     introDuration,
   });
+
+  // Record published topic and primary video clip into publish_history.json
+  try {
+    recordPublishedTopic({
+      slot,
+      title: content.title,
+      headline: content.headline || content.title,
+    });
+    if (content.clipPath) {
+      recordUsedClip(path.basename(content.clipPath), slot);
+    }
+  } catch (err) {
+    logger.warn(`Failed to record publish history: ${err.message}`);
+  }
 
   return {
     slot,

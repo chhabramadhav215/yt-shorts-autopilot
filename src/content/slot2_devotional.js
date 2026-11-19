@@ -190,6 +190,37 @@ export async function generateSlot2Content(customTopic = null) {
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'devotional.mp3');
 
+  const titleLower = title.toLowerCase();
+  let visualSceneQueries = [
+    'ancient hindu temple stone architecture sacred',
+    'hindu temple sanctum prayer darshan',
+    'sacred diya lamp temple spiritual',
+    'golden temple lamps peaceful spirituality'
+  ];
+
+  if (titleLower.includes('shiva') || titleLower.includes('mahadev') || titleLower.includes('neelkanth')) {
+    visualSceneQueries = [
+      'shiva temple sacred smoke meditation',
+      'himalayas sacred mountain sunrise clouds',
+      'sacred incense smoke golden spiritual',
+      'hindu temple sanctum prayer darshan'
+    ];
+  } else if (titleLower.includes('hanuman') || titleLower.includes('ram')) {
+    visualSceneQueries = [
+      'hindu temple aarti golden lamp flame',
+      'ancient hindu temple stone architecture sacred',
+      'sacred diya flame spiritual prayer',
+      'hindu ritual temple bells flags'
+    ];
+  } else if (titleLower.includes('krishna')) {
+    visualSceneQueries = [
+      'sacred temple lamps golden spiritual light',
+      'hindu temple sanctum prayer darshan',
+      'spiritual meditation holy river ganga',
+      'sacred peacock feathers vrindavan temple'
+    ];
+  }
+
   const description = `${title}\n\n` +
     `A sacred reminder of devotion, peace, and spiritual wisdom.\n` +
     `(Narration in Hindi with burned-in English subtitles for worldwide darshan).\n\n` +
@@ -207,6 +238,7 @@ export async function generateSlot2Content(customTopic = null) {
     subtitleText,
     englishSubtitles: subtitleText,
     segments: formattedSegments,
+    visualSceneQueries,
     bgMusicPath,
     categoryId: '22', // People & Blogs / Non-profits
   };

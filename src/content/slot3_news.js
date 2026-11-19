@@ -17,13 +17,16 @@ import { logger } from '../utils/logger.js';
 async function generateNewsExplainerWithGemini({ headline, snippet, source, apiKey }) {
   if (!apiKey) return null;
 
+  const currentDate = new Date().toISOString().split('T')[0];
+
   const prompt = `You are the lead news editor and scriptwriter for a top-tier viral YouTube Shorts and Instagram Reels channel.
+Current Date: ${currentDate}.
 Given this real news story:
 - Headline: "${headline}"
 - RSS Context / Key Details: "${snippet || 'Breaking news update'}"
 - News Source: "${source}"
 
-Write an informative, fast-paced, highly factual 55 to 70 word (25 to 30 second) Hinglish news explainer script based on your knowledge and the story context.
+Write an informative, fast-paced, highly factual 55 to 70 word (25 to 30 second) news explainer script based on your knowledge and the story context.
 DO NOT use generic filler phrases (such as "visheshagyon ka manna hai ki neetiyon par asar padega" or "aaj ki sabse badi khabar"). Every sentence must state concrete names, actions, facts, or consequences.
 
 STRICT 4-Part Structure:
@@ -32,11 +35,18 @@ STRICT 4-Part Structure:
 3. Core Detail 2 (14-20 words): Key background context, institutional reaction, or strategic significance.
 4. Impact & Takeaway (10-16 words): What happens next, future consequences, and a crisp prompt asking viewers for their opinion.
 
-CRITICAL SUBTITLE REQUIREMENT:
-- Generate two distinct language versions:
-  1. Spoken voiceover: Written in Hindi / Hinglish in Devanagari script for neural TTS to speak ("hookHindi", "coreDetail1Hindi", "coreDetail2Hindi", "impactHindi").
-  2. On-screen subtitles: A high-quality, punchy, grammatical English translation of the exact same script for burned-in subtitles ("hookEnglish", "coreDetail1English", "coreDetail2English", "impactEnglish").
+CRITICAL TTS & PRONUNCIATION INSTRUCTION:
+- Microsoft Edge TTS Hindi neural voice mispronounces or spells out English acronyms if written in Latin script.
+- In ALL Hindi voiceover fields ("hookHindi", "coreDetail1Hindi", "coreDetail2Hindi", "impactHindi"):
+  Write 100% in Devanagari script. All English proper nouns, institution names, and acronyms (e.g. Supreme Court, RBI, Parliament, Prime Minister, ISRO, CBI, ED, Dollar) MUST be written phonetically in Devanagari (e.g. "सुप्रीम कोर्ट", "आरबीआई", "संसद", "प्रधानमंत्री", "इसरो", "सीबीआई", "ईडी", "डॉलर"). NEVER use Latin/English letters inside Hindi voiceover fields.
+
+CRITICAL SUBTITLE INSTRUCTION:
+- In ALL English subtitle fields ("hookEnglish", "coreDetail1English", "coreDetail2English", "impactEnglish"):
+  Write a high-quality, punchy, grammatical English translation of the exact same script for burned-in subtitles.
 - Total word count across all 4 parts MUST be 50 to 65 words.
+
+VISUAL SCENE QUERIES:
+- Provide "visualSceneQueries": An array of 4 distinct, highly visual 2-4 word queries for moving B-roll video footage matching the topic (e.g. city traffic, court building, parliament hall, financial screen).
 
 Return ONLY a valid JSON object without markdown formatting:
 {
@@ -53,6 +63,7 @@ Return ONLY a valid JSON object without markdown formatting:
   "primaryVisualQuery": "broad 2-3 word visual query for B-roll",
   "secondaryVisualQuery": "broad 2-3 word visual query for B-roll",
   "altVisualQueries": ["query 3", "query 4"],
+  "visualSceneQueries": ["query 1", "query 2", "query 3", "query 4"],
   "tags": ["news", "breakingnews", "explained"]
 }`;
 
@@ -153,6 +164,12 @@ function generateFactualFallback({ cleanHeadline, summary, snippet, source }) {
     primaryVisualQuery: 'breaking news studio',
     secondaryVisualQuery: 'city skyline aerial',
     altVisualQueries: ['broadcast journalist camera', 'newspaper press printing'],
+    visualSceneQueries: [
+      'breaking news studio anchor',
+      'city skyline drone aerial',
+      'press conference microphones reporter',
+      'global finance network data screen'
+    ],
     tags: ['shorts', 'news', 'breakingnews', 'explained', 'trendingnews', 'currentaffairs'],
   };
 }
@@ -227,6 +244,12 @@ export async function generateSlot3Content(customTopic = null) {
       primaryQuery: aiResult.primaryVisualQuery || 'breaking news studio',
       secondaryQuery: aiResult.secondaryVisualQuery || 'city skyline aerial',
       altQueries: aiResult.altVisualQueries || [],
+      visualSceneQueries: aiResult.visualSceneQueries || [
+        aiResult.primaryVisualQuery || 'breaking news studio',
+        aiResult.secondaryVisualQuery || 'city skyline aerial',
+        ...(aiResult.altVisualQueries || []),
+        'press conference microphones reporter'
+      ],
     };
     tags = aiResult.tags || ['shorts', 'news', 'breakingnews', 'explained'];
   } else {
@@ -246,6 +269,7 @@ export async function generateSlot3Content(customTopic = null) {
       primaryQuery: fallback.primaryVisualQuery,
       secondaryQuery: fallback.secondaryVisualQuery,
       altQueries: fallback.altVisualQueries,
+      visualSceneQueries: fallback.visualSceneQueries,
     };
     tags = fallback.tags;
   }
@@ -273,6 +297,12 @@ export async function generateSlot3Content(customTopic = null) {
     visualQuery: visualQueries.primaryQuery,
     secondaryQuery: visualQueries.secondaryQuery,
     altQueries: visualQueries.altQueries || [],
+    visualSceneQueries: visualQueries.visualSceneQueries || [
+      'breaking news studio anchor',
+      'city skyline drone aerial',
+      'press conference microphones reporter',
+      'financial markets screen data'
+    ],
     detectedCategory: 'breaking_news',
     description,
     tags,

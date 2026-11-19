@@ -3,6 +3,7 @@ import fs from 'fs';
 import { config } from '../config.js';
 import { getTodayOccasion, getRotationIndex } from './festival_calendar.js';
 import { fetchScriptureClip } from '../utils/media_fetcher.js';
+import { isScriptureRecentlyUsed, recordUsedScripture } from '../utils/publish_history.js';
 
 export const SCRIPTURES_EPICS = [
   {
@@ -221,9 +222,20 @@ export async function generateSlot4Content(customTopic = null) {
       },
     ];
   } else {
-    // Normal day: Rotate sequentially with zero repeats
-    const index = getRotationIndex(SCRIPTURES_EPICS.length, 'slot4');
-    const item = SCRIPTURES_EPICS[index];
+    // Normal day: Rotate sequentially with 60-day deduplication
+    const defaultIndex = getRotationIndex(SCRIPTURES_EPICS.length, 'slot4');
+    let item = SCRIPTURES_EPICS[defaultIndex];
+
+    // Check if recently published within 60 days; if so, pick next unused candidate
+    if (isScriptureRecentlyUsed(item.id, 60)) {
+      const unusedCandidate = SCRIPTURES_EPICS.find((candidate) => !isScriptureRecentlyUsed(candidate.id, 60));
+      if (unusedCandidate) {
+        item = unusedCandidate;
+      }
+    }
+
+    recordUsedScripture(item.id);
+
     title = item.englishTitle;
     segments = item.segments;
     moral = item.moralSummary;
@@ -283,6 +295,12 @@ export async function generateSlot4Content(customTopic = null) {
     bgMusicPath,
     clipPath,
     epicBadge,
+    visualSceneQueries: [
+      'ancient sacred hindu temple gold',
+      'sacred scripture holy fire prayer',
+      'divine statue darshan sanctum',
+      'spiritual himalayas meditation atmosphere'
+    ],
     categoryId: '22', // People & Blogs / Education
   };
 }

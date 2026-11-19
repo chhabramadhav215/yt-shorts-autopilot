@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { logger } from './utils/logger.js';
 import { checkYouTubeAuth } from './youtube/client.js';
 import { publishToMetaReels } from './social/meta_publisher.js';
+import { recordPublishedTopic } from './utils/publish_history.js';
 
 /**
  * Resolves target slot from CLI args, environment variables, or GitHub Actions schedule cron
@@ -116,6 +117,15 @@ async function run() {
     console.log(`• YouTube:      Skipped (YouTube daily upload limit reached)`);
   }
   console.log('-------------------------------------------------------------\n');
+
+  try {
+    recordPublishedTopic({
+      slot,
+      title: result.title,
+      headline: result.headline || result.title,
+      url: result.upload?.url || '',
+    });
+  } catch (_) {}
 
   // Immediately publish to Instagram Reels & Facebook Reels if Meta credentials configured
   let metaResult = null;
