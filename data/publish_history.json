@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-19T17:42:22.618Z",
+  "lastUpdated": "2026-11-19T19:10:48.563Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -33,6 +33,22 @@
       "headline": "Explained: 'India Is Playing a Whole New Game' 🚨",
       "url": "https://youtube.com/shorts/4XzZ3XM4f30",
       "publishedAt": "2026-11-19T17:42:22.618Z"
+    },
+    {
+      "hash": "518d17dec3826fc6d8616598b44a7510",
+      "slot": "slot5",
+      "title": "Madhav Tiwari Auction Price & Team 🏏🔥",
+      "headline": "Madhav Tiwari Auction Price & Team",
+      "url": "",
+      "publishedAt": "2026-11-19T19:10:47.113Z"
+    },
+    {
+      "hash": "93b3c42dcf2fd37d4ce07430b9882f96",
+      "slot": "slot5",
+      "title": "Madhav Tiwari Auction Price & Team 🏏🔥",
+      "headline": "Madhav Tiwari Auction Price & Team 🏏🔥",
+      "url": "https://youtube.com/shorts/YI_Q3eVyJbk",
+      "publishedAt": "2026-11-19T19:10:48.563Z"
     }
   ],
   "usedVideoClips": [
@@ -195,7 +211,32 @@
       "id": "newsroom_studio.mp4",
       "slot": "slot3",
       "usedAt": "2026-11-19T17:41:29.401Z"
+    },
+    {
+      "id": "cricket_pitch_action.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-19T19:10:04.283Z"
+    },
+    {
+      "id": "cricket_stadium_celebration.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-19T19:10:04.432Z"
+    },
+    {
+      "id": "stadium_floodlights.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-19T19:10:04.580Z"
+    },
+    {
+      "id": "cricket_pitch_floodlights.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-19T19:10:04.735Z"
     }
   ],
-  "usedScriptures": []
+  "usedScriptures": [],
+  "usedStories": []
 }
