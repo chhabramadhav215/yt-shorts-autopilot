@@ -27,7 +27,10 @@ Given this real news story:
 - News Source: "${source}"
 
 Write an informative, fast-paced, highly factual 55 to 70 word (25 to 30 second) news explainer script based on your knowledge and the story context.
-DO NOT use generic filler phrases (such as "visheshagyon ka manna hai ki neetiyon par asar padega" or "aaj ki sabse badi khabar"). Every sentence must state concrete names, actions, facts, or consequences.
+STRICT FACTUAL GROUNDING (CRITICAL):
+- Rely SOLELY and STRICTLY on verified facts reported in the Headline and RSS Context.
+- NEVER invent statistics, false financial sums, unverified government policies, or fake quotes not present in the story.
+- DO NOT use generic filler phrases (such as "visheshagyon ka manna hai ki neetiyon par asar padega" or "aaj ki sabse badi khabar"). Every sentence must state concrete names, actions, facts, or consequences.
 
 STRICT 4-Part Structure:
 1. Hook (8-14 words): High-impact opening stating EXACTLY what happened and who is involved.

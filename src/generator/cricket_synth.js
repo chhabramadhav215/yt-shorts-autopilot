@@ -145,9 +145,9 @@ export async function generateCricketVisualBackground({
     title: rawHeadline,
     visualSceneQueries: visualSceneQueries.length > 0 ? visualSceneQueries : [
       visualQuery || 'cricket stadium floodlights night',
-      secondaryQuery || 'cricket pitch night stadium',
+      'cricket pitch action',
       'cricket batsman aggressive shot',
-      'sports stadium floodlights'
+      'cricket match celebration team'
     ],
     count: 4,
   });

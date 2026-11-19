@@ -14,6 +14,19 @@ function sleep(ms) {
 }
 
 /**
+ * Formats full diagnostic Meta error payload including HTTP code, code, subcode, type, message, and fbtrace_id
+ */
+export function formatMetaErrorPayload(data, status = 0) {
+  const err = data?.error || (typeof data === 'object' ? data : {});
+  const code = err.code !== undefined ? err.code : 'none';
+  const subcode = err.error_subcode !== undefined ? err.error_subcode : 'none';
+  const type = err.type || 'none';
+  const msg = err.message || (typeof data === 'string' ? data : JSON.stringify(data));
+  const fbtrace = err.fbtrace_id || 'none';
+  return `HTTP ${status} | Code: ${code} | Subcode: ${subcode} | Type: ${type} | Message: ${msg} | fbtrace_id: ${fbtrace}`;
+}
+
+/**
  * Checks whether an error from Meta API is retryable (ProcessingFailedError, 5xx, or transient CDN glitch)
  * @param {any} errOrData
  * @param {number} [status=0]
@@ -100,11 +113,12 @@ export async function uploadVideoBinary({
         return uploadData;
       }
 
-      const errMsg = uploadData?.error?.message || responseText || `HTTP ${uploadRes.status}`;
+      const formattedErr = formatMetaErrorPayload(uploadData, uploadRes.status);
       const isRetryable = isRetryableMetaError(uploadData, uploadRes.status);
 
-      logger.warn(`[${platform}] Binary upload attempt ${attempt} failed (HTTP ${uploadRes.status}): ${errMsg}`);
-      lastError = new Error(`Binary upload failed: ${errMsg}`);
+      logger.warn(`[${platform}] Binary upload attempt ${attempt} failed: ${formattedErr}`);
+      logger.warn(`[${platform}] Raw Response: ${responseText.slice(0, 300)}`);
+      lastError = new Error(`Binary upload failed: ${formattedErr}`);
 
       if (attempt < maxRetries && isRetryable) {
         const backoffMs = attempt === 1 ? 3000 : 6000;
@@ -119,7 +133,7 @@ export async function uploadVideoBinary({
       if (attempt < maxRetries && isRetryable) {
         const backoffMs = attempt === 1 ? 3000 : 6000;
         logger.warn(
-          `[${platform}] Binary upload error on attempt ${attempt}: ${err.message}. Retrying in ${backoffMs / 1000}s...`
+          `[${platform}] Binary upload network error on attempt ${attempt}: ${err.message}. Retrying in ${backoffMs / 1000}s...`
         );
         await sleep(backoffMs);
       } else {
@@ -134,6 +148,7 @@ export async function uploadVideoBinary({
 /**
  * Publishes a video to Instagram Reels via Meta Graph API v20+
  * Automatically recreates container upon ProcessingFailedError or 5xx.
+ * Logs full HTTP status and JSON error payloads.
  * @param {Object} params
  * @param {string} params.igAccountId - Instagram Business/Creator Account ID
  * @param {string} params.accessToken - Meta User/Page Access Token
@@ -173,14 +188,17 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
 
       const initData = await initRes.json();
       if (!initRes.ok || !initData.id || !initData.uri) {
-        const errMsg = initData?.error?.message || JSON.stringify(initData);
+        const formattedErr = formatMetaErrorPayload(initData, initRes.status);
+        logger.error(`[Instagram Reels] Container initialization failed: ${formattedErr}`);
+        logger.error(`[Instagram Reels] Full JSON: ${JSON.stringify(initData)}`);
+
         if (containerAttempt < maxContainerAttempts && isRetryableMetaError(initData, initRes.status)) {
           const backoffMs = containerAttempt === 1 ? 3000 : 6000;
-          logger.warn(`[Instagram Reels] Container initialization failed: ${errMsg}. Recreating container in ${backoffMs / 1000}s...`);
+          logger.warn(`[Instagram Reels] Recreating container in ${backoffMs / 1000}s...`);
           await sleep(backoffMs);
           continue;
         }
-        throw new Error(`Instagram container initialization failed: ${errMsg}`);
+        throw new Error(`Instagram container initialization failed: ${formattedErr}`);
       }
 
       const containerId = initData.id;
@@ -215,18 +233,21 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
           isReady = true;
           break;
         } else if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
-          const errDetails = statusData.status || statusData?.error?.message || statusCode;
-          const isRetryable = isRetryableMetaError(errDetails);
+          const formattedErr = formatMetaErrorPayload(statusData, statusRes.status);
+          logger.error(`[Instagram Reels] Container processing returned ${statusCode}: ${formattedErr}`);
+          logger.error(`[Instagram Reels] Full Status JSON: ${JSON.stringify(statusData)}`);
+
+          const isRetryable = isRetryableMetaError(statusData);
           if (containerAttempt < maxContainerAttempts && isRetryable) {
             const backoffMs = containerAttempt === 1 ? 3000 : 6000;
             logger.warn(
-              `[Instagram Reels] Container ${containerId} processing returned ${statusCode} (${errDetails}). Recreating upload container (attempt ${containerAttempt + 1}/${maxContainerAttempts}) after ${backoffMs / 1000}s...`
+              `[Instagram Reels] Recreating upload container (attempt ${containerAttempt + 1}/${maxContainerAttempts}) after ${backoffMs / 1000}s...`
             );
             await sleep(backoffMs);
             needContainerRecreate = true;
             break;
           }
-          throw new Error(`Instagram container processing failed with status: ${errDetails}`);
+          throw new Error(`Instagram container processing failed (${statusCode}): ${formattedErr}`);
         }
       }
 
@@ -258,8 +279,10 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
 
       const pubData = await pubRes.json();
       if (!pubRes.ok || !pubData.id) {
-        const errMsg = pubData?.error?.message || JSON.stringify(pubData);
-        throw new Error(`Instagram media publish failed: ${errMsg}`);
+        const formattedErr = formatMetaErrorPayload(pubData, pubRes.status);
+        logger.error(`[Instagram Reels] Media publish failed: ${formattedErr}`);
+        logger.error(`[Instagram Reels] Full Publish JSON: ${JSON.stringify(pubData)}`);
+        throw new Error(`Instagram media publish failed: ${formattedErr}`);
       }
 
       const mediaId = pubData.id;
@@ -327,6 +350,10 @@ async function resolveFacebookPageAccessToken(fbPageId, userAccessToken) {
         pageName: directData.name || null,
         warning: null,
       };
+    } else if (directData?.error) {
+      logger.info(
+        `[Facebook Reels] Direct Page query did not yield page token (${formatMetaErrorPayload(directData, directRes.status)}). Checking /me/accounts...`
+      );
     }
   } catch (err) {
     // Proceed to /me/accounts check
@@ -360,16 +387,14 @@ async function resolveFacebookPageAccessToken(fbPageId, userAccessToken) {
         warning,
       };
     } else if (accountsData?.error) {
-      const errMsg = accountsData.error.message || 'Unknown error';
-      logger.warn(
-        `[Facebook Reels] Query to /me/accounts returned error: ${errMsg} [Code #${accountsData.error.code || 'unknown'}]`
-      );
+      const formattedErr = formatMetaErrorPayload(accountsData, accountsRes.status);
+      logger.warn(`[Facebook Reels] Query to /me/accounts returned: ${formattedErr}`);
     }
   } catch (err) {
     logger.warn(`[Facebook Reels] Error querying /me/accounts: ${err.message}`);
   }
 
-  // 3. Fallback: If token cannot be exchanged, try using provided token directly (in case it is already a Page Token)
+  // 3. Fallback: If token cannot be exchanged, try using provided token directly
   return {
     pageAccessToken: userAccessToken,
     pageName: null,
@@ -379,6 +404,7 @@ async function resolveFacebookPageAccessToken(fbPageId, userAccessToken) {
 
 /**
  * Publishes a video to Facebook Page Reels via Meta Graph API v20+
+ * Logs full HTTP status and JSON error payloads.
  * @param {Object} params
  * @param {string} params.fbPageId - Facebook Page ID
  * @param {string} params.accessToken - Meta Page Access Token
@@ -396,7 +422,7 @@ async function uploadFacebookReel({ fbPageId, accessToken, videoPath, title, cap
   const fileStats = fs.statSync(videoPath);
   const fileSize = fileStats.size;
   logger.info(
-    `[Facebook Reels] Initializing Reel upload on Page ${pageName ? `"${pageName}" (ID: ${fbPageId})` : fbPageId}...`
+    `[Facebook Reels] Initializing Reel upload on Page ${pageName ? `"${pageName}" (ID: ${fbPageId})` : fbPageId} (${(fileSize / 1024 / 1024).toFixed(2)} MB)...`
   );
 
   // Step 1: Start upload session via /{page-id}/video_reels
@@ -413,9 +439,10 @@ async function uploadFacebookReel({ fbPageId, accessToken, videoPath, title, cap
 
   const startData = await startRes.json();
   if (!startRes.ok || !startData.video_id || !startData.upload_url) {
-    const errMsg = startData?.error?.message || JSON.stringify(startData);
-    const errCode = startData?.error?.code ? ` (#${startData.error.code})` : '';
-    throw new Error(`Facebook Reels initialization failed: ${errCode} ${errMsg}`.trim());
+    const formattedErr = formatMetaErrorPayload(startData, startRes.status);
+    logger.error(`[Facebook Reels] Session start failed: ${formattedErr}`);
+    logger.error(`[Facebook Reels] Full Start JSON: ${JSON.stringify(startData)}`);
+    throw new Error(`Facebook Reels initialization failed: ${formattedErr}`);
   }
 
   const videoId = startData.video_id;
@@ -449,8 +476,10 @@ async function uploadFacebookReel({ fbPageId, accessToken, videoPath, title, cap
 
   const finishData = await finishRes.json();
   if (!finishRes.ok || finishData.success === false) {
-    const errMsg = finishData?.error?.message || JSON.stringify(finishData);
-    throw new Error(`Facebook Reels finish publish failed: ${errMsg}`);
+    const formattedErr = formatMetaErrorPayload(finishData, finishRes.status);
+    logger.error(`[Facebook Reels] Finish publish failed: ${formattedErr}`);
+    logger.error(`[Facebook Reels] Full Finish JSON: ${JSON.stringify(finishData)}`);
+    throw new Error(`Facebook Reels finish publish failed: ${formattedErr}`);
   }
 
   const permalink = `https://www.facebook.com/watch/?v=${videoId}`;
@@ -482,7 +511,11 @@ export async function publishToMetaReels({
   const enableFbCrossPost = process.env.ENABLE_FACEBOOK_REELS !== 'false';
 
   if (!accessToken || !igAccountId) {
-    logger.info('Meta / Instagram credentials not configured (META_ACCESS_TOKEN or INSTAGRAM_ACCOUNT_ID missing). Skipping Instagram Reels publishing.');
+    logger.info('[Meta Reels] META_ACCESS_TOKEN or INSTAGRAM_ACCOUNT_ID is not configured. Skipping Meta publishing.');
+    logger.info('[Meta Reels] Configured credentials checklist:');
+    logger.info('  • META_ACCESS_TOKEN: User/System Access Token (with instagram_basic, instagram_content_publish, pages_show_list, pages_read_engagement, pages_manage_posts)');
+    logger.info('  • INSTAGRAM_ACCOUNT_ID: Connected Instagram Business/Creator Account ID');
+    logger.info('  • FACEBOOK_PAGE_ID: Facebook Page ID (optional, for Page Reels cross-posting)');
     return { published: false, skipped: true };
   }
 

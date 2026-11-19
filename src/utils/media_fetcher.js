@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { execFile } from 'child_process';
+import sharp from 'sharp';
 import ffmpegStatic from 'ffmpeg-static';
 import { config } from '../config.js';
 import { logger } from './logger.js';
@@ -74,6 +75,38 @@ export async function searchWikimediaCommons(query, maxResults = 6) {
   } catch (err) {
     logger.warn(`Wikimedia Commons search error (${query}): ${err.message}`);
     return [];
+  }
+}
+
+/**
+ * Evaluates whether a video clip has sufficient visual brightness/luminance
+ * to prevent rendering dark, blank, or pitch-black video frames.
+ * @param {string} filePath
+ * @param {number} [minBrightness=25]
+ * @returns {Promise<boolean>}
+ */
+export async function isVideoClipBrightEnough(filePath, minBrightness = 25) {
+  if (!filePath || !fs.existsSync(filePath)) return false;
+  try {
+    const tmpFrame = path.join(CACHE_DIR, `lum_${crypto.randomBytes(6).toString('hex')}.jpg`);
+    await new Promise((resolve, reject) => {
+      execFile(
+        process.env.FFMPEG_PATH || ffmpegStatic,
+        ['-y', '-ss', '00:00:01', '-i', filePath, '-vframes', '1', tmpFrame],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+    if (!fs.existsSync(tmpFrame)) return false;
+    const { data } = await sharp(tmpFrame).raw().toBuffer({ resolveWithObject: true });
+    try { fs.unlinkSync(tmpFrame); } catch (_) {}
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 3) {
+      sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+    }
+    const avg = sum / (data.length / 3);
+    return avg >= minBrightness;
+  } catch (err) {
+    return true; // Default to true if analysis fails to avoid blocking pipeline
   }
 }
 
@@ -166,6 +199,12 @@ export async function tryDownloadPexels(query, orientation = 'portrait', options
       logger.info(`Using cached Pexels moving video (ID ${chosen.id}) for "${query}"`);
     }
 
+    const isBright = await isVideoClipBrightEnough(dest, 25);
+    if (!isBright) {
+      logger.warn(`Downloaded Pexels clip (ID ${chosen.id}) is too dark (luminance < 25). Discarding...`);
+      return null;
+    }
+
     markPexelsVideoUsed(chosen.id, query);
     return { type: 'video', filePath: dest, pexelsId: chosen.id };
   } catch (e) {
@@ -254,9 +293,35 @@ export async function fetchMultiClipSequence({
       if (selectedClips.length >= targetCount) break;
       const base = path.basename(clip).toLowerCase();
       if (!selectedKeys.has(base)) {
-        selectedClips.push(clip);
-        selectedKeys.add(base);
-        recordUsedClip(path.basename(clip), slotType);
+        const isBright = await isVideoClipBrightEnough(clip, 25);
+        if (isBright) {
+          selectedClips.push(clip);
+          selectedKeys.add(base);
+          recordUsedClip(path.basename(clip), slotType);
+        }
+      }
+    }
+  }
+
+  // 3b. If still under targetCount, pull from backup pools to guarantee 3-5 distinct clips
+  if (selectedClips.length < targetCount) {
+    const backupPools = [
+      getCategoryVideoPool(CRICKET_DIR),
+      getCategoryVideoPool(NEWS_DIR),
+      getCategoryVideoPool(DEVOTIONAL_DIR),
+      getCategoryVideoPool(SCRIPTURES_DIR),
+    ].flat();
+
+    for (const clip of backupPools) {
+      if (selectedClips.length >= targetCount) break;
+      const base = path.basename(clip).toLowerCase();
+      if (!selectedKeys.has(base)) {
+        const isBright = await isVideoClipBrightEnough(clip, 25);
+        if (isBright) {
+          selectedClips.push(clip);
+          selectedKeys.add(base);
+          recordUsedClip(path.basename(clip), slotType);
+        }
       }
     }
   }

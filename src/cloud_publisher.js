@@ -48,7 +48,7 @@ function resolveTargetSlot() {
 async function run() {
   const slot = resolveTargetSlot();
   const customTopic = process.env.CUSTOM_TOPIC || process.argv[3] || null;
-  const privacyStatus = process.env.UPLOAD_PRIVACY || 'public';
+  const privacyStatus = process.env.PRIVACY_STATUS || process.env.UPLOAD_PRIVACY || 'public';
 
   console.log('\n=============================================================');
   console.log(` 🚀 GITHUB ACTIONS CLOUD SHORTS PUBLISHER `);
