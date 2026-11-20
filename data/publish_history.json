@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-19T19:10:48.563Z",
+  "lastUpdated": "2026-11-20T04:25:22.809Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -49,6 +49,22 @@
       "headline": "Madhav Tiwari Auction Price & Team 🏏🔥",
       "url": "https://youtube.com/shorts/YI_Q3eVyJbk",
       "publishedAt": "2026-11-19T19:10:48.563Z"
+    },
+    {
+      "hash": "308bf9c5bf96993cc55f470a94931214",
+      "slot": "slot1",
+      "title": "Architect Papa vs Baby Builder! 👶🏗️ Controlled Demolition",
+      "headline": "Architect Papa vs Baby Builder! 👶🏗️ Controlled Demolition",
+      "url": "",
+      "publishedAt": "2026-11-20T04:25:21.507Z"
+    },
+    {
+      "hash": "308bf9c5bf96993cc55f470a94931214",
+      "slot": "slot1",
+      "title": "Architect Papa vs Baby Builder! 👶🏗️ Controlled Demolition",
+      "headline": "Architect Papa vs Baby Builder! 👶🏗️ Controlled Demolition",
+      "url": "https://youtube.com/shorts/J1ODKRpb_Ww",
+      "publishedAt": "2026-11-20T04:25:22.809Z"
     }
   ],
   "usedVideoClips": [
@@ -235,6 +251,30 @@
       "slot": "slot5",
       "type": "video",
       "usedAt": "2026-11-19T19:10:04.735Z"
+    },
+    {
+      "id": "04_baby_laughing.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-20T04:24:23.546Z"
+    },
+    {
+      "id": "05_toddler_wobble.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-20T04:24:23.711Z"
+    },
+    {
+      "id": "08_naughty_smile.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-20T04:24:23.862Z"
+    },
+    {
+      "id": "09_toy_adventure.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-20T04:25:21.507Z"
     }
   ],
   "usedScriptures": [],
