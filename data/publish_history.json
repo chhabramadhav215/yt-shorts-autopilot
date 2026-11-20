@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-20T14:46:05.780Z",
+  "lastUpdated": "2026-11-20T14:55:13.131Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -113,6 +113,22 @@
       "headline": "Explained: Breaking Ground: Politics 🚨",
       "url": "https://youtube.com/shorts/GQY0sjIbbME",
       "publishedAt": "2026-11-20T14:46:05.780Z"
+    },
+    {
+      "hash": "a6f921786657152ca5e8c92c0432b408",
+      "slot": "slot4",
+      "title": "The Eternal Ideal of Ram Rajya 🏹 Valmiki Ramayana Wisdom",
+      "headline": "The Eternal Ideal of Ram Rajya 🏹 Valmiki Ramayana Wisdom",
+      "url": "",
+      "publishedAt": "2026-11-20T14:55:11.643Z"
+    },
+    {
+      "hash": "a6f921786657152ca5e8c92c0432b408",
+      "slot": "slot4",
+      "title": "The Eternal Ideal of Ram Rajya 🏹 Valmiki Ramayana Wisdom",
+      "headline": "The Eternal Ideal of Ram Rajya 🏹 Valmiki Ramayana Wisdom",
+      "url": "https://youtube.com/shorts/bQ1SZOXA7HU",
+      "publishedAt": "2026-11-20T14:55:13.131Z"
     }
   ],
   "usedVideoClips": [
@@ -395,6 +411,30 @@
       "slot": "slot3",
       "type": "video",
       "usedAt": "2026-11-20T14:44:57.789Z"
+    },
+    {
+      "id": "hanuman_lanka_dahan.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-20T14:54:11.642Z"
+    },
+    {
+      "id": "bhishma_pratigya.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-20T14:54:11.762Z"
+    },
+    {
+      "id": "arjuna_dhanush_focus.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-20T14:54:11.964Z"
+    },
+    {
+      "id": "ramayana_rama.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-20T14:55:11.644Z"
     }
   ],
   "usedScriptures": [],
@@ -410,6 +450,12 @@
       "slot": "slot4",
       "title": "",
       "usedAt": "2026-11-20T12:20:42.739Z"
+    },
+    {
+      "id": "ram_rajya",
+      "slot": "slot4",
+      "title": "",
+      "usedAt": "2026-11-20T14:54:06.335Z"
     }
   ]
 }
