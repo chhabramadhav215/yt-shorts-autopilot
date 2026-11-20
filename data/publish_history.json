@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-20T09:33:03.123Z",
+  "lastUpdated": "2026-11-20T12:21:38.200Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -81,6 +81,22 @@
       "headline": "Meera Bai Divine Ecstasy 🌸 Unconditional Krishna Love",
       "url": "https://youtube.com/shorts/oGsjEVVVC38",
       "publishedAt": "2026-11-20T09:33:03.123Z"
+    },
+    {
+      "hash": "52c7d0085444653209d086f656b0bf01",
+      "slot": "slot4",
+      "title": "Hanuman Fearless Dialogue Before Ravana 🕉️ Ramayana Wisdom",
+      "headline": "Hanuman Fearless Dialogue Before Ravana 🕉️ Ramayana Wisdom",
+      "url": "",
+      "publishedAt": "2026-11-20T12:21:35.987Z"
+    },
+    {
+      "hash": "52c7d0085444653209d086f656b0bf01",
+      "slot": "slot4",
+      "title": "Hanuman Fearless Dialogue Before Ravana 🕉️ Ramayana Wisdom",
+      "headline": "Hanuman Fearless Dialogue Before Ravana 🕉️ Ramayana Wisdom",
+      "url": "https://youtube.com/shorts/Dj9BvmDAelc",
+      "publishedAt": "2026-11-20T12:21:38.200Z"
     }
   ],
   "usedVideoClips": [
@@ -315,6 +331,30 @@
       "slot": "slot2",
       "type": "video",
       "usedAt": "2026-11-20T09:32:09.992Z"
+    },
+    {
+      "id": "kurukshetra_geeta_updesh.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-20T12:20:44.366Z"
+    },
+    {
+      "id": "geeta_saar.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-20T12:20:44.540Z"
+    },
+    {
+      "id": "karna_daan.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-20T12:20:44.698Z"
+    },
+    {
+      "id": "hanuman_ravana.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-20T12:21:35.988Z"
     }
   ],
   "usedScriptures": [],
@@ -324,6 +364,12 @@
       "slot": "slot2",
       "title": "Meera Bai Divine Ecstasy 🌸 Unconditional Krishna Love",
       "usedAt": "2026-11-20T09:32:02.736Z"
+    },
+    {
+      "id": "hanuman_ravana",
+      "slot": "slot4",
+      "title": "",
+      "usedAt": "2026-11-20T12:20:42.739Z"
     }
   ]
 }
