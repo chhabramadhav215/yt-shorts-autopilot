@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-21T04:22:48.075Z",
+  "lastUpdated": "2026-11-21T09:18:07.335Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -193,6 +193,22 @@
       "headline": "Doctor Uncle’s Big Lie! 👶💉 Tiny Injection Mystery",
       "url": "https://youtube.com/shorts/rm9uLxsICtw",
       "publishedAt": "2026-11-21T04:22:48.075Z"
+    },
+    {
+      "hash": "0da8374c1afee728c241c4b932455bfb",
+      "slot": "slot2",
+      "title": "The Power of True Faith 🕉️ Hanuman Ji Divine Devotion | Daily Darshan",
+      "headline": "The Power of True Faith 🕉️ Hanuman Ji Divine Devotion | Daily Darshan",
+      "url": "",
+      "publishedAt": "2026-11-21T09:18:05.822Z"
+    },
+    {
+      "hash": "0da8374c1afee728c241c4b932455bfb",
+      "slot": "slot2",
+      "title": "The Power of True Faith 🕉️ Hanuman Ji Divine Devotion | Daily Darshan",
+      "headline": "The Power of True Faith 🕉️ Hanuman Ji Divine Devotion | Daily Darshan",
+      "url": "https://youtube.com/shorts/XChEk11Xvuk",
+      "publishedAt": "2026-11-21T09:18:07.335Z"
     }
   ],
   "usedVideoClips": [
@@ -595,6 +611,30 @@
       "slot": "slot1",
       "type": "video",
       "usedAt": "2026-11-21T04:22:46.801Z"
+    },
+    {
+      "id": "krishna_vrindavan_darshan.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-21T09:17:02.717Z"
+    },
+    {
+      "id": "krishna_flute_divine.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-21T09:17:03.006Z"
+    },
+    {
+      "id": "ganga_haridwar_aarti.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-21T09:17:03.303Z"
+    },
+    {
+      "id": "temple_sacred_aarti.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-21T09:17:03.594Z"
     }
   ],
   "usedScriptures": [],
@@ -616,6 +656,12 @@
       "slot": "slot4",
       "title": "",
       "usedAt": "2026-11-20T14:54:06.335Z"
+    },
+    {
+      "id": "hanuman_pearl_necklace",
+      "slot": "slot2",
+      "title": "The Power of True Faith 🕉️ Hanuman Ji Divine Devotion | Daily Darshan",
+      "usedAt": "2026-11-21T09:16:59.688Z"
     }
   ]
 }
