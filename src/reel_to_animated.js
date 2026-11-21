@@ -697,17 +697,16 @@ async function main() {
     scaleFilter = `[0:v]fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,split=2[v_base][v_edge_src]`;
   }
 
-  // Step B: Multi-stage toon/comic stylization:
-  // - Edge-preserving smoothing (hqdn3d + unsharp)
-  // - Vibrant comic saturation & contrast (eq=saturation=1.45:contrast=1.18:brightness=0.02)
-  // - Cel-shading color quantization (format=rgb24 + lutrgb)
-  // - Crisp dark ink outlines (edgedetect + negate)
-  // - Blend with multiply mode
+  // Step B: Multi-stage toon/comic stylization (Full-color rotoscope without color cast):
+  // - Texture smoothing with hqdn3d=4:4:6:6
+  // - Balanced vibrant colors with eq=saturation=1.25:contrast=1.12:brightness=0.01
+  // - Crisp dark ink lines with transparent background via edgedetect + neutral YUV alpha mask
+  // - Overlay ink lines onto color layer keeping original natural colors completely intact
   const toonFilter = [
     scaleFilter,
-    `[v_base]hqdn3d=6:6:8:8,unsharp=5:5:1.2:5:5:0.0,eq=saturation=1.45:contrast=1.18:brightness=0.02,format=rgb24,lutrgb=r='bitand(val,224)':g='bitand(val,224)':b='bitand(val,224)',format=yuv420p[v_color]`,
-    `[v_edge_src]format=gray,edgedetect=low=0.12:high=0.28:mode=wires,lutrgb=r=negval:g=negval:b=negval,format=yuv420p[v_ink]`,
-    `[v_color][v_ink]blend=all_mode=multiply:all_opacity=0.9[vout]`,
+    `[v_base]hqdn3d=4:4:6:6,eq=saturation=1.25:contrast=1.12:brightness=0.01[v_color]`,
+    `[v_edge_src]format=gray,edgedetect=low=0.14:high=0.30:mode=wires,geq='if(gt(lum(X,Y),40),255,0)',format=yuva420p,geq=lum='0':cb='128':cr='128':a='lum(X,Y)'[v_ink]`,
+    `[v_color][v_ink]overlay=0:0[vout]`,
   ].join(';');
 
   const ffmpegArgs = [
