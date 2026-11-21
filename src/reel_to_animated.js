@@ -349,98 +349,125 @@ async function publishToFacebookReels({ fbPageId, accessToken, videoPath, title,
 
 /**
  * Publishes video to Instagram Reels via Meta Graph API v21.0
+ * Creates a brand-new media container inside each retry attempt to prevent
+ * "The ig container is not in the status to upload a video" errors.
  */
 async function publishToInstagramReels({ igUserId, accessToken, videoPath, caption }) {
-  logger.info(`[Instagram Reels v21.0] Initializing Reel container for Account ${igUserId}...`);
+  const maxContainerAttempts = 3;
+  let lastError = null;
 
-  // Step 1: Initialize container via /{ig-user-id}/media
-  const initEndpoint = `${GRAPH_API_BASE}/${igUserId}/media`;
-  const initRes = await fetch(initEndpoint, {
-    method: 'POST',
-    body: new URLSearchParams({
-      media_type: 'REELS',
-      upload_type: 'resumable',
-      caption,
-      share_to_feed: 'true',
-      access_token: accessToken,
-    }),
-  });
+  for (let containerAttempt = 1; containerAttempt <= maxContainerAttempts; containerAttempt++) {
+    try {
+      logger.info(
+        `[Instagram Reels v21.0] Initializing Reel container (attempt ${containerAttempt}/${maxContainerAttempts}) for Account ${igUserId}...`
+      );
 
-  const initData = await initRes.json();
-  if (!initRes.ok || !initData.id || !initData.uri) {
-    const formattedErr = formatMetaErrorPayload(initData, initRes.status);
-    throw new Error(`Instagram container initialization failed: ${formattedErr}`);
-  }
+      // Step 1: Initialize brand-new container via /{ig-user-id}/media
+      const initEndpoint = `${GRAPH_API_BASE}/${igUserId}/media`;
+      const initRes = await fetch(initEndpoint, {
+        method: 'POST',
+        body: new URLSearchParams({
+          media_type: 'REELS',
+          upload_type: 'resumable',
+          caption,
+          share_to_feed: 'true',
+          access_token: accessToken,
+        }),
+      });
 
-  const containerId = initData.id;
-  const uploadUri = initData.uri;
-  logger.success(`[Instagram Reels v21.0] Container created: ${containerId}`);
+      const initData = await initRes.json();
+      if (!initRes.ok || !initData.id || !initData.uri) {
+        const formattedErr = formatMetaErrorPayload(initData, initRes.status);
+        throw new Error(`Instagram container initialization failed: ${formattedErr}`);
+      }
 
-  // Step 2: Upload video binary to uploadUri
-  await uploadVideoBinary({
-    uploadUri,
-    videoPath,
-    accessToken,
-    platform: 'Instagram Reels v21.0',
-    maxRetries: 3,
-  });
+      const containerId = initData.id;
+      const uploadUri = initData.uri;
+      logger.success(`[Instagram Reels v21.0] Container created: ${containerId}`);
 
-  // Step 3: Poll container status until FINISHED
-  logger.info(`[Instagram Reels v21.0] Waiting for video processing (container ${containerId})...`);
-  const statusEndpoint = `${GRAPH_API_BASE}/${containerId}?fields=status_code,status&access_token=${accessToken}`;
-  let isReady = false;
-  const maxAttempts = 30; // 150 seconds
+      // Step 2: Wait 3 seconds so Meta's CDN session is fully initialized
+      logger.info('[Instagram Reels v21.0] Waiting 3 seconds for Meta CDN upload session initialization...');
+      await new Promise((r) => setTimeout(r, 3000));
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await sleep(5000);
-    const statusRes = await fetch(statusEndpoint);
-    const statusData = await statusRes.json();
-    const statusCode = statusData.status_code || '';
+      // Step 3: Upload video binary to uploadUri (single attempt per container so failed container is never reused)
+      await uploadVideoBinary({
+        uploadUri,
+        videoPath,
+        accessToken,
+        platform: 'Instagram Reels v21.0',
+        maxRetries: 1,
+      });
 
-    logger.info(`[Instagram Reels v21.0] Processing status (attempt ${attempt}/${maxAttempts}): ${statusCode || 'CHECKING'}`);
-    if (statusCode === 'FINISHED') {
-      isReady = true;
-      break;
-    } else if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
-      const formattedErr = formatMetaErrorPayload(statusData, statusRes.status);
-      throw new Error(`Instagram container processing failed (${statusCode}): ${formattedErr}`);
+      // Step 4: Poll container status until FINISHED
+      logger.info(`[Instagram Reels v21.0] Waiting for video processing (container ${containerId})...`);
+      const statusEndpoint = `${GRAPH_API_BASE}/${containerId}?fields=status_code,status&access_token=${accessToken}`;
+      let isReady = false;
+      const maxAttempts = 30; // 150 seconds
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        await sleep(5000);
+        const statusRes = await fetch(statusEndpoint);
+        const statusData = await statusRes.json();
+        const statusCode = statusData.status_code || '';
+
+        logger.info(`[Instagram Reels v21.0] Processing status (attempt ${attempt}/${maxAttempts}): ${statusCode || 'CHECKING'}`);
+        if (statusCode === 'FINISHED') {
+          isReady = true;
+          break;
+        } else if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
+          const formattedErr = formatMetaErrorPayload(statusData, statusRes.status);
+          throw new Error(`Instagram container processing failed (${statusCode}): ${formattedErr}`);
+        }
+      }
+
+      if (!isReady) {
+        throw new Error(`Instagram container processing timed out after 150 seconds.`);
+      }
+
+      // Step 5: Publish container
+      logger.info(`[Instagram Reels v21.0] Publishing container ${containerId}...`);
+      const publishEndpoint = `${GRAPH_API_BASE}/${igUserId}/media_publish`;
+      const pubRes = await fetch(publishEndpoint, {
+        method: 'POST',
+        body: new URLSearchParams({
+          creation_id: containerId,
+          access_token: accessToken,
+        }),
+      });
+
+      const pubData = await pubRes.json();
+      if (!pubRes.ok || !pubData.id) {
+        const formattedErr = formatMetaErrorPayload(pubData, pubRes.status);
+        throw new Error(`Instagram media publish failed: ${formattedErr}`);
+      }
+
+      const mediaId = pubData.id;
+      logger.success(`[Instagram Reels v21.0] Published successfully! Media ID: ${mediaId}`);
+
+      let permalink = `https://www.instagram.com/reel/`;
+      try {
+        const permalinkRes = await fetch(`${GRAPH_API_BASE}/${mediaId}?fields=permalink&access_token=${accessToken}`);
+        const permalinkData = await permalinkRes.json();
+        if (permalinkData.permalink) {
+          permalink = permalinkData.permalink;
+        }
+      } catch (_) {}
+
+      return { id: mediaId, permalink };
+    } catch (err) {
+      lastError = err;
+      logger.warn(
+        `[Instagram Reels v21.0] Container attempt ${containerAttempt}/${maxContainerAttempts} failed: ${err.message}`
+      );
+      if (containerAttempt < maxContainerAttempts) {
+        const backoffMs = containerAttempt * 3000;
+        logger.info(`[Instagram Reels v21.0] Retrying with brand-new container in ${backoffMs / 1000}s...`);
+        await sleep(backoffMs);
+      }
     }
   }
 
-  if (!isReady) {
-    throw new Error(`Instagram container processing timed out after 150 seconds.`);
-  }
-
-  // Step 4: Publish container
-  logger.info(`[Instagram Reels v21.0] Publishing container ${containerId}...`);
-  const publishEndpoint = `${GRAPH_API_BASE}/${igUserId}/media_publish`;
-  const pubRes = await fetch(publishEndpoint, {
-    method: 'POST',
-    body: new URLSearchParams({
-      creation_id: containerId,
-      access_token: accessToken,
-    }),
-  });
-
-  const pubData = await pubRes.json();
-  if (!pubRes.ok || !pubData.id) {
-    const formattedErr = formatMetaErrorPayload(pubData, pubRes.status);
-    throw new Error(`Instagram media publish failed: ${formattedErr}`);
-  }
-
-  const mediaId = pubData.id;
-  logger.success(`[Instagram Reels v21.0] Published successfully! Media ID: ${mediaId}`);
-
-  let permalink = `https://www.instagram.com/reel/`;
-  try {
-    const permalinkRes = await fetch(`${GRAPH_API_BASE}/${mediaId}?fields=permalink&access_token=${accessToken}`);
-    const permalinkData = await permalinkRes.json();
-    if (permalinkData.permalink) {
-      permalink = permalinkData.permalink;
-    }
-  } catch (_) {}
-
-  return { id: mediaId, permalink };
+  throw lastError || new Error(`Instagram Reels publishing failed after ${maxContainerAttempts} container attempts.`);
 }
 
 /**
@@ -726,6 +753,9 @@ async function main() {
     '-t', String(roundDur),
     '-c:v', 'libx264',
     '-preset', 'fast',
+    '-crf', '25',
+    '-maxrate', '5M',
+    '-bufsize', '10M',
     '-pix_fmt', 'yuv420p',
     '-c:a', 'aac',
     '-b:a', '192k',

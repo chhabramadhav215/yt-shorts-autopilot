@@ -49,7 +49,10 @@ export function isRetryableMetaError(errOrData, status = 0) {
     msg.includes('timeout') ||
     msg.includes('econnreset') ||
     msg.includes('etimedout') ||
-    msg.includes('socket hang up')
+    msg.includes('socket hang up') ||
+    msg.includes('not in the status to upload') ||
+    msg.includes('ig container') ||
+    msg.includes('binary upload failed')
   );
 }
 
@@ -205,13 +208,17 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
       const uploadUri = initData.uri;
       logger.success(`[Instagram Reels] Container created: ${containerId}`);
 
-      // Step 2: Upload binary video payload to uploadUri with 3 retries (3s, 6s backoff)
+      // Wait 3 seconds so Meta's CDN session is fully initialized
+      logger.info('[Instagram Reels] Waiting 3 seconds for Meta CDN upload session initialization...');
+      await new Promise((r) => setTimeout(r, 3000));
+
+      // Step 2: Upload binary video payload to uploadUri (single attempt per container so failed container is never reused)
       await uploadVideoBinary({
         uploadUri,
         videoPath,
         accessToken,
         platform: 'Instagram Reels',
-        maxRetries: 3,
+        maxRetries: 1,
       });
 
       // Step 3: Poll container status until FINISHED
