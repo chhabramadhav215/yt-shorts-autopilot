@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-21T12:09:31.153Z",
+  "lastUpdated": "2026-11-21T14:41:39.059Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -225,6 +225,22 @@
       "headline": "The Cosmic Vision of Krishna 🕉️ Vishwaroop Darshan | Bhagavad Gita",
       "url": "https://youtube.com/shorts/qRjuzfg8t4s",
       "publishedAt": "2026-11-21T12:09:31.153Z"
+    },
+    {
+      "hash": "190a5e0cac1453b7d8d7684efd8e05e8",
+      "slot": "slot3",
+      "title": "Explained: Rahul's 'Compromised Pm' Jibe 🚨",
+      "headline": "Rahul's 'Compromised Pm' Jibe",
+      "url": "",
+      "publishedAt": "2026-11-21T14:41:37.543Z"
+    },
+    {
+      "hash": "048b9a8b91fc08cba3d421495486963e",
+      "slot": "slot3",
+      "title": "Explained: Rahul's 'Compromised Pm' Jibe 🚨",
+      "headline": "Explained: Rahul's 'Compromised Pm' Jibe 🚨",
+      "url": "https://youtube.com/shorts/qJjgb8WyMJo",
+      "publishedAt": "2026-11-21T14:41:39.059Z"
     }
   ],
   "usedVideoClips": [
@@ -675,6 +691,30 @@
       "slot": "slot4",
       "type": "video",
       "usedAt": "2026-11-21T12:09:29.778Z"
+    },
+    {
+      "id": "tech_digital_globe.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-21T14:40:28.862Z"
+    },
+    {
+      "id": "newsroom_studio.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-21T14:40:29.062Z"
+    },
+    {
+      "id": "breaking_news_anchor.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-21T14:40:29.252Z"
+    },
+    {
+      "id": "global_geopolitics_network.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-21T14:40:29.433Z"
     }
   ],
   "usedScriptures": [],
