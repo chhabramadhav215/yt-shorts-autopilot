@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
-import sharp from 'sharp';
 import ffmpegStatic from 'ffmpeg-static';
 import ffprobeStatic from 'ffprobe-static';
 import { logger } from './utils/logger.js';
@@ -38,19 +37,19 @@ function runFFmpeg(args) {
 }
 
 /**
- * Probes audio duration accurately in seconds
+ * Probes video duration accurately in seconds
  */
-function probeAudioDuration(audioPath) {
+function probeVideoDuration(videoPath) {
   return new Promise((resolve, reject) => {
     const args = [
       '-v', 'error',
       '-show_entries', 'format=duration',
       '-of', 'default=noprint_wrappers=1:nokey=1',
-      audioPath,
+      videoPath,
     ];
-    execFile(FFPROBE_BIN, args, (err, stdout, stderr) => {
+    execFile(FFPROBE_BIN, args, (err, stdout) => {
       if (err) {
-        reject(new Error(`ffprobe failed: ${stderr || err.message}`));
+        reject(new Error(`ffprobe failed: ${err.message}`));
       } else {
         const dur = parseFloat((stdout || '').trim());
         if (isNaN(dur) || dur <= 0) {
@@ -59,6 +58,48 @@ function probeAudioDuration(audioPath) {
           resolve(dur);
         }
       }
+    });
+  });
+}
+
+/**
+ * Probes video dimensions (width and height)
+ */
+function probeVideoDimensions(videoPath) {
+  return new Promise((resolve) => {
+    const args = [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height',
+      '-of', 'csv=s=x:p=0',
+      videoPath,
+    ];
+    execFile(FFPROBE_BIN, args, (err, stdout) => {
+      if (err || !stdout) {
+        resolve({ width: 1080, height: 1920 });
+      } else {
+        const [w, h] = stdout.trim().split('x').map((n) => parseInt(n, 10));
+        resolve({ width: w || 1080, height: h || 1920 });
+      }
+    });
+  });
+}
+
+/**
+ * Checks if a file contains an audio stream
+ */
+function hasAudioStream(filePath) {
+  return new Promise((resolve) => {
+    const args = [
+      '-v', 'error',
+      '-select_streams', 'a:0',
+      '-show_entries', 'stream=codec_type',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filePath,
+    ];
+    execFile(FFPROBE_BIN, args, (err, stdout) => {
+      if (err || !stdout) resolve(false);
+      else resolve(stdout.trim().toLowerCase().includes('audio'));
     });
   });
 }
@@ -403,92 +444,93 @@ async function publishToInstagramReels({ igUserId, accessToken, videoPath, capti
 }
 
 /**
- * Generates 4 glowing radial gradient orbs via sharp
+ * Downloads or prepares the source video with audio into work_reel/source_video.mp4
+ * Also extracts video title if not provided.
  */
-async function generateOrbs(workDir) {
-  const createOrbSvg = (width, height, c1, c2, c3) => `
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="g" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="${c1}" stop-opacity="0.95" />
-          <stop offset="35%" stop-color="${c2}" stop-opacity="0.65" />
-          <stop offset="70%" stop-color="${c3}" stop-opacity="0.22" />
-          <stop offset="100%" stop-color="${c3}" stop-opacity="0" />
-        </radialGradient>
-      </defs>
-      <circle cx="${width / 2}" cy="${height / 2}" r="${width / 2}" fill="url(#g)" />
-    </svg>
-  `;
-
-  const orbSpecs = [
-    { name: 'orb1.png', w: 850, h: 850, c1: '#8b5cf6', c2: '#6366f1', c3: '#312e81' }, // Deep Violet / Indigo
-    { name: 'orb2.png', w: 850, h: 850, c1: '#06b6d4', c2: '#0284c7', c3: '#082f49' }, // Electric Cyan / Teal
-    { name: 'orb3.png', w: 850, h: 850, c1: '#ec4899', c2: '#db2777', c3: '#4c0519' }, // Neon Hot Pink
-    { name: 'orb4.png', w: 750, h: 750, c1: '#f59e0b', c2: '#ea580c', c3: '#451a03' }, // Sunset Amber / Coral
-  ];
-
-  const orbPaths = [];
-  for (const spec of orbSpecs) {
-    const orbPath = path.join(workDir, spec.name);
-    const svgContent = createOrbSvg(spec.w, spec.h, spec.c1, spec.c2, spec.c3);
-    await sharp(Buffer.from(svgContent)).png().toFile(orbPath);
-    orbPaths.push(orbPath);
-  }
-
-  return orbPaths;
-}
-
-/**
- * Checks if a file contains an audio stream
- */
-function hasAudioStream(filePath) {
-  return new Promise((resolve) => {
-    const args = [
-      '-v', 'error',
-      '-select_streams', 'a:0',
-      '-show_entries', 'stream=codec_type',
-      '-of', 'default=noprint_wrappers=1:nokey=1',
-      filePath,
-    ];
-    execFile(FFPROBE_BIN, args, (err, stdout) => {
-      if (err || !stdout) resolve(false);
-      else resolve(stdout.trim().toLowerCase().includes('audio'));
-    });
-  });
-}
-
-/**
- * Downloads audio and title from reel_url using yt-dlp and normalizes with ffmpeg
- */
-async function extractAudioAndTitle(url, workDir) {
-  const audioOutputPath = path.join(workDir, 'original_audio.aac');
+async function downloadSourceVideoAndTitle(url, workDir) {
+  const targetVideoPath = path.join(workDir, 'source_video.mp4');
 
   // Case 1: Local file input
   if (fs.existsSync(url)) {
-    logger.info(`Extracting audio from local file: ${url}`);
+    logger.info(`Using local video file: ${url}`);
     const hasAudio = await hasAudioStream(url);
+
     if (!hasAudio) {
-      throw new Error(`The provided file "${url}" does not contain any audio stream. A valid voice or audio track is required.`);
+      logger.warn(`Source video "${url}" has no audio stream. Adding default ambient audio track...`);
+      const defaultAudio = path.join(process.cwd(), 'assets', 'audio', 'entertainment.mp3');
+      if (fs.existsSync(defaultAudio)) {
+        await runFFmpeg([
+          '-y',
+          '-i', url,
+          '-i', defaultAudio,
+          '-map', '0:v',
+          '-map', '1:a',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-shortest',
+          targetVideoPath,
+        ]).catch(async () => {
+          await runFFmpeg([
+            '-y',
+            '-i', url,
+            '-i', defaultAudio,
+            '-map', '0:v',
+            '-map', '1:a',
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            '-shortest',
+            targetVideoPath,
+          ]);
+        });
+      } else {
+        await runFFmpeg([
+          '-y',
+          '-i', url,
+          '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+          '-map', '0:v',
+          '-map', '1:a',
+          '-c:v', 'libx264',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-shortest',
+          targetVideoPath,
+        ]);
+      }
+    } else {
+      await runFFmpeg([
+        '-y',
+        '-i', url,
+        '-c:v', 'copy',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        targetVideoPath,
+      ]).catch(async () => {
+        await runFFmpeg([
+          '-y',
+          '-i', url,
+          '-c:v', 'libx264',
+          '-preset', 'fast',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          targetVideoPath,
+        ]);
+      });
     }
 
-    await runFFmpeg([
-      '-y',
-      '-i', url,
-      '-vn',
-      '-c:a', 'aac',
-      '-b:a', '192k',
-      '-ar', '44100',
-      '-ac', '2',
-      audioOutputPath,
-    ]);
     const basenameTitle = path.basename(url, path.extname(url)).replace(/[_-]/g, ' ');
-    return { audioPath: audioOutputPath, extractedTitle: basenameTitle };
+    return {
+      sourceVideoPath: targetVideoPath,
+      extractedTitle: basenameTitle,
+    };
   }
 
-  // Case 2: Remote URL
+  // Case 2: Remote URL via yt-dlp
   const ytdlpBin = findYtDlpBinary();
   logger.info(`Using yt-dlp binary: ${ytdlpBin}`);
-  logger.info(`Fetching media and metadata from: ${url}`);
+  logger.info(`Fetching video and metadata from: ${url}`);
 
   // Fetch title
   let extractedTitle = '';
@@ -512,21 +554,22 @@ async function extractAudioAndTitle(url, workDir) {
     });
   } catch (_) {}
 
-  // Download media
-  const downloadTemplate = path.join(workDir, 'source_media.%(ext)s');
-  logger.info('Downloading audio/video stream with yt-dlp...');
+  // Download best MP4 video + audio stream into downloaded_source.*
+  const downloadTemplate = path.join(workDir, 'downloaded_source.%(ext)s');
+  logger.info('Downloading best MP4 video + audio stream with yt-dlp...');
   await new Promise((resolve, reject) => {
     execFile(
       ytdlpBin,
       [
         '--no-playlist',
         '--no-warnings',
-        '-f', 'ba/b',
+        '-f', 'bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b',
+        '--merge-output-format', 'mp4',
         '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         '-o', downloadTemplate,
         url,
       ],
-      { timeout: 120000 },
+      { timeout: 180000 },
       (err, stdout, stderr) => {
         if (err) {
           reject(new Error(`yt-dlp download failed: ${stderr || err.message}`));
@@ -539,32 +582,43 @@ async function extractAudioAndTitle(url, workDir) {
 
   // Find downloaded media file
   const files = fs.readdirSync(workDir);
-  const downloadedFile = files.find((f) => f.startsWith('source_media.'));
+  const downloadedFile = files.find((f) => f.startsWith('downloaded_source.'));
   if (!downloadedFile) {
-    throw new Error('yt-dlp completed but no source_media.* file was found in work_reel directory.');
+    throw new Error('yt-dlp completed but no downloaded_source.* file was found in work_reel directory.');
   }
 
   const downloadedPath = path.join(workDir, downloadedFile);
-  logger.info(`Normalizing audio stream from ${downloadedFile} via FFmpeg...`);
+  logger.info(`Normalizing downloaded video stream from ${downloadedFile} to ${path.basename(targetVideoPath)}...`);
 
   await runFFmpeg([
     '-y',
     '-i', downloadedPath,
-    '-vn',
+    '-c:v', 'copy',
     '-c:a', 'aac',
     '-b:a', '192k',
-    '-ar', '44100',
-    '-ac', '2',
-    audioOutputPath,
-  ]);
+    targetVideoPath,
+  ]).catch(async () => {
+    await runFFmpeg([
+      '-y',
+      '-i', downloadedPath,
+      '-c:v', 'libx264',
+      '-preset', 'fast',
+      '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      targetVideoPath,
+    ]);
+  });
 
   try {
-    if (fs.existsSync(downloadedPath)) fs.unlinkSync(downloadedPath);
+    if (fs.existsSync(downloadedPath) && downloadedPath !== targetVideoPath) {
+      fs.unlinkSync(downloadedPath);
+    }
   } catch (_) {}
 
   return {
-    audioPath: audioOutputPath,
-    extractedTitle: extractedTitle || 'Viral Reel Audio Remastered',
+    sourceVideoPath: targetVideoPath,
+    extractedTitle: extractedTitle || 'Viral Reel Cartoon Animation',
   };
 }
 
@@ -612,43 +666,63 @@ async function main() {
 
   const startTime = Date.now();
 
-  // 1. Extract audio & title
-  const { audioPath, extractedTitle } = await extractAudioAndTitle(reelUrl, workDir);
-  const rawDuration = await probeAudioDuration(audioPath);
+  // 1. Download or prepare source_video.mp4
+  const { sourceVideoPath, extractedTitle } = await downloadSourceVideoAndTitle(reelUrl, workDir);
+  const rawDuration = await probeVideoDuration(sourceVideoPath);
   const duration = Math.min(Math.max(rawDuration, 3), 60); // Clamp between 3s and 60s for YouTube Shorts / Reels
   const roundDur = Math.round(duration * 100) / 100;
+  const { width, height } = await probeVideoDimensions(sourceVideoPath);
+  const hasAudio = await hasAudioStream(sourceVideoPath);
 
-  logger.success(`Extracted audio track: ${path.basename(audioPath)} (${roundDur}s duration)`);
+  logger.success(`Source video ready: ${path.basename(sourceVideoPath)} (${width}x${height}, ${roundDur}s duration)`);
 
-  const displayTitle = customTitle || extractedTitle || 'Viral Reel Audio Remastered';
-  logger.info(`Final Short Title: "${displayTitle}"`);
+  const displayTitle = customTitle || extractedTitle || 'Viral Reel Cartoon Animation';
+  logger.info(`Final Video Title: "${displayTitle}"`);
 
-  // 2. Generate smooth glowing moving orbs
-  logger.info('Generating high-resolution glowing orbs...');
-  const [orb1, orb2, orb3, orb4] = await generateOrbs(workDir);
-
-  // 3. Render 1080x1920 animated background with smooth moving orbs in FFmpeg
+  // 2. Convert work_reel/source_video.mp4 into stylized 2D cartoon / comic-book / rotoscope animated video
   const finalVideoPath = path.join(workDir, 'animated_final_1080x1920.mp4');
-  logger.info(`Rendering 1080x1920 vertical animated background (${roundDur}s) with smooth moving orbs...`);
+  logger.info(`Rendering 1080x1920 stylized cartoon/rotoscope video (${roundDur}s)...`);
 
-  const filterComplex = [
-    `[0:v][1:v]overlay=x='(W-w)/2 + 280*sin(t*0.75)':y='(H-h)*0.32 + 320*cos(t*0.55)':eval=frame[v1]`,
-    `[v1][2:v]overlay=x='(W-w)/2 - 320*cos(t*0.65)':y='(H-h)*0.68 + 280*sin(t*0.85)':eval=frame[v2]`,
-    `[v2][3:v]overlay=x='(W-w)/2 + 300*sin(t*1.05+1.6)':y='(H-h)*0.48 + 360*cos(t*0.80+2.2)':eval=frame[v3]`,
-    `[v3][4:v]overlay=x='(W-w)/2 - 260*sin(t*0.55+0.9)':y='(H-h)*0.82 + 240*sin(t*0.95+1.3)':eval=frame[vout]`,
+  // Step A: Scaling & cropping/padding to 1080x1920 (30 fps, yuv420p)
+  // If landscape (width > height * 1.2), blur background to preserve full subject; otherwise center crop
+  let scaleFilter;
+  if (width > height * 1.2) {
+    scaleFilter = [
+      `[0:v]fps=30,split=2[v_bg_raw][v_fg_raw]`,
+      `[v_bg_raw]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30[v_bg]`,
+      `[v_fg_raw]scale=1080:1920:force_original_aspect_ratio=decrease[v_fg]`,
+      `[v_bg][v_fg]overlay=(W-w)/2:(H-h)/2,setsar=1,split=2[v_base][v_edge_src]`,
+    ].join(';');
+  } else {
+    scaleFilter = `[0:v]fps=30,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,split=2[v_base][v_edge_src]`;
+  }
+
+  // Step B: Multi-stage toon/comic stylization:
+  // - Edge-preserving smoothing (hqdn3d + unsharp)
+  // - Vibrant comic saturation & contrast (eq=saturation=1.45:contrast=1.18:brightness=0.02)
+  // - Cel-shading color quantization (format=rgb24 + lutrgb)
+  // - Crisp dark ink outlines (edgedetect + negate)
+  // - Blend with multiply mode
+  const toonFilter = [
+    scaleFilter,
+    `[v_base]hqdn3d=6:6:8:8,unsharp=5:5:1.2:5:5:0.0,eq=saturation=1.45:contrast=1.18:brightness=0.02,format=rgb24,lutrgb=r='bitand(val,224)':g='bitand(val,224)':b='bitand(val,224)',format=yuv420p[v_color]`,
+    `[v_edge_src]format=gray,edgedetect=low=0.12:high=0.28:mode=wires,lutrgb=r=negval:g=negval:b=negval,format=yuv420p[v_ink]`,
+    `[v_color][v_ink]blend=all_mode=multiply:all_opacity=0.9[vout]`,
   ].join(';');
 
   const ffmpegArgs = [
     '-y',
-    '-f', 'lavfi', '-i', `color=c=0x070712:s=1080x1920:d=${roundDur}:r=30`,
-    '-loop', '1', '-i', orb1,
-    '-loop', '1', '-i', orb2,
-    '-loop', '1', '-i', orb3,
-    '-loop', '1', '-i', orb4,
-    '-i', audioPath,
-    '-filter_complex', filterComplex,
+    '-i', sourceVideoPath,
+  ];
+
+  if (!hasAudio) {
+    ffmpegArgs.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100');
+  }
+
+  ffmpegArgs.push(
+    '-filter_complex', toonFilter,
     '-map', '[vout]',
-    '-map', '5:a',
+    '-map', hasAudio ? '0:a' : '1:a',
     '-t', String(roundDur),
     '-c:v', 'libx264',
     '-preset', 'fast',
@@ -656,8 +730,8 @@ async function main() {
     '-c:a', 'aac',
     '-b:a', '192k',
     '-movflags', '+faststart',
-    finalVideoPath,
-  ];
+    finalVideoPath
+  );
 
   await runFFmpeg(ffmpegArgs);
 
@@ -674,8 +748,8 @@ async function main() {
       youtubeResult = await uploadShort({
         videoPath: finalVideoPath,
         title: displayTitle,
-        description: `${displayTitle}\n\nOriginal audio remastered into vertical animated visuals.\n\n#Shorts #ViralShorts #ReelToAnimated #AudioReel`,
-        tags: ['shorts', 'reels', 'animated', 'audio', 'viral'],
+        description: `${displayTitle}\n\nStylized 2D cartoon / rotoscope animation with original audio preserved.\n\n#Shorts #ViralShorts #CartoonAnimation #Rotoscope #ReelToAnimated`,
+        tags: ['shorts', 'reels', 'animated', 'cartoon', 'comic', 'rotoscope', 'viral'],
         privacyStatus: privacyStatus || 'public',
       });
     } catch (err) {
@@ -706,7 +780,7 @@ async function main() {
     process.env.FACEBOOK_PAGE_ID ||
     process.env.FB_PAGE_ID;
 
-  const caption = `${displayTitle}\n\nOriginal audio remastered with vertical moving visuals.\n\n#reels #viral #animated #shorts #trending`;
+  const caption = `${displayTitle}\n\nStylized 2D cartoon / rotoscope animation with original audio preserved.\n\n#reels #viral #animated #cartoon #rotoscope #trending`;
 
   let igResult = null;
   let fbResult = null;
