@@ -698,14 +698,15 @@ async function main() {
   }
 
   // Step B: Multi-stage toon/comic stylization (Full-color rotoscope without color cast):
-  // - Texture smoothing with hqdn3d=6:6:8:8
+  // - Texture smoothing with hqdn3d=8:8:10:10 to reduce speckles on flat surfaces (walls/floors)
   // - Vibrant anime/comic color saturation & contrast with eq=saturation=1.35:contrast=1.15:brightness=0.01
-  // - Bold, thick dark cartoon ink outlines via edgedetect + dilation + neutral YUV alpha mask
+  // - Pre-edge smoothing with hqdn3d=8:8:10:10 and edge mask cleaning via boxblur=1:1 before thresholding
+  // - Bold, clean cartoon ink outlines via dilation + neutral YUV alpha mask (cb=128, cr=128)
   // - Overlay ink lines onto color layer keeping original natural colors completely intact
   const toonFilter = [
     scaleFilter,
-    `[v_base]hqdn3d=6:6:8:8,eq=saturation=1.35:contrast=1.15:brightness=0.01[v_color]`,
-    `[v_edge_src]format=gray,edgedetect=low=0.10:high=0.24:mode=wires,dilation,geq='if(gt(lum(X,Y),25),255,0)',format=yuva420p,geq=lum='0':cb='128':cr='128':a='lum(X,Y)'[v_ink]`,
+    `[v_base]hqdn3d=8:8:10:10,eq=saturation=1.35:contrast=1.15:brightness=0.01[v_color]`,
+    `[v_edge_src]hqdn3d=8:8:10:10,format=gray,edgedetect=low=0.10:high=0.24:mode=wires,boxblur=1:1,geq='if(gt(lum(X,Y),30),255,0)',dilation,format=yuva420p,geq=lum='0':cb='128':cr='128':a='lum(X,Y)'[v_ink]`,
     `[v_color][v_ink]overlay=0:0[vout]`,
   ].join(';');
 
