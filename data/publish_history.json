@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-21T16:15:39.886Z",
+  "lastUpdated": "2026-11-22T04:25:22.296Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -257,6 +257,22 @@
       "headline": "Arshad Khan Auction Price & Team 🏏🔥",
       "url": "https://youtube.com/shorts/d7kieuurfn4",
       "publishedAt": "2026-11-21T16:15:39.886Z"
+    },
+    {
+      "hash": "b86d1579f52e91f060926de815bd32d2",
+      "slot": "slot1",
+      "title": "Bedtime Match Victory! 👶🏆 Baby Defeats Sleep Routine",
+      "headline": "Bedtime Match Victory! 👶🏆 Baby Defeats Sleep Routine",
+      "url": "",
+      "publishedAt": "2026-11-22T04:25:20.723Z"
+    },
+    {
+      "hash": "b86d1579f52e91f060926de815bd32d2",
+      "slot": "slot1",
+      "title": "Bedtime Match Victory! 👶🏆 Baby Defeats Sleep Routine",
+      "headline": "Bedtime Match Victory! 👶🏆 Baby Defeats Sleep Routine",
+      "url": "https://youtube.com/shorts/PmZXc701TFg",
+      "publishedAt": "2026-11-22T04:25:22.296Z"
     }
   ],
   "usedVideoClips": [
@@ -755,6 +771,30 @@
       "slot": "slot5",
       "type": "video",
       "usedAt": "2026-11-21T16:14:47.550Z"
+    },
+    {
+      "id": "03_baby_mischief.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-22T04:24:25.167Z"
+    },
+    {
+      "id": "07_happy_bounce.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-22T04:24:25.337Z"
+    },
+    {
+      "id": "04_baby_laughing.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-22T04:24:25.524Z"
+    },
+    {
+      "id": "10_playful_celebration.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-22T04:25:20.723Z"
     }
   ],
   "usedScriptures": [],
