@@ -1,309 +1,290 @@
 import path from 'path';
+import fs from 'fs';
 import { config } from '../config.js';
+import { logger } from '../utils/logger.js';
 import { getTodayOccasion } from './festival_calendar.js';
-import { transliterateHindiToHinglish } from '../utils/text_utils.js';
-import { isStoryOnCooldown, recordUsedStory } from '../utils/publish_history.js';
+import {
+  isStoryOnCooldown,
+  recordUsedStory,
+  getRecentTopicsForSlot,
+  isTopicRecentlyPublished,
+} from '../utils/publish_history.js';
+import { generateGeminiJson } from '../utils/gemini_client.js';
 
-const DEVOTIONAL_STORIES = [
+/**
+ * Expansive pool of authentic Vedic / Puranic episodes for dynamic procedural synthesis.
+ * Zero canned dialogues: used as story seeds when generating fresh scripts.
+ */
+const VEDIC_EPISODE_SEEDS = [
   {
-    id: 'hanuman_pearl_necklace',
-    englishTitle: 'The Power of True Faith 🕉️ Hanuman Ji Divine Devotion | Daily Darshan',
-    segments: [
-      {
-        hindi: 'जब माता सीता ने हनुमान जी को बहुमूल्य मोतियों की दिव्य माला भेंट की,',
-        english: 'When Mother Sita gifted Hanuman a precious pearl necklace,',
-      },
-      {
-        hindi: 'तो उन्होंने प्रभु श्री राम को ढूंढने के लिए हर मोती को तोड़कर देखना शुरू किया।',
-        english: 'He began inspecting each pearl, looking for Lord Rama.',
-      },
-      {
-        hindi: 'पूरी सभा हैरान थी! तब मुस्कुराते हुए बजरंगबली ने अपना सीना चीरकर दिखाया,',
-        english: 'The entire court was stunned! Then Bajrangbali opened his chest,',
-      },
-      {
-        hindi: 'जहां हृदय में साक्षात प्रभु श्री राम और माता सीता की मूरत विराजमान थी।',
-        english: 'Revealing Lord Rama and Mother Sita enshrined within his heart.',
-      },
-      {
-        hindi: 'सच्ची भक्ति किसी दिखावे में नहीं, शुद्ध और सच्चे हृदय में बसती है। जय श्री राम!',
-        english: 'True devotion lives within a pure heart. Jai Shri Ram!',
-      },
-    ],
-    tags: ['shorts', 'hanuman', 'jaishriram', 'bhakti', 'sanatandharma', 'devotional', 'hinduism', 'mahadev', 'krishna'],
+    id: 'karna_golden_tooth_test',
+    deity: 'Lord Krishna & Karna',
+    hook: 'कुरुक्षेत्र की रणभूमि में जब कर्ण मृत्युशैया पर थे, तब भगवान श्री कृष्ण ने उनके दानवीर होने की अंतिम परीक्षा ली।',
+    hookEnglish: 'On the battlefield of Kurukshetra, Lord Krishna tested dying Karna for his supreme generosity.',
+    storyHindi: 'प्रभु ने ब्राह्मण रूप में दान मांगा तो कर्ण ने बिना संकोच पत्थर उठाकर अपना सोने का दांत तोड़कर अर्पित कर दिया। प्रभु उनकी अटूट दानवीरता देखकर नतमस्तक हो गए।',
+    storyEnglish: 'When Krishna asked for charity in guise of a brahmin, dying Karna broke his own gold tooth with a stone to offer it selflessly.',
+    lesson: 'सच्चा दान वही है जो सबसे कठिन परिस्थिति में भी निस्वार्थ भाव से दिया जाए।',
+    lessonEnglish: 'True charity never wavers even in the face of death; selfless giving transcends all.',
+    visuals: ['karna kurukshetra battlefield sunset golden armor', 'lord krishna disguised as brahmin blessing', 'dying warrior giving golden tooth charity', 'sacred battlefield divine light mahabharata'],
   },
   {
-    id: 'krishna_sudama_friendship',
-    englishTitle: 'Lord Krishna & Sudama: The Sacred Bond of True Friendship 🌸',
-    segments: [
-      {
-        hindi: 'जब गरीब सुदामा अपने बालसखा श्री कृष्ण से मिलने द्वारका पहुंचे,',
-        english: 'When humble Sudama reached Dwarka to meet his dear friend Krishna,',
-      },
-      {
-        hindi: 'तो उनके पास भेंट स्वरूप केवल मुट्ठी भर पोहे थे।',
-        english: 'He carried only a simple handful of beaten rice as a gift.',
-      },
-      {
-        hindi: 'परंतु त्रिलोकीनाथ भगवान श्री कृष्ण नंगे पांव दौड़कर द्वार पर आए,',
-        english: 'Yet the Lord of the Universe ran barefoot to welcome him,',
-      },
-      {
-        hindi: 'और अपने आंसुओं से सुदामा के चरण धोकर उस साधारण भेंट को अमृत मानकर स्वीकार किया।',
-        english: 'Washed his feet with tears of joy, and accepted the gift with divine love.',
-      },
-      {
-        hindi: 'भगवान केवल निस्वार्थ प्रेम और सच्ची भावना देखते हैं, धन-दौलत नहीं। राधे-राधे!',
-        english: 'God values pure love and selfless devotion above all wealth. Radhe Radhe!',
-      },
-    ],
-    tags: ['shorts', 'krishna', 'sudama', 'radheradhe', 'bhakti', 'devotional', 'sanatan', 'god', 'dailywisdom'],
+    id: 'sudama_third_morsel',
+    deity: 'Lord Krishna & Sudama',
+    hook: 'जब श्री कृष्ण सुदामा के सूखे चावल खा रहे थे, तो माता रुक्मिणी ने उनका हाथ अचानक क्यों पकड़ लिया?',
+    hookEnglish: 'Why did Mother Rukmini suddenly stop Lord Krishna from eating the third handful of rice from Sudama?',
+    storyHindi: 'श्री कृष्ण ने सुदामा के दो मुट्ठी चावल खाकर उन्हें दोनों लोकों का ऐश्वर्य दे दिया। जब वे तीसरी मुट्ठी खाने लगे, तो रुक्मिणी जी ने उनका हाथ प्रेम से थाम लिया।',
+    storyEnglish: 'Eating two handfuls of dry rice, Krishna bestowed earth and heaven upon Sudama, but Rukmini held his hand before the third.',
+    lesson: 'भगवान को सोने के मुकुट नहीं, सच्चे हृदय से दिया गया एक कण भी पूरा ब्रह्मांड जीत लेता है।',
+    lessonEnglish: 'God seeks not grand gold, but a single grain offered with pure, loving devotion.',
+    visuals: ['sudama poor brahmin holding dry rice cloth', 'lord krishna welcoming humble friend dwarka palace', 'mata rukmini holding krishna hand divine smile', 'dwarka golden palace glowing lamps holy darshan'],
   },
   {
-    id: 'shiva_neelkanth_sacrifice',
-    englishTitle: 'Lord Shiva as Neelkanth Mahadev 🔱 The Supreme Sacrifice',
-    segments: [
-      {
-        hindi: 'समुद्र मंथन के दौरान जब भयंकर कालकूट विष निकला, जिससे पूरी सृष्टि जलने लगी,',
-        english: 'During the churning of the cosmic ocean, deadly poison threatened all life,',
-      },
-      {
-        hindi: 'तो समस्त देवों और दानवों ने महादेव की शरण में जाकर रक्षा की प्रार्थना की।',
-        english: 'All beings prayed to Lord Shiva for divine protection.',
-      },
-      {
-        hindi: 'बिना एक क्षण गंवाए, महादेव ने वह सारा विष अपने कंठ में धारण कर लिया।',
-        english: 'Without hesitation, Mahadev held the poison in his throat,',
-      },
-      {
-        hindi: 'जिससे उनका कंठ नीला पड़ गया और वे सदा के लिए नीलकंठ कहलाए।',
-        english: 'Turning his neck blue, earning him the sacred name Neelkanth.',
-      },
-      {
-        hindi: 'शिव हमें सिखाते हैं कि दूसरों की रक्षा के लिए कष्ट सहना ही सबसे बड़ा धर्म है। हर हर महादेव!',
-        english: 'Shiva teaches that selfless sacrifice is the highest truth. Har Har Mahadev!',
-      },
-    ],
-    tags: ['shorts', 'mahadev', 'shiva', 'omnamahshivaya', 'bholenath', 'hinduism', 'devotional', 'spritual', 'kedarnath'],
+    id: 'bhrigu_testing_trinity',
+    deity: 'Lord Vishnu & Sage Bhrigu',
+    hook: 'जब महर्षि भृगु ने भगवान विष्णु की छाती पर लात मारी, तो बैकुंठ में जो हुआ उसने पूरे ब्रह्मांड को स्तब्ध कर दिया!',
+    hookEnglish: 'When Sage Bhrigu kicked Lord Vishnu on the chest, Vishnu divine reaction stunned the universe!',
+    storyHindi: 'क्रोध में आए भृगु मुनि के इस कृत्य पर भगवान नारायण ने शांत भाव से उनके चरण दबाते हुए पूछा कि कहीं आपके कोमल चरण में चोट तो नहीं लगी।',
+    storyEnglish: 'Instead of wrath, Lord Vishnu gently massaged the sage foot asking with divine tenderness if his foot was hurt.',
+    lesson: 'सच्ची महानता क्रोध में नहीं, अपार क्षमा और विनम्रता में बसती है।',
+    lessonEnglish: 'True supreme divinity lies not in wrath, but in boundless patience and forgiveness.',
+    visuals: ['sage bhrigu entering vaikuntha golden gates', 'lord vishnu resting on sheshnag divine aura', 'sage bhrigu realizing humility divine grace', 'sacred vaikuntha realm lotus flowers cosmic light'],
   },
   {
-    id: 'ganesha_parents_pradakshina',
-    englishTitle: 'Lord Ganesha Supreme Wisdom 🕉️ Respecting Loving Parents',
-    segments: [
-      {
-        hindi: 'जब भगवान शिव और माता पार्वती ने अपने पुत्रों को ब्रह्मांड की परिक्रमा की चुनौती दी,',
-        english: 'When Lord Shiva and Parvati challenged their sons to circle the universe,',
-      },
-      {
-        hindi: 'तो कार्तिकेय तुरंत अपने मोर पर सवार होकर उड़ गए।',
-        english: 'Kartikeya swiftly flew across the cosmos on his peacock.',
-      },
-      {
-        hindi: 'परंतु बुद्धि के दाता श्री गणेश ने श्रद्धापूर्वक अपने माता-पिता की परिक्रमा की,',
-        english: 'Yet wise Ganesha gently walked around his loving parents,',
-      },
-      {
-        hindi: 'और कहा कि माता-पिता के चरणों में ही संपूर्ण ब्रह्मांड समाया हुआ है।',
-        english: 'Stating that loving parents are the entire universe.',
-      },
-      {
-        hindi: 'माता-पिता की सेवा ही जीवन की सबसे बड़ी पूजा है। गणपति बप्पा मोरया!',
-        english: 'Honoring parents is the highest sacred duty in life. Ganpati Bappa Morya!',
-      },
-    ],
-    tags: ['shorts', 'ganesha', 'ganpatibappamorya', 'shiva', 'parvati', 'sanatanwisdom', 'hindu', 'devotional', 'darshan'],
+    id: 'nachiketa_three_boons',
+    deity: 'Lord Yama & Nachiketa',
+    hook: 'एक बारह वर्ष के बालक ने मृत्यु के देवता यमराज के सामने खड़े होकर स्वर्ग का साम्राज्य ठुकरा दिया!',
+    hookEnglish: 'A 12-year-old boy stood before the Lord of Death and turned down kingdoms of gold!',
+    storyHindi: 'यमराज ने नचिकेता को अपार धन, सुंदर अप्सराएं और राजसिंहासन का प्रलोभन दिया, परंतु बालक ने केवल आत्मज्ञान और मोक्ष का अमर सत्य मांगा।',
+    storyEnglish: 'Yama offered Nachiketa vast kingdoms, gold, and worldly pleasures, yet the resolute youth demanded only the supreme knowledge of the soul.',
+    lesson: 'शरीर नश्वर है, परंतु आत्मा अविनाशी और अमर है—यही सनातन का मूल सत्य है।',
+    lessonEnglish: 'The physical body perishes, but the inner Atman is eternal and indestructible.',
+    visuals: ['young ascetic nachiketa fearless glowing tilak', 'lord yama imposing throne staff of justice', 'golden chariot illusion rejected by yogi', 'spiritual atman glowing cosmic divine sphere'],
   },
   {
-    id: 'ram_mata_shabari_berries',
-    englishTitle: 'Shri Ram and Mata Shabari: The Sweet Berries of Pure Love 🌺',
-    segments: [
-      {
-        hindi: 'माता शबरी ने प्रभु श्री राम की प्रतीक्षा में अपना संपूर्ण जीवन बिता दिया।',
-        english: 'Mata Shabari waited decades in deep faith for Lord Rama arrival.',
-      },
-      {
-        hindi: 'जब प्रभु उनकी कुटिया में पधारे, तो उन्होंने चख-चख कर केवल मीठे बेर प्रभु को अर्पित किए।',
-        english: 'When Rama arrived, she tasted each wild berry to ensure they were sweet.',
-      },
-      {
-        hindi: 'मर्यादा पुरुषोत्तम श्री राम ने बिना किसी हिचकिचाहट के उन बेरों को अमृत समान खाया,',
-        english: 'Without hesitation, Lord Rama accepted the berries with limitless love,',
-      },
-      {
-        hindi: 'और यह सिद्ध किया कि परमात्मा केवल शुद्ध भाव और प्रेम के भूखे होते हैं।',
-        english: 'Proving that God cares only for pure love, not worldly rituals.',
-      },
-      {
-        hindi: 'प्रभु के चरणों में अपना मन लगाएं, सारे कष्ट दूर होंगे। जय श्री राम!',
-        english: 'Surrender your heart to the Divine, and all peace will follow. Jai Shri Ram!',
-      },
-    ],
-    tags: ['shorts', 'ramayana', 'shriram', 'jaishriram', 'shabari', 'bhakti', 'ayodhya', 'sanatan', 'devotional'],
+    id: 'shabari_tasted_berries',
+    deity: 'Lord Rama & Shabari',
+    hook: 'भगवान श्री राम ने माता शबरी के जूठे बेर क्यों खाए, जबकि लक्ष्मण जी आश्चर्य से देखते रह गए?',
+    hookEnglish: 'Why did Lord Rama joyfully accept berries pre-tasted by Mother Shabari, stunning Lakshmana?',
+    storyHindi: 'माता शबरी ने प्रभु को कोई खट्टा फल न मिले, इसलिए हर बेर को चखकर मीठे बेर एकत्र किए। मर्यादा पुरुषोत्तम राम ने उनके प्रेमपूर्ण भाव को अश्रुपूर्ण नेत्रों से स्वीकार किया।',
+    storyEnglish: 'Devotee Shabari tasted every fruit to ensure only sweet berries reached Rama, and the Lord received them with tears of pure love.',
+    lesson: 'भक्ति में जाति, पद और मर्यादा से ऊपर केवल आत्मा का शुद्ध प्रेम ही प्रभु को प्रिय है।',
+    lessonEnglish: 'Divine love values pure devotion above all social status and external rituals.',
+    visuals: ['elderly devotee shabari forest hermitage smiling', 'lord rama lakshmana accepting forest berries joy', 'sacred dandakaranya forest golden sunlight', 'lord rama blessing shabari tears of joy'],
   },
   {
-    id: 'bhakt_prahlad_narasimha',
-    englishTitle: 'Bhakt Prahlad Unshakable Faith 🕉️ Lord Narasimha Protection',
-    segments: [
-      {
-        hindi: 'जब अत्याचारी हिरण्यकश्यप ने अपने ही पुत्र प्रह्लाद पर भीषण अत्याचार किए,',
-        english: 'When tyrant Hiranyakashipu inflicted terrible suffering upon his son Prahlad,',
-      },
-      {
-        hindi: 'तो बालक प्रह्लाद ने भयभीत हुए बिना केवल भगवान विष्णु के नाम का स्मरण किया।',
-        english: 'Young Prahlad remained fearless, holding steadfast faith in Lord Vishnu.',
-      },
-      {
-        hindi: 'भक्त की पुकार सुनकर खंभे को चीरकर भगवान नृसिंह प्रकट हुए और धर्म की रक्षा की।',
-        english: 'Answering his devotee prayer, Lord Narasimha emerged from the pillar to protect Dharma.',
-      },
-      {
-        hindi: 'ईश्वर हर उस हृदय के साथ खड़े हैं जो सत्य और भक्ति के मार्ग पर अडिग रहता है।',
-        english: 'The Divine always shields those who stand courageously with truth and pure faith.',
-      },
-    ],
-    tags: ['shorts', 'narasimha', 'prahlad', 'vishnu', 'bhakti', 'dharma', 'sanatan', 'devotional'],
+    id: 'gajendra_moksha_prayer',
+    deity: 'Lord Vishnu & Gajendra',
+    hook: 'जब महाबली गजेंद्र को मगरमच्छ ने गहरे जल में खींच लिया, तब उन्होंने अपनी अंतिम सांस में क्या किया?',
+    hookEnglish: 'When mighty Gajendra was dragged underwater by the crocodile, what saved him in his final breath?',
+    storyHindi: 'जब गजेंद्र का सारा बल समाप्त हो गया, तो उन्होंने जल में खिले एक कमल को अपनी सूंड से उठाकर भगवान नारायण को समर्पित किया और प्रभु तत्काल गरुड़ पर पधारे।',
+    storyEnglish: 'When his strength failed, Gajendra lifted a sacred lotus to Narayana with his trunk, and the Lord descended instantly on Garuda.',
+    lesson: 'जब अहंकार टूटता है और पूर्ण शरणागति होती है, तो परमात्मा एक क्षण में दौड़े चले आते हैं।',
+    lessonEnglish: 'When all ego surrenders completely to the Divine, help arrives in a single heartbeat.',
+    visuals: ['elephant king gajendra lifting lotus flower in river', 'golden garuda bird soaring across stormy skies', 'lord vishnu releasing sudarshan chakra divine glow', 'sacred lotus flower glowing divine river ganga'],
   },
   {
-    id: 'meera_bai_krishna_bhakti',
-    englishTitle: 'Meera Bai Divine Ecstasy 🌸 Unconditional Krishna Love',
-    segments: [
-      {
-        hindi: 'राजमहल के सारे सुख और वैभव त्यागकर मीरा बाई केवल गिरधर गोपाल की भक्ति में लीन रहीं।',
-        english: 'Renouncing royal luxury, Meera Bai devoted her entire existence to Lord Krishna.',
-      },
-      {
-        hindi: 'जब उन्हें विष का प्याला दिया गया, तो उन्होंने मुस्कुराकर उसे प्रभु का चरणामृत मानकर पी लिया।',
-        english: 'When handed a cup of deadly poison, she drank it smilingly as sacred nectar.',
-      },
-      {
-        hindi: 'श्री कृष्ण की कृपा से वह विष भी अमृत बन गया और मीरा की भक्ति सदा के लिए अमर हो गई।',
-        english: 'By divine grace, the poison turned into nectar, immortalizing her pure devotion.',
-      },
-      {
-        hindi: 'सच्चा समर्पण वही है जो हर परिस्थिति में प्रभु पर अटूट विश्वास रखे। राधे राधे!',
-        english: 'True surrender is unwavering faith in the Divine through every storm. Radhe Radhe!',
-      },
-    ],
-    tags: ['shorts', 'meerabai', 'krishna', 'radheradhe', 'bhakti', 'vrindavan', 'sanatan', 'devotional'],
+    id: 'markandeya_maha_mrityunjaya',
+    deity: 'Lord Shiva & Sage Markandeya',
+    hook: 'जब यमराज ने सोलह वर्ष के ऋषि मार्कंडेय पर मृत्यु का पाश फेंका, तो साक्षात महादेव शिवलिंग से प्रकट हो गए!',
+    hookEnglish: 'When Yama cast his noose of death on 16-year-old Markandeya, Mahadev burst forth from the Shiva Lingam!',
+    storyHindi: 'सोलह वर्ष की अल्पायु में जब यमराज मार्कंडेय के प्राण हरने आए, तो बालक ने शिवलिंग को बाहों में भर लिया और त्रिशूलधारी महादेव ने प्रकट होकर यमराज को रोक दिया।',
+    storyEnglish: 'When Yama arrived for young Markandeya, the boy clasped the Shiva Lingam, and Mahadev manifested with his Trident to conquer death.',
+    lesson: 'महामृत्युंजय मंत्र और शिव की शरण में काल का भय भी शून्य हो जाता है।',
+    lessonEnglish: 'With true surrender to Mahadev, even the terror of time and mortality dissolves.',
+    visuals: ['youth sage markandeya embracing shiva lingam', 'lord shiva appearing from glowing lingam trishul', 'sacred om namah shivaya glowing mantra smoke', 'lord yama offering prostration to mahadev'],
+  },
+  {
+    id: 'prahlada_pillar_avatar',
+    deity: 'Lord Narasimha & Prahlada',
+    hook: 'जब हिरण्यकश्यप ने खंभे पर प्रहार करके पूछा—कहाँ है तेरा भगवान? तब जो प्रकट हुआ उसने दैत्यराज का अहंकार चूर कर दिया!',
+    hookEnglish: 'When the tyrant struck the stone pillar demanding where God is, Lord Narasimha burst forth!',
+    storyHindi: 'दैत्यराज हिरण्यकश्यप ने गर्जना करते हुए खंभे पर गदा मारी तो खंभा चीरते हुए भगवान नृसिंह प्रकट हुए और भक्त प्रह्लाद की अटूट निष्ठा की रक्षा की।',
+    storyEnglish: 'When tyrant Hiranyakashipu struck the palace pillar, Lord Narasimha burst forth with a cosmic roar to shield his beloved devotee.',
+    lesson: 'भक्त की रक्षा के लिए परमात्मा हर कण में उपस्थित हैं—सत्य की कभी पराजय नहीं होती।',
+    lessonEnglish: 'The Divine resides in every atom to shield the righteous; truth can never be defeated.',
+    visuals: ['young devotee prahlada serene folded hands', 'golden palace pillar cracking with blinding light', 'divine lord narasimha roaring halo of cosmic fire', 'sacred flower petals raining from heavens'],
+  },
+  {
+    id: 'dhruva_unwavering_tapasya',
+    deity: 'Lord Vishnu & Child Dhruva',
+    hook: 'एक पांच वर्ष के बालक की ऐसी हठ, जिसने वैकुंठ के सिंहासन को भी हिलाकर रख दिया!',
+    hookEnglish: 'A five-year-old boy whose resolute meditation shook the celestial throne of Vaikuntha!',
+    storyHindi: 'मधुवन के घने जंगल में बालक ध्रुव ने केवल एक पैर पर खड़े होकर नारायण का ऐसा ध्यान किया कि साक्षात वैकुंठनाथ को प्रकट होकर उन्हें अमर पद देना पड़ा।',
+    storyEnglish: 'In deep Madhuvana, young Dhruva meditated on one foot with such devotion that Lord Vishnu descended to grant him the eternal pole star.',
+    lesson: 'दृढ़ संकल्प और निष्काम साधना से असंभव लक्ष्य भी प्राप्त किया जा सकता है।',
+    lessonEnglish: 'With unwavering focus and dedication, even the highest spiritual goal is attained.',
+    visuals: ['child dhruva meditating in sacred forest riverbank', 'om namo bhagavate vasudevaya glowing aura', 'lord vishnu appearing touching child cheek conch', 'shining north star pole star glowing midnight sky'],
+  },
+  {
+    id: 'adi_shankaracharya_kanakadhara',
+    deity: 'Mata Lakshmi & Adi Shankaracharya',
+    hook: 'जब एक निर्धन ब्राह्मणी ने अपना एकमात्र सूखा आंवला दान कर दिया, तो उसके आंगन में सोने के आंवलों की वर्षा कैसे हुई?',
+    hookEnglish: 'When a destitute mother gifted her only dry berry in charity, golden berries rained from the skies!',
+    storyHindi: 'निर्धन ब्राह्मणी के पास देने को केवल एक सूखा आंवला था, जिसे देखकर बाल शंकराचार्य द्रवित हो गए और कनकधारा स्तोत्र की रचना करके सोने के आंवलों की वर्षा करा दी।',
+    storyEnglish: 'Moved by a destitute woman offering her only dry gooseberry, young Shankara recited the Kanakadhara hymn, raining golden berries from heaven.',
+    lesson: 'अभाव में भी देने का भाव ही दरिद्रता का नाश करता है और माता लक्ष्मी की कृपा लाता है।',
+    lessonEnglish: 'Generosity in times of scarcity dissolves poverty and invites divine abundance.',
+    visuals: ['young monk adi shankara chanting sacred stotram', 'humble village hut yard golden light rays', 'golden amla fruits raining from celestial clouds', 'goddess lakshmi smiling golden lotus shower'],
   },
 ];
 
+/**
+ * Dynamically synthesizes a fresh, non-repetitive Vedic Katha script.
+ * Zero hardcoded scripts: Generates fresh structure and prompts every run.
+ */
 export async function generateSlot2Content(customTopic = null) {
-  let title = '';
-  let segments = [];
-  let tags = ['shorts', 'bhakti', 'sanatandharma', 'devotional', 'hinduism', 'krishna', 'mahadev'];
-  let chosenStoryId = null;
-
-  // Check Festival Calendar
   const occasion = getTodayOccasion();
-  if (occasion.isFestival && occasion.slot2 && !customTopic) {
-    title = occasion.slot2.title;
-    chosenStoryId = `festival_${occasion.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-    segments = [
-      {
-        hindi: occasion.slot2.hindi,
-        english: occasion.slot2.english,
-      },
-      {
-        hindi: `इस पावन अवसर पर प्रभु की भक्ति और कृपा आपके जीवन में सुख और शांति लाए।`,
-        english: `On this holy occasion, may divine grace fill your home with peace and joy.`,
-      },
-    ];
-  } else if (customTopic) {
-    title = `${customTopic} 🕉️ Sacred Divine Wisdom | Daily Darshan`;
-    chosenStoryId = `custom_${customTopic.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-    segments = [
-      {
-        hindi: `आज हम ${customTopic} की असीम कृपा और पावन संदेश का स्मरण करते हैं।`,
-        english: `Today we reflect on the divine grace and blessings of ${customTopic}.`,
-      },
-      {
-        hindi: 'सनातन धर्म का मार्ग हमें शांति, सत्य और सच्ची भक्ति की ओर ले जाता है।',
-        english: 'The path of Sanatan Dharma guides us toward peace, truth, and faith.',
-      },
-      {
-        hindi: 'प्रभु का आशीर्वाद सदैव आपके और आपके परिवार के साथ रहे। हर हर महादेव!',
-        english: 'May divine blessings always be with you and your loved ones. Har Har Mahadev!',
-      },
-    ];
-  } else {
-    // Select story enforcing 14-day cooldown
-    const availableStories = DEVOTIONAL_STORIES.filter((s) => !isStoryOnCooldown('slot2', s.id, 14));
-    const candidates = availableStories.length > 0 ? availableStories : DEVOTIONAL_STORIES;
+  const recentTopics = getRecentTopicsForSlot('slot2', 12);
+  logger.info(`[Slot 2 Devotional] Anti-Repeat Memory: ${recentTopics.length} recent stories on cooldown.`);
 
-    const story = candidates[Math.floor(Math.random() * candidates.length)];
-    title = story.englishTitle;
-    segments = story.segments;
-    tags = story.tags;
-    chosenStoryId = story.id;
-  }
+  const topicSeed = customTopic || (occasion?.slot2?.title ? occasion.slot2.title : null);
 
-  if (chosenStoryId) {
-    recordUsedStory('slot2', chosenStoryId, title);
-  }
+  // 1. Attempt dynamic AI generation with Gemini
+  let aiData = null;
+  const systemPrompt = `You are an enlightened scholar and master storyteller of Vedic Katha, Sanatan Dharma, and Puranic traditions.
+You write powerful, emotionally moving, and highly engaging short-form video narrations in pure Hindi (Devanagari script for speech) with burned-in English subtitle translations.
+Follow the Vedic Katha Narrative Style:
+1. Hook (0–4s): Start with a dramatic twist, devotion/boon tension, or emotional question that immediately grabs the viewer.
+2. Story Beats (4–35s): Tell one focused mythological episode with clear progression—setup, turning point/conflict, and resolution.
+3. Takeaway (last 3–5s): End with a crisp spiritual lesson or traditional significance tied to the story.
 
-  const formattedSegments = segments.map((s) => {
-    return {
-      hindi: s.hindi,
-      english: s.english || s.hinglish || transliterateHindiToHinglish(s.hindi),
-    };
+CRITICAL PRONUNCIATION INSTRUCTION (SPEECH VOICEOVER):
+- The speech will be read by Microsoft Edge TTS Hindi neural voice (hi-IN-MadhurNeural).
+- Write ALL Hindi fields ("hookHindi", "storyHindi", "takeawayHindi") 100% in pure Devanagari script.
+- NEVER use Latin/English letters inside Hindi voiceover fields.
+
+CRITICAL SUBTITLE INSTRUCTION:
+- Write crisp, grammatical, cinematic English translations in "hookEnglish", "storyEnglish", and "takeawayEnglish" for burned-in subtitles.
+
+SINGLE-SOURCE VISUAL SCENE QUERIES:
+- Provide "visualSceneQueries": An array of 4 distinct, highly visual queries strictly locked to this exact deity or story. Never mix unrelated deities.`;
+
+  const prompt = `Generate a brand-new, captivating Vedic Katha short-form video script.
+Topic Preference: ${topicSeed || 'Rare and profound episode from Puranas or Ramayana or Mahabharata'}
+Anti-Repeat Constraint (DO NOT repeat any of these recent topics):
+${recentTopics.map((t) => `- ${t}`).join('\n')}
+
+Return JSON with this exact schema:
+{
+  "title": "Inspiring Title with Emojis (max 60 chars)",
+  "deity": "Main Deity or Divine Figure",
+  "hookHindi": "Devanagari Hindi hook (0-4s)",
+  "hookEnglish": "English translation for hook subtitles",
+  "storyHindi": "Devanagari Hindi story beats with setup and turning point (4-35s)",
+  "storyEnglish": "English translation for story subtitles",
+  "takeawayHindi": "Devanagari Hindi spiritual lesson (last 3-5s)",
+  "takeawayEnglish": "English translation for takeaway subtitles",
+  "visualSceneQueries": [
+    "scene 1 specific visual query matching story hook",
+    "scene 2 specific visual query matching story setup",
+    "scene 3 specific visual query matching turning point",
+    "scene 4 specific visual query matching divine resolution"
+  ],
+  "tags": ["shorts", "sanatandharma", "devotional", "bhakti", "hinduism"]
+}`;
+
+  aiData = await generateGeminiJson({
+    prompt,
+    systemPrompt,
+    temperature: 0.65,
+    maxOutputTokens: 900,
   });
+
+  // 2. Dynamic Procedural Synthesizer (Fallback when Gemini is offline)
+  let chosenData;
+  if (aiData && aiData.title && aiData.hookHindi && aiData.storyHindi) {
+    chosenData = aiData;
+  } else {
+    logger.info('[Slot 2 Devotional] Using dynamic procedural Vedic katha synthesizer.');
+    // Pick an episode not on cooldown
+    const availableSeeds = VEDIC_EPISODE_SEEDS.filter(
+      (s) => !isStoryOnCooldown('slot2', s.id, 21) && !isTopicRecentlyPublished(s.deity, 30)
+    );
+    const seed = availableSeeds.length > 0
+      ? availableSeeds[Math.floor(Math.random() * availableSeeds.length)]
+      : VEDIC_EPISODE_SEEDS[Math.floor(Math.random() * VEDIC_EPISODE_SEEDS.length)];
+
+    chosenData = {
+      title: `${seed.deity}: Divine Grace & Sacred Wisdom 🕉️`,
+      deity: seed.deity,
+      hookHindi: seed.hook,
+      hookEnglish: seed.hookEnglish,
+      storyHindi: seed.storyHindi,
+      storyEnglish: seed.storyEnglish,
+      takeawayHindi: seed.lesson,
+      takeawayEnglish: seed.lessonEnglish,
+      visualSceneQueries: seed.visuals,
+      tags: ['shorts', 'sanatandharma', 'devotional', 'bhakti', 'dailywisdom', 'hinduism'],
+      seedId: seed.id,
+    };
+  }
+
+  // Record story usage
+  recordUsedStory('slot2', chosenData.seedId || chosenData.title, chosenData.title);
+
+  // Format 3-part Vedic Katha progression
+  const formattedSegments = [
+    {
+      hindi: chosenData.hookHindi.trim(),
+      english: chosenData.hookEnglish.trim(),
+    },
+    {
+      hindi: chosenData.storyHindi.trim(),
+      english: chosenData.storyEnglish.trim(),
+    },
+    {
+      hindi: chosenData.takeawayHindi.trim(),
+      english: chosenData.takeawayEnglish.trim(),
+    },
+  ];
 
   const voiceScript = formattedSegments.map((s) => s.hindi).join(' ');
   const subtitleText = formattedSegments.map((s) => s.english).join(' ');
 
+  // Single-source visual background: 4 scenes strictly locked to deity/story
+  const visualSceneQueries = Array.isArray(chosenData.visualSceneQueries) && chosenData.visualSceneQueries.length >= 3
+    ? chosenData.visualSceneQueries
+    : [
+        `${chosenData.deity} divine temple glowing lamps`,
+        `${chosenData.deity} holy darshan golden aura`,
+        `${chosenData.deity} sacred puja river aarti`,
+        `${chosenData.deity} peaceful spiritual blessings`
+      ];
+
+  const primaryVisualQuery = visualSceneQueries[0];
+  const secondaryVisualQuery = visualSceneQueries[1] || `${chosenData.deity} spiritual aura`;
+  const altQueries = visualSceneQueries.slice(2);
+
+  // Background devotional music
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'devotional.mp3');
-
-  const titleLower = title.toLowerCase();
-  let visualSceneQueries = [
-    'ancient hindu temple stone architecture sacred',
-    'hindu temple sanctum prayer darshan',
-    'sacred diya lamp temple spiritual',
-    'golden temple lamps peaceful spirituality'
-  ];
-
-  if (titleLower.includes('shiva') || titleLower.includes('mahadev') || titleLower.includes('neelkanth')) {
-    visualSceneQueries = [
-      'shiva temple sacred smoke meditation',
-      'himalayas sacred mountain sunrise clouds',
-      'sacred incense smoke golden spiritual',
-      'hindu temple sanctum prayer darshan'
-    ];
-  } else if (titleLower.includes('hanuman') || titleLower.includes('ram')) {
-    visualSceneQueries = [
-      'hindu temple aarti golden lamp flame',
-      'ancient hindu temple stone architecture sacred',
-      'sacred diya flame spiritual prayer',
-      'hindu ritual temple bells flags'
-    ];
-  } else if (titleLower.includes('krishna') || titleLower.includes('meera')) {
-    visualSceneQueries = [
-      'sacred temple lamps golden spiritual light',
-      'hindu temple sanctum prayer darshan',
-      'spiritual meditation holy river ganga',
-      'sacred peacock feathers vrindavan temple'
-    ];
-  }
-
-  const description = `${title}\n\n` +
-    `A sacred reminder of devotion, peace, and spiritual wisdom.\n` +
-    `(Narration in Hindi with burned-in English subtitles for worldwide darshan).\n\n` +
-    `⚖️ SECTION 107 FAIR USE & ATTRIBUTION NOTICE:\n` +
-    `Copyright Disclaimer under Section 107 of the Copyright Act 1976: Allowance is made for "fair use" for purposes such as criticism, comment, teaching, scholarship, education, and research. Non-profit spiritual and cultural enrichment tips the balance in favor of fair use. All reverence to sacred traditions.`;
 
   return {
     slot: 'slot2',
-    slotName: 'Devotional (Hindu Uplifting Story & Darshan)',
-    title,
-    description,
-    tags,
-    voice: config.voices.slot2,
+    slotName: 'Devotional (Sanatan Dharma Katha)',
+    title: chosenData.title.slice(0, 95),
+    headline: chosenData.title.slice(0, 50),
     voiceScript,
     subtitleText,
     englishSubtitles: subtitleText,
     segments: formattedSegments,
+    visualQuery: primaryVisualQuery,
+    secondaryQuery: secondaryVisualQuery,
+    altQueries,
     visualSceneQueries,
+    clipPath: null,
     bgMusicPath,
-    categoryId: '22', // People & Blogs / Non-profits
+    voice: config.voices.slot2,
+    pitch: '-2Hz',
+    rate: '-2%',
+    tags: [
+      'shorts',
+      'sanatandharma',
+      'devotional',
+      'bhakti',
+      'vedickatha',
+      'hinduism',
+      ...(chosenData.tags || []),
+    ],
+    categoryId: '22',
   };
 }

@@ -91,6 +91,21 @@ export function savePublishHistory(data) {
 }
 
 /**
+ * Gets a list of recently published topics for a slot (or across all slots)
+ * @param {string} [slot] - Optional slot filter ('slot1', 'slot2', etc.)
+ * @param {number} [limit=15] - Maximum number of topics to return
+ * @returns {string[]}
+ */
+export function getRecentTopicsForSlot(slot = null, limit = 15) {
+  const history = loadPublishHistory();
+  const filtered = (history.publishedTopics || [])
+    .filter((t) => !slot || (t.slot && t.slot.toLowerCase() === slot.toLowerCase()))
+    .map((t) => (t.title || t.headline || '').trim())
+    .filter(Boolean);
+  return filtered.slice(-limit).reverse();
+}
+
+/**
  * Checks if a news/cricket headline or topic was published within the last 60 days
  */
 export function isTopicRecentlyPublished(headlineOrTitle, days = 60) {

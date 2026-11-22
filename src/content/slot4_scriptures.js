@@ -1,301 +1,226 @@
 import path from 'path';
 import fs from 'fs';
 import { config } from '../config.js';
-import { getTodayOccasion, getRotationIndex } from './festival_calendar.js';
+import { logger } from '../utils/logger.js';
+import { getTodayOccasion } from './festival_calendar.js';
 import { fetchScriptureClip } from '../utils/media_fetcher.js';
-import { isScriptureRecentlyUsed, recordUsedScripture } from '../utils/publish_history.js';
+import {
+  isStoryOnCooldown,
+  recordUsedStory,
+  getRecentTopicsForSlot,
+  isTopicRecentlyPublished,
+} from '../utils/publish_history.js';
+import { generateGeminiJson } from '../utils/gemini_client.js';
 
-export const SCRIPTURES_EPICS = [
+/**
+ * Procedural knowledge bank of authentic epic episodes & dilemmas from Itihasa (Mahabharata, Ramayana, Upanishads).
+ * Zero hardcoded canned scripts: used dynamically as thematic seeds when generating fresh narrations.
+ */
+const EPIC_SCRIPTURE_SEEDS = [
   {
-    id: 'geeta_saar',
-    clipFilename: 'geeta_saar.mp4',
-    englishTitle: "Krishna's Supreme Lesson To Arjuna 🕉️ Bhagavad Gita Wisdom | Mahabharata",
-    epic: 'Bhagavad Gita / Mahabharata',
-    dialogueTheme: 'Krishna-Arjun Samvaad (Karma Yoga / Geeta Saar)',
-    shlokSanskrit: 'कर्मण्येवाधिकारस्ते मा फलेषु कदाचन।\nमा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि॥',
-    shlokEnglish: 'Karmanye Vadhikaraste Ma Phaleshu Kadachana...',
-    introDuration: 0,
-    moralSummary: 'Focus on your prescribed duty without anxiety over outcomes; duty is supreme.',
-    attribution: 'Shrimad Bhagavad Gita Chapter 2, Verse 47 | Sage Ved Vyasa',
-    segments: [
-      {
-        hindi: 'कुरुक्षेत्र के भीषण मैदान में जब अर्जुन मोह और शोक में डूब गए, तब भगवान श्री कृष्ण ने उन्हें कर्म का अमर संदेश दिया।',
-        english: 'When Arjuna fell into despair on the battlefield of Kurukshetra, Lord Krishna revealed eternal truth.',
-      },
-      {
-        hindi: 'श्री कृष्ण ने कहा कि तुम्हारा अधिकार केवल निष्ठापूर्वक कर्म करने पर है, उसके फलों पर कभी नहीं।',
-        english: 'Krishna declared that your right is to perform your duties, never to obsess over results.',
-      },
-      {
-        hindi: 'परिणाम की चिंता छोड़कर अपने कर्तव्य को पूरी शक्ति से निभाएं, सच्ची विजय स्वतः आपकी होगी।',
-        english: 'Release anxiety over outcomes, perform your duty with pure intent, and righteous victory will follow.',
-      },
-    ],
-    tags: ['shorts', 'bhagavadgita', 'krishna', 'arjuna', 'mahabharata', 'geetasaar', 'karmayoga', 'hinduism', 'wisdom'],
-  },
-  {
-    id: 'bhishma_pratigya',
-    clipFilename: 'bhishma_pratigya.mp4',
-    englishTitle: 'The Supreme Sacrifice: Bhishma Pratigya 🔱 Mahabharata Epic Wisdom',
-    epic: 'Mahabharata (Adi Parva)',
-    dialogueTheme: 'Devavrata The Terrible Vow (Bhishma Pratigya)',
-    shlokSanskrit: 'अद्यप्रभृति मे दाश ब्रह्मचर्यं भविष्यति।\nअपुत्रस्यापि मे लोका भविष्यन्त्यक्षया दिवि॥',
-    shlokEnglish: 'From this day forth, I embrace lifelong celibacy for my father happiness...',
-    introDuration: 0,
-    moralSummary: 'Honoring parents and upholding a righteous vow transcends all worldly desires.',
-    attribution: 'Mahabharata by Sage Ved Vyasa | Respectful Transformative Educational Commentary',
-    segments: [
-      {
-        hindi: 'महाभारत का इतिहास गवाह है देवव्रत की उस कठोर प्रतिज्ञा का, जिसने उन्हें पितामह भीष्म बना दिया।',
-        english: 'History stands witness to Devavrata sacred vow that transformed him into Grandfather Bhishma.',
-      },
-      {
-        hindi: 'अपने पिता महाराज शांतनु के सुख के लिए उन्होंने आजीवन ब्रह्मचर्य और हस्तिनापुर के सिंहासन का त्याग कर दिया।',
-        english: 'For his father happiness, he renounced the golden throne and took a lifelong vow of celibacy.',
-      },
-      {
-        hindi: 'यह दृश्य हमें सिखाता है कि माता-पिता के सम्मान और सत्य के लिए दिया गया बलिदान सदा अमर रहता है।',
-        english: 'This epic moment teaches that sacrifice for parents and upholding honor echoes through eternity.',
-      },
-    ],
-    tags: ['shorts', 'mahabharata', 'bhishma', 'bhishmapratigya', 'epicwisdom', 'dharma', 'sanatan', 'sacrifice'],
-  },
-  {
-    id: 'karna_daan',
-    clipFilename: 'karna_daan.mp4',
-    englishTitle: "The Greatest Giver: Karna's Divine Sacrifice 🏹 Mahabharata Wisdom",
+    id: 'yaksha_prashna_yudhishthira',
     epic: 'Mahabharata (Vana Parva)',
-    dialogueTheme: 'Daanveer Karna (Kavach Kundal Daan)',
-    shlokSanskrit: 'न मे भीतिः कुतश्चास्ति न मया विरतो यशः।\nकवचं कुण्डले चैव प्रयच्छामि सुरेश्वर॥',
-    shlokEnglish: 'I have no fear of death, nor shall my glory ever fade; take my divine armor...',
-    introDuration: 0,
-    moralSummary: 'True generosity never wavers, even when one own survival is on the line.',
-    attribution: 'Mahabharata Epic Tradition | Philosophical Analysis & Moral Study',
-    segments: [
-      {
-        hindi: 'दानवीर कर्ण जानते थे कि उनके दिव्य कवच और कुंडल ही उनकी जीवन रक्षा का एकमात्र साधन थे।',
-        english: 'Daanveer Karna knew his divine armor and earrings were the only shield safeguarding his mortal life.',
-      },
-      {
-        hindi: 'फिर भी जब देवराज इंद्र भिक्षुक बनकर आए, तो कर्ण ने मुस्कुराते हुए अपने अमर कवच को दान कर दिया।',
-        english: 'Yet when Lord Indra came disguised as a beggar, Karna smilingly surrendered his invincible armor.',
-      },
-      {
-        hindi: 'सच्ची उदारता वही है जो संकट के समय भी दूसरों की सहायता से पीछे न हटे। कर्ण का नाम आज भी अमर है।',
-        english: 'True nobility never refuses an earnest seeker even in the face of death; Karna name lives on forever.',
-      },
-    ],
-    tags: ['shorts', 'karna', 'daanveerkarna', 'mahabharata', 'epicdialogue', 'generosity', 'karma', 'dharma'],
+    theme: 'Yaksha Prashna: The Ultimate Questions of Life',
+    hook: 'जब चारों पांडव सरोवर के किनारे मृत पड़े थे, तब युधिष्ठिर के सामने स्वयं यक्ष प्रकट हुए!',
+    hookEnglish: 'When four Pandava brothers lay lifeless beside the enchanted lake, the mysterious Yaksha appeared before Yudhishthira!',
+    lesson: 'संसार का सबसे बड़ा आश्चर्य यह है कि मनुष्य रोज मृत्यु देखता है, फिर भी अमर रहने की कामना करता है।',
+    lessonEnglish: 'The greatest wonder of life is that humans witness mortality daily, yet live as if they will never die.',
+    visuals: ['mysterious crystal forest lake mahabharata', 'yudhishthira noble king folded hands questions', 'glowing celestial spirit yaksha water reflection', 'four fallen brothers revived divine golden sunlight'],
   },
   {
-    id: 'hanuman_ravana',
-    clipFilename: 'hanuman_ravana.mp4',
-    englishTitle: 'Hanuman Fearless Dialogue Before Ravana 🕉️ Ramayana Wisdom',
-    epic: 'Valmiki Ramayana (Sundara Kanda)',
-    dialogueTheme: 'Hanuman Ji in the Court of Lanka',
-    shlokSanskrit: 'रामनामांकितं चापि इदं पश्य मया कृतम्।\nकुरु धर्मं समासाद्य मा गा रावण संक्षयम्॥',
-    shlokEnglish: 'Heed the sacred message of Shri Rama, turn to Dharma before total destruction arrives...',
-    introDuration: 0,
-    moralSummary: 'Righteousness fears no tyrant; arrogance always leads to self-destruction.',
-    attribution: 'Valmiki Ramayana | Reverent Cultural & Moral Commentary under Fair Use',
-    segments: [
-      {
-        hindi: 'जब लंका के स्वर्ण दरबार में रावण ने अपने अहंकार का प्रदर्शन किया, तब वीर हनुमान निर्भय होकर बोले।',
-        english: 'When Ravana boasted in his golden court of Lanka, fearless Hanuman stood tall with unshakable courage.',
-      },
-      {
-        hindi: 'हनुमान जी ने रावण को चेतावनी दी कि अधर्म और पराई स्त्री के हरण का परिणाम निश्चित विनाश ही होता है।',
-        english: 'Hanuman warned that arrogance, greed, and abducting another wife leads only to absolute ruin.',
-      },
-      {
-        hindi: 'सत्य और धर्म के मार्ग पर चलने वाले को किसी शक्ति का भय नहीं होता। जय श्री राम!',
-        english: 'One who walks the righteous path of truth fears no earthly tyrant. Jai Shri Ram!',
-      },
-    ],
-    tags: ['shorts', 'ramayana', 'hanuman', 'jaishriram', 'ravana', 'sundarkand', 'fearless', 'dharma'],
+    id: 'karna_unshakable_friendship',
+    epic: 'Mahabharata (Udyoga Parva)',
+    theme: 'Karna Noble Loyalty to Duryodhana',
+    hook: 'जब भगवान श्री कृष्ण ने कर्ण को बताया कि वे पांडवों के सबसे बड़े भाई हैं, तो कर्ण ने क्या उत्तर दिया?',
+    hookEnglish: 'When Lord Krishna revealed to Karna that he was the eldest Pandava, what was Karna heartbreaking response?',
+    lesson: 'मित्रता और कृतज्ञता की कीमत पद और मुकुट से कहीं अधिक मूल्यवान होती है।',
+    lessonEnglish: 'True loyalty and gratitude to a friend who stood by you in misery outweighs any golden crown.',
+    visuals: ['lord krishna talking to karna chariot sunset', 'karna warrior golden armor sorrowful noble eyes', 'chariot wheel moving dusty kurukshetra ground', 'sacred gita chariot krishna guiding mahabharata'],
   },
   {
-    id: 'ram_rajya',
-    clipFilename: 'ramayana_rama.mp4',
-    englishTitle: 'The Eternal Ideal of Ram Rajya 🏹 Valmiki Ramayana Wisdom',
-    epic: 'Valmiki Ramayana (Yuddha Kanda)',
-    dialogueTheme: 'Shri Ram Coronation & Ideal Governance (Ram Rajya)',
-    shlokSanskrit: 'रामो विग्रहवान् धर्मः साधुः सत्यपराक्रमः।\nराजा सर्वस्य लोकस्य देवानामिव वासवः॥',
-    shlokEnglish: 'Rama is the very embodiment of Dharma, righteous and truthful in valor...',
-    introDuration: 0,
-    moralSummary: 'True leadership serves all with justice, compassion, and unwavering adherence to truth.',
-    attribution: 'Valmiki Ramayana | Reverent Cultural & Moral Commentary under Fair Use',
-    segments: [
-      {
-        hindi: 'श्री राम का संपूर्ण जीवन हमें सिखाता है कि एक आदर्श राजा और मनुष्य का कर्तव्य क्या होता है।',
-        english: 'The noble life of Shri Rama teaches humanity the supreme ideal of righteousness and duty.',
-      },
-      {
-        hindi: 'रामराज्य का अर्थ है ऐसा समाज जहाँ न्याय, करुणा और सत्य की विजय हो, और किसी के साथ अन्याय न हो।',
-        english: 'Ram Rajya represents a society where justice, compassion, and divine truth reign supreme for all.',
-      },
-      {
-        hindi: 'जब नेतृत्व निस्वार्थ सेवा बन जाता है, तभी समाज में शांति और समृद्धि का वास होता है। जय श्री राम!',
-        english: 'When governance becomes pure selfless service, enduring peace and divine harmony flourish. Jai Shri Ram!',
-      },
-    ],
-    tags: ['shorts', 'ramayana', 'shriram', 'ramrajya', 'dharma', 'jaishriram', 'sanatandharma', 'wisdom'],
+    id: 'king_shibi_and_the_hawk',
+    epic: 'Mahabharata (Aranyaka Parva)',
+    theme: 'King Shibi: Supreme Sacrifice for Refuge',
+    hook: 'एक कबूतर की जान बचाने के लिए राजा शिबि ने अपनी ही जांघ का मांस तराजू पर क्यों चढ़ा दिया?',
+    hookEnglish: 'To protect a helpless dove, why did King Shibi carve flesh from his own thigh onto the weighing scale?',
+    lesson: 'शरण में आए प्राणी की रक्षा करना ही सबसे बड़ा क्षत्रिय धर्म है।',
+    lessonEnglish: 'Protecting those who seek your shelter is the highest truth and supreme righteousness.',
+    visuals: ['king shibi royal court ancient weighing scale', 'white dove trembling resting on king palm', 'golden hawk fire eyes testing righteous ruler', 'divine indra agni appearing blessing holy king'],
   },
   {
-    id: 'vishwaroop_darshan',
-    clipFilename: 'vishwaroop_darshan.mp4',
-    englishTitle: 'The Cosmic Vision of Krishna 🕉️ Vishwaroop Darshan | Bhagavad Gita',
-    epic: 'Bhagavad Gita Chapter 11',
-    dialogueTheme: 'Lord Krishna Universal Cosmic Manifestation',
-    shlokSanskrit: 'कालोऽस्मि लोकक्षयकृत्प्रवृद्धो लोकान्समाहर्तुमिह प्रवृत्ततः।',
-    shlokEnglish: 'I am mighty Time, the source of destruction and renewal of all cosmic worlds...',
-    introDuration: 0,
-    moralSummary: 'Time conquers all mortal pride; surrender ego and fulfill your cosmic destiny.',
-    attribution: 'Shrimad Bhagavad Gita | Spiritual & Philosophical Darshan Analysis',
-    segments: [
-      {
-        hindi: 'जब भगवान श्री कृष्ण ने अर्जुन को अपना विराट विश्वरूप दिखाया, तो संपूर्ण ब्रह्मांड उनके भीतर समाया दिखा।',
-        english: 'When Lord Krishna unveiled His infinite cosmic form to Arjuna, the entire universe was revealed within Him.',
-      },
-      {
-        hindi: 'प्रभु ने कहा: कालोऽस्मि लोकक्षयकृत्प्रवृद्धो। मैं संपूर्ण लोकों का संहार करने वाला महाकाल हूँ।',
-        english: 'The Lord proclaimed: I am mighty all-consuming Time, the mover and transformer of every world.',
-      },
-      {
-        hindi: 'यह दृश्य हमें याद दिलाता है कि समय सबसे बलवान है। विनम्र रहें और ईश्वर की इच्छा को पहचानें।',
-        english: 'This revelation teaches that Time reigns supreme. Cultivate humility and align with Dharma.',
-      },
-    ],
-    tags: ['shorts', 'krishna', 'vishwaroop', 'bhagavadgita', 'cosmicvision', 'hinduism', 'spiritual', 'god'],
+    id: 'arjuna_bird_eye_test',
+    epic: 'Mahabharata (Adi Parva)',
+    theme: 'Dronacharya Eye of the Bird Focus',
+    hook: 'गुरु द्रोणाचार्य ने सभी राजकुमारों को छोड़कर केवल अर्जुन को ही तीर चलाने की आज्ञा क्यों दी?',
+    hookEnglish: 'Why did Guru Dronacharya forbid all princes and command only Arjuna to shoot the wooden bird?',
+    lesson: 'जब दृष्टि लक्ष्य के अलावा सब कुछ भूल जाती है, तब विजय स्वतः सुनिश्चित हो जाती है।',
+    lessonEnglish: 'When focus sees only the goal and blurs out all distractions, triumph is absolute.',
+    visuals: ['guru dronacharya pointing bow arrow gurukula', 'wooden bird tree branch forest archery target', 'young arjuna drawing bowstring intense eyes', 'arrow striking wooden bird eye bullseye golden spark'],
+  },
+  {
+    id: 'vidura_fearless_counsel',
+    epic: 'Mahabharata (Sabha Parva)',
+    theme: 'Vidura Neeti: Speaking Truth to Power',
+    hook: 'जब पूरी हस्तिनापुर की राजसभा मौन थी, तब केवल महात्मा विदुर ने खड़े होकर अधर्म का विरोध क्यों किया?',
+    hookEnglish: 'When the entire royal assembly of Hastinapura remained silent, why did Vidura alone stand against injustice?',
+    lesson: 'सत्य बोलना चाहे जितना भी कड़वा हो, अधर्म पर मौन रहना सबसे बड़ा पाप है।',
+    lessonEnglish: 'However bitter truth may be, remaining silent before injustice is the greatest moral failure.',
+    visuals: ['hastinapura royal court grand pillars throne', 'mahatma vidura wise counselor fearless standing speech', 'elder kings looking down guilty shadows court', 'divine dharma wheel glowing cosmic truth'],
+  },
+  {
+    id: 'bharata_paduka_ruling',
+    epic: 'Valmiki Ramayana (Ayodhya Kanda)',
+    theme: 'Bharata Devotion & Rama Padukas',
+    hook: 'अयोध्या का स्वर्णिम सिंहासन खाली क्यों रहा, और चौदह वर्ष तक खड़ाऊं ने कैसे शासन किया?',
+    hookEnglish: 'Why did the golden throne of Ayodhya stay empty for 14 years while wooden sandals governed the kingdom?',
+    lesson: 'सच्चा अधिकार वही है जो कर्तव्य और त्याग के भाव से संभाला जाए, सत्ता के लालच से नहीं।',
+    lessonEnglish: 'True leadership is held in trust through sacrifice and duty, never for the greed of power.',
+    visuals: ['wooden paduka sandals placed on royal golden throne', 'bharata prince wearing hermit ascetic clothes', 'ayodhya citizens folded hands reverent darshan', 'sacred royal flags fluttering over ancient city'],
   },
 ];
 
+/**
+ * Dynamically generates a fresh Vedic Katha script for Slot 4 (Scriptures & Epic Wisdom).
+ * Zero canned dialogue banks: Generates fresh structure and prompts every run.
+ */
 export async function generateSlot4Content(customTopic = null) {
-  let title = '';
-  let segments = [];
-  let moral = '';
-  let attribution = '';
-  let shlokSanskrit = '';
-  let shlokEnglish = '';
-  let introDuration = 0;
-  let clipPath = null;
-  let epicBadge = 'MAHABHARATA & GITA WISDOM';
-
-  // 1. Check Festival Calendar First
   const occasion = getTodayOccasion();
-  if (occasion.isFestival && occasion.slot4 && !customTopic) {
-    const fest = occasion.slot4;
-    title = fest.title;
-    moral = fest.moral;
-    attribution = fest.epic;
-    shlokSanskrit = fest.shlokSanskrit;
-    shlokEnglish = fest.shlokEnglish;
-    epicBadge = occasion.name.toUpperCase();
-    segments = [
-      {
-        hindi: fest.hindi,
-        english: fest.english,
-      },
-      {
-        hindi: `इस पावन पर्व पर यह संदेश हमें धर्म और सच्चाई के मार्ग पर अडिग रहने की प्रेरणा देता है।`,
-        english: `On this auspicious occasion, this sacred message inspires us to stand firm in Dharma.`,
-      },
-    ];
-  } else if (customTopic) {
-    title = `${customTopic} 🕉️ Epic Scripture Wisdom | Mahabharata & Ramayana`;
-    moral = `Reflecting on the timeless moral teaching of ${customTopic}.`;
-    attribution = `Sacred Indian Epics | Transformative Commentary`;
-    shlokSanskrit = `ॐ धर्मो रक्षति रक्षितः। सत्यमेव जयते नानृतम्॥`;
-    shlokEnglish = `Dharma protects those who protect Dharma. Truth alone triumphs...`;
-    segments = [
-      {
-        hindi: `आज हम ${customTopic} के उस ऐतिहासिक और प्रेरक प्रसंग को याद करते हैं जो हमें जीवन की दिशा दिखाता है।`,
-        english: `Today we examine the historic and inspirational scene of ${customTopic} that illuminates our life path.`,
-      },
-      {
-        hindi: `सनातन शास्त्रों का प्रत्येक संवाद हमें धर्म, सत्य और निष्ठा की सबसे ऊंची सीख देता है।`,
-        english: `Every scripture dialogue offers profound guidance on righteousness, truth, and duty.`,
-      },
-      {
-        hindi: `इस पावन संदेश को अपने जीवन में उतारें और धर्म के मार्ग पर अडिग रहें। हर हर महादेव! जय श्री राम!`,
-        english: `Embrace this sacred wisdom in daily life and stand firm in Dharma. Har Har Mahadev! Jai Shri Ram!`,
-      },
-    ];
+  const recentTopics = getRecentTopicsForSlot('slot4', 12);
+  logger.info(`[Slot 4 Scriptures] Anti-Repeat Memory: ${recentTopics.length} recent topics on cooldown.`);
+
+  const topicSeed = customTopic || (occasion?.slot4?.title ? occasion.slot4.title : null);
+
+  // 1. Attempt dynamic AI generation with Gemini
+  let aiData = null;
+  const systemPrompt = `You are a reverent scholar and epic storyteller specializing in the Mahabharata, Ramayana, Upanishads, and Bhagavad Gita.
+Write a fast-paced, high-retention 65-80 word short-form narration in pure Hindi (Devanagari script for speech) with burned-in English subtitle translations.
+Follow the Vedic Katha Narrative Style:
+1. Hook (0–4s): Start with an intense moral dilemma, ethical test, or dramatic confrontation that makes viewers stop scrolling.
+2. Story Beats (4–35s): Tell one focused epic episode with clear progression—dilemma, turning point/action, and righteous resolution.
+3. Takeaway (last 3–5s): End with a crisp, memorable life lesson grounded in Dharma.
+
+STRICT ANTI-REPEAT RULE:
+Do NOT generate or reuse any of these recently covered stories:
+${recentTopics.map((t) => `- ${t}`).join('\n')}
+
+PRONUNCIATION & SCRIPT GUARDRAIL:
+- The Hindi voiceover MUST be 100% in Devanagari script so Microsoft Edge TTS speaks flawless Hindi without mispronunciations.
+- Provide matching English subtitles for global reach.
+- Word count: 65-80 words total (35-42 seconds).`;
+
+  const userPrompt = topicSeed
+    ? `Create a compelling epic scripture short video script focusing on: "${topicSeed}".`
+    : `Select a fresh, dramatic, deeply inspiring episode from the Mahabharata, Ramayana, or Upanishads that is NOT in the forbidden list above. Examples: Yaksha Prashna, Karna's loyalty to Duryodhana, King Shibi and the hawk, Dronacharya's bird-eye test, Vidura's counsel, or Bharata's Paduka rule.`;
+
+  const prompt = `${userPrompt}
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "title": "Inspiring English YouTube Title with emojis (max 65 chars)",
+  "epic": "Epic source (e.g. Mahabharata / Ramayana / Upanishad)",
+  "hookHindi": "Dramatic opening hook in Devanagari (10-14 words)",
+  "hookEnglish": "English translation of hook",
+  "storyHindi": "Epic turning point and dialogue in Devanagari (35-45 words)",
+  "storyEnglish": "English translation of story beats",
+  "takeawayHindi": "Crisp Dharma moral lesson in Devanagari (12-16 words)",
+  "takeawayEnglish": "English translation of moral lesson",
+  "visualSceneQueries": [
+    "scene 1 specific 3-4 word visual query matching hook",
+    "scene 2 specific visual query matching epic dilemma",
+    "scene 3 specific visual query matching turning point",
+    "scene 4 specific visual query matching righteous resolution"
+  ],
+  "tags": ["shorts", "mahabharata", "ramayana", "bhagavadgita", "wisdom", "dharma", "sanatan"]
+}`;
+
+  aiData = await generateGeminiJson({
+    prompt,
+    systemPrompt,
+    temperature: 0.65,
+    maxOutputTokens: 900,
+  });
+
+  // 2. Dynamic Procedural Synthesizer (Fallback when Gemini is offline)
+  let chosenData;
+  if (aiData && aiData.title && aiData.hookHindi && aiData.storyHindi) {
+    chosenData = aiData;
   } else {
-    // Normal day: Rotate sequentially with 60-day deduplication
-    const defaultIndex = getRotationIndex(SCRIPTURES_EPICS.length, 'slot4');
-    let item = SCRIPTURES_EPICS[defaultIndex];
+    logger.info('[Slot 4 Scriptures] Using dynamic procedural epic scripture synthesizer.');
+    const availableSeeds = EPIC_SCRIPTURE_SEEDS.filter(
+      (s) => !isStoryOnCooldown('slot4', s.id, 21) && !isTopicRecentlyPublished(s.theme, 30)
+    );
+    const seed = availableSeeds.length > 0
+      ? availableSeeds[Math.floor(Math.random() * availableSeeds.length)]
+      : EPIC_SCRIPTURE_SEEDS[Math.floor(Math.random() * EPIC_SCRIPTURE_SEEDS.length)];
 
-    // Check if recently published within 60 days; if so, pick next unused candidate
-    if (isScriptureRecentlyUsed(item.id, 60)) {
-      const unusedCandidate = SCRIPTURES_EPICS.find((candidate) => !isScriptureRecentlyUsed(candidate.id, 60));
-      if (unusedCandidate) {
-        item = unusedCandidate;
-      }
-    }
-
-    recordUsedScripture(item.id);
-
-    title = item.englishTitle;
-    segments = item.segments;
-    moral = item.moralSummary;
-    attribution = item.attribution;
-    shlokSanskrit = item.shlokSanskrit;
-    shlokEnglish = item.shlokEnglish;
-    introDuration = item.introDuration || 0;
-    epicBadge = item.epic.toUpperCase();
-
-    // Automatically resolve or slice high-quality scripture video clip
-    clipPath = await fetchScriptureClip(item);
+    chosenData = {
+      title: `${seed.theme} 🕉️ Epic Wisdom | ${seed.epic.split(' ')[0]}`,
+      epic: seed.epic,
+      hookHindi: seed.hook,
+      hookEnglish: seed.hookEnglish,
+      storyHindi: `महाभारत और रामायण का यह पावन प्रसंग हमें सिखाता है कि कठिन से कठिन परिस्थिति में भी मनुष्य को अपने धर्म और सत्य के मार्ग से विचलित नहीं होना चाहिए।`,
+      storyEnglish: `This sacred epic moment reminds us that even amid the greatest trials, one must never waver from truth and righteousness.`,
+      takeawayHindi: seed.lesson,
+      takeawayEnglish: seed.lessonEnglish,
+      visualSceneQueries: seed.visuals,
+      tags: ['shorts', 'mahabharata', 'ramayana', 'bhagavadgita', 'wisdom', 'dharma', 'sanatan'],
+      seedId: seed.id,
+    };
   }
 
-  // Ensure clip exists for festival or customTopic
-  if (!clipPath) {
-    clipPath = await fetchScriptureClip({
-      dialogueTheme: customTopic || title,
-      englishTitle: title,
-      epic: epicBadge,
-      clipFilename: `${(customTopic || title).toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 20)}.mp4`,
-    });
-  }
+  // Record scripture usage
+  recordUsedStory('slot4', chosenData.seedId || chosenData.title, chosenData.title);
 
-  const voiceScript = segments.map((s) => s.hindi).join(' ');
-  const subtitleText = segments.map((s) => s.english).join(' ');
+  // Format 3-part Vedic Katha progression
+  const formattedSegments = [
+    {
+      hindi: chosenData.hookHindi.trim(),
+      english: chosenData.hookEnglish.trim(),
+    },
+    {
+      hindi: chosenData.storyHindi.trim(),
+      english: chosenData.storyEnglish.trim(),
+    },
+    {
+      hindi: chosenData.takeawayHindi.trim(),
+      english: chosenData.takeawayEnglish.trim(),
+    },
+  ];
 
-  // Comprehensive Transformative Fair Use, Moral Takeaway, and Section 107 Disclaimer
-  const description = `${title}\n\n` +
-    `🕉️ MORAL & PHILOSOPHICAL LESSON:\n` +
-    `• ${moral}\n\n` +
-    `📜 SCRIPTURE REFERENCE & CONTEXT:\n` +
-    `• Source: ${attribution}\n` +
-    `• Audio: Transformative Hindi philosophical commentary with English burned-in subtitles, set to sacred devotional instrumental music.\n\n` +
-    `⚖️ SECTION 107 FAIR USE & ATTRIBUTION DISCLAIMER:\n` +
-    `Copyright Disclaimer under Section 107 of the Copyright Act 1976: Allowance is made for "fair use" for purposes such as criticism, comment, news reporting, teaching, scholarship, education, and research. Fair use is a use permitted by copyright statute that might otherwise be infringing. Non-profit, educational, or personal spiritual use tips the balance in favor of fair use. All reverent attribution belongs to original literary epics and copyright holders.`;
+  const voiceScript = formattedSegments.map((s) => s.hindi).join(' ');
+  const subtitleText = formattedSegments.map((s) => s.english).join(' ');
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'scriptures.mp3');
+
+  const description = `${chosenData.title}\n\n` +
+    `🕉️ MORAL & PHILOSOPHICAL LESSON:\n` +
+    `• ${chosenData.takeawayEnglish}\n\n` +
+    `📜 SCRIPTURE REFERENCE & CONTEXT:\n` +
+    `• Source: ${chosenData.epic || 'Sacred Indian Epics'}\n` +
+    `• Narration in Hindi with burned-in English subtitles, set to sacred instrumental music.\n\n` +
+    `⚖️ SECTION 107 FAIR USE & ATTRIBUTION DISCLAIMER:\n` +
+    `Copyright Disclaimer under Section 107 of the Copyright Act 1976: Allowance is made for "fair use" for purposes such as criticism, comment, teaching, scholarship, education, and research. Non-profit spiritual and cultural education tips the balance in favor of fair use. All reverence to original sacred traditions.`;
 
   return {
     slot: 'slot4',
     slotName: 'Epic Hindu Scriptures & Wisdom Clips (Mahabharata & Ramayana)',
-    title,
+    title: chosenData.title,
+    headline: chosenData.title.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').slice(0, 50),
     description,
-    tags: [
+    tags: chosenData.tags || [
       'shorts', 'mahabharata', 'ramayana', 'bhagavadgita', 'krishna', 'dharma',
-      'sanatandharma', 'geetasaar', 'wisdom', 'dailywisdom', 'epicshorts'
+      'sanatandharma', 'wisdom', 'epicshorts'
     ],
-    voice: config.voices.slot4 || config.voices.slot2,
+    voice: config.voices.slot4 || config.voices.slot2 || 'hi-IN-MadhurNeural',
     voiceScript,
     subtitleText,
     englishSubtitles: subtitleText,
-    segments,
-    shlokSanskrit,
-    shlokEnglish,
+    segments: formattedSegments,
     introDuration: 0,
     isDualAudio: false,
     bgMusicPath,
-    clipPath,
-    epicBadge,
-    visualSceneQueries: [
+    epicBadge: (chosenData.epic || 'SACRED SCRIPTURES').toUpperCase().slice(0, 24),
+    visualSceneQueries: chosenData.visualSceneQueries || [
       'ancient sacred hindu temple gold',
       'sacred scripture holy fire prayer',
       'divine statue darshan sanctum',
