@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-22T12:06:34.265Z",
+  "lastUpdated": "2026-11-22T12:25:07.584Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -305,6 +305,22 @@
       "headline": "Vidura Neeti: Speaking Truth to Power 🕉️ Epic Wisdom | Mahabharata",
       "url": "https://youtube.com/shorts/IIi-1fJ2IRI",
       "publishedAt": "2026-11-22T12:06:34.265Z"
+    },
+    {
+      "hash": "5045302eeb3070c80d7d44ed6e0b73f3",
+      "slot": "slot5",
+      "title": "IPL Auction 3 Players Kkr Can Target for Captaincy Post 🏏🔥",
+      "headline": "IPL Auction 3 Players Kkr Can Target for Captaincy Post",
+      "url": "",
+      "publishedAt": "2026-11-22T12:25:06.426Z"
+    },
+    {
+      "hash": "13c6a5df7261b9d92ab3c024b6febd4a",
+      "slot": "slot5",
+      "title": "IPL Auction 3 Players Kkr Can Target for Captaincy Post 🏏🔥",
+      "headline": "IPL Auction 3 Players Kkr Can Target for Captaincy Post 🏏🔥",
+      "url": "https://youtube.com/shorts/i8dCIB1AsZU",
+      "publishedAt": "2026-11-22T12:25:07.584Z"
     }
   ],
   "usedVideoClips": [
@@ -875,6 +891,30 @@
       "slot": "slot4",
       "type": "video",
       "usedAt": "2026-11-22T12:05:48.082Z"
+    },
+    {
+      "id": "stadium_bg.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-22T12:24:02.667Z"
+    },
+    {
+      "id": "cricket_pitch_action.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-22T12:24:02.869Z"
+    },
+    {
+      "id": "cricket_stadium_celebration.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-22T12:24:03.077Z"
+    },
+    {
+      "id": "stadium_floodlights.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-22T12:24:03.286Z"
     }
   ],
   "usedScriptures": [],
