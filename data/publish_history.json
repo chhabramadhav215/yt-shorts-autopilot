@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-22T12:25:07.584Z",
+  "lastUpdated": "2026-11-22T12:48:13.898Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -321,6 +321,22 @@
       "headline": "IPL Auction 3 Players Kkr Can Target for Captaincy Post 🏏🔥",
       "url": "https://youtube.com/shorts/i8dCIB1AsZU",
       "publishedAt": "2026-11-22T12:25:07.584Z"
+    },
+    {
+      "hash": "946fe3bed487db7e34c0f93a92804417",
+      "slot": "slot5",
+      "title": "Rutu Is Someone WHO Was Identified by Dhoni 🏏🔥",
+      "headline": "Rutu Is Someone WHO Was Identified by Dhoni",
+      "url": "",
+      "publishedAt": "2026-11-22T12:48:12.785Z"
+    },
+    {
+      "hash": "62519b85e32c0714e0c1431e8f4fb60d",
+      "slot": "slot5",
+      "title": "Rutu Is Someone WHO Was Identified by Dhoni 🏏🔥",
+      "headline": "Rutu Is Someone WHO Was Identified by Dhoni 🏏🔥",
+      "url": "https://youtube.com/shorts/1kQwNOjZLC0",
+      "publishedAt": "2026-11-22T12:48:13.898Z"
     }
   ],
   "usedVideoClips": [
@@ -915,6 +931,30 @@
       "slot": "slot5",
       "type": "video",
       "usedAt": "2026-11-22T12:24:03.286Z"
+    },
+    {
+      "id": "cricket_nets_practice.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-22T12:47:14.636Z"
+    },
+    {
+      "id": "cricket_match_action.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-22T12:47:14.877Z"
+    },
+    {
+      "id": "cricket_pitch_floodlights.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-22T12:47:15.094Z"
+    },
+    {
+      "id": "stadium_crowd_lights.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-22T12:47:15.307Z"
     }
   ],
   "usedScriptures": [],
