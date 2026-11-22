@@ -113,6 +113,7 @@ export async function generateShortVideo(slot, customTopic = null) {
     team: content.team,
     statBadge: content.statBadge,
     customTopic,
+    comparisonData: content.comparisonData,
   });
 
   // 5. Final Video Compilation (Clean Dual-Audio mix + subtitles burn)

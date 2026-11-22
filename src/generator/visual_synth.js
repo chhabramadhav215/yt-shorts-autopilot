@@ -164,6 +164,7 @@ export async function generateVisualBackground({
   team = null,
   statBadge = null,
   customTopic = null,
+  comparisonData = null,
 }) {
   const roundDur = Math.ceil(duration) + 1;
 
@@ -183,6 +184,7 @@ export async function generateVisualBackground({
       visualQuery,
       secondaryQuery,
       visualSceneQueries,
+      comparisonData,
     });
   }
 

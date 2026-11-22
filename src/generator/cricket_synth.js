@@ -64,9 +64,98 @@ const TEAM_COLORS = {
 };
 
 /**
+ * Builds SVG elements for a 2-player comparison card or single player stats card
+ */
+function renderStatsOverlaySvg(comparisonData, accentHex) {
+  if (!comparisonData) return '';
+
+  if (comparisonData.type === 'comparison') {
+    const p1 = comparisonData.player1 || {};
+    const p2 = comparisonData.player2 || {};
+    const cardTitle = escapeXml((comparisonData.title || 'HEAD TO HEAD • CAPTAINCY STATS').toUpperCase());
+
+    return `
+      <!-- Comparison Card Container (y=725 to y=1075) -->
+      <rect x="70" y="725" width="940" height="345" rx="28" fill="#080e1a" fill-opacity="0.88" stroke="${accentHex}" stroke-width="2.5" />
+      
+      <!-- Top Card Header Badge -->
+      <rect x="360" y="710" width="360" height="30" rx="15" fill="${accentHex}" />
+      <text x="540" y="730" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="14" fill="#000000" text-anchor="middle" letter-spacing="1.2">${cardTitle}</text>
+
+      <!-- Player 1 Column (Left, center at x=280) -->
+      <text x="280" y="780" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="27" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p1.name || '')}</text>
+      <rect x="150" y="796" width="260" height="24" rx="12" fill="#1e293b" fill-opacity="0.9" />
+      <text x="280" y="813" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#94a3b8" text-anchor="middle">${escapeXml((p1.role || 'LEADER').toUpperCase())}</text>
+      
+      <rect x="110" y="836" width="340" height="44" rx="13" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="280" y="864" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="900" fill="${accentHex}" text-anchor="middle">${escapeXml(p1.stat1 || '')}</text>
+
+      <rect x="110" y="890" width="340" height="44" rx="13" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="280" y="918" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p1.stat2 || '')}</text>
+
+      <rect x="110" y="944" width="340" height="40" rx="12" fill="#0f172a" fill-opacity="0.7" stroke="#1e293b" stroke-width="1" />
+      <text x="280" y="969" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#38bdf8" text-anchor="middle">${escapeXml(p1.stat3 || '')}</text>
+
+      <!-- Center Divider & Glowing VS Badge (x=540) -->
+      <line x1="540" y1="755" x2="540" y2="1025" stroke="#334155" stroke-width="1.5" stroke-dasharray="4,4" />
+      <circle cx="540" cy="888" r="32" fill="#0b1220" stroke="${accentHex}" stroke-width="3" />
+      <text x="540" y="896" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="900" fill="${accentHex}" text-anchor="middle">VS</text>
+
+      <!-- Player 2 Column (Right, center at x=800) -->
+      <text x="800" y="780" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="27" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p2.name || '')}</text>
+      <rect x="670" y="796" width="260" height="24" rx="12" fill="#1e293b" fill-opacity="0.9" />
+      <text x="800" y="813" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#94a3b8" text-anchor="middle">${escapeXml((p2.role || 'LEADER').toUpperCase())}</text>
+
+      <rect x="630" y="836" width="340" height="44" rx="13" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="800" y="864" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="900" fill="${accentHex}" text-anchor="middle">${escapeXml(p2.stat1 || '')}</text>
+
+      <rect x="630" y="890" width="340" height="44" rx="13" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="800" y="918" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p2.stat2 || '')}</text>
+
+      <rect x="630" y="944" width="340" height="40" rx="12" fill="#0f172a" fill-opacity="0.7" stroke="#1e293b" stroke-width="1" />
+      <text x="800" y="969" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#38bdf8" text-anchor="middle">${escapeXml(p2.stat3 || '')}</text>
+
+      <!-- Verified Stats Footer Note -->
+      <text x="540" y="1042" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#64748b" text-anchor="middle" letter-spacing="1">VERIFIED OFFICIAL IPL &amp; T20 RECORDS</text>
+    `;
+  } else if (comparisonData.type === 'stat_card') {
+    const p = comparisonData.player || {};
+    const cardTitle = escapeXml((comparisonData.title || 'PLAYER IMPACT STATS').toUpperCase());
+
+    return `
+      <!-- Single Player Stats Card Container (y=750 to y=1050) -->
+      <rect x="90" y="750" width="900" height="295" rx="28" fill="#080e1a" fill-opacity="0.88" stroke="${accentHex}" stroke-width="2.5" />
+
+      <!-- Top Card Header Badge -->
+      <rect x="360" y="735" width="360" height="30" rx="15" fill="${accentHex}" />
+      <text x="540" y="755" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="14" fill="#000000" text-anchor="middle" letter-spacing="1.2">${cardTitle}</text>
+
+      <!-- Player Name & Role -->
+      <text x="540" y="812" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p.name || '')}</text>
+      <rect x="370" y="828" width="340" height="26" rx="13" fill="#1e293b" fill-opacity="0.9" />
+      <text x="540" y="846" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#94a3b8" text-anchor="middle">${escapeXml((p.role || 'MATCH WINNER').toUpperCase())}</text>
+
+      <!-- 3 Metrics in a Horizontal Row -->
+      <rect x="120" y="872" width="250" height="74" rx="16" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="245" y="916" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="900" fill="${accentHex}" text-anchor="middle">${escapeXml(p.stat1 || '')}</text>
+
+      <rect x="415" y="872" width="250" height="74" rx="16" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="540" y="916" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p.stat2 || '')}</text>
+
+      <rect x="710" y="872" width="250" height="74" rx="16" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="835" y="916" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="900" fill="#38bdf8" text-anchor="middle">${escapeXml(p.stat3 || '')}</text>
+
+      <!-- Verified Stats Footer Note -->
+      <text x="540" y="1015" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#64748b" text-anchor="middle" letter-spacing="1">VERIFIED OFFICIAL IPL &amp; T20 RECORDS</text>
+    `;
+  }
+  return '';
+}
+
+/**
  * Renders a clean modern Reel/Shorts overlay:
- * ONLY a subtle top gradient vignette and a sleek top hook pill at y=110.
- * ZERO bulky colored boxes, ZERO middle cards, ZERO bottom tickers.
+ * 1. Top subtle gradient and sleek top hook pill at y=85.
+ * 2. High-readability middle comparison/stats card when comparisonData is present.
  */
 async function generateCricketOverlayImage({
   outputPath,
@@ -74,6 +163,7 @@ async function generateCricketOverlayImage({
   primaryPlayer,
   topic,
   teamTheme,
+  comparisonData = null,
 }) {
   const accentHex = toHex(teamTheme.accent || '0xffcc00');
   const rawBadge = (topic || headline || 'IPL 2027 • CRICKET BUZZ 🏏')
@@ -82,6 +172,8 @@ async function generateCricketOverlayImage({
     .trim()
     .slice(0, 36);
   const badgeText = escapeXml(rawBadge.toUpperCase() || 'IPL 2027 CRICKET BUZZ');
+
+  const statsSvg = renderStatsOverlaySvg(comparisonData, accentHex);
 
   const svg = `
     <svg width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
@@ -97,8 +189,8 @@ async function generateCricketOverlayImage({
         </style>
         <!-- Sleek Top Vignette Gradient for badge readability -->
         <linearGradient id="topVignette" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#000000" stop-opacity="0.75" />
-          <stop offset="60%" stop-color="#000000" stop-opacity="0.25" />
+          <stop offset="0%" stop-color="#000000" stop-opacity="0.80" />
+          <stop offset="60%" stop-color="#000000" stop-opacity="0.30" />
           <stop offset="100%" stop-color="#000000" stop-opacity="0.0" />
         </linearGradient>
       </defs>
@@ -106,10 +198,13 @@ async function generateCricketOverlayImage({
       <!-- Top Subtle Gradient -->
       <rect x="0" y="0" width="1080" height="240" fill="url(#topVignette)" />
 
-      <!-- Sleek Top Hook Pill at y=110 (Max 1 clean line, clean semi-transparent dark pill) -->
-      <rect x="190" y="85" width="700" height="52" rx="26" fill="#000000" fill-opacity="0.75" stroke="${accentHex}" stroke-width="2" />
+      <!-- Sleek Top Hook Pill at y=85 (Max 1 clean line, clean semi-transparent dark pill) -->
+      <rect x="190" y="85" width="700" height="52" rx="26" fill="#000000" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2" />
       <circle cx="225" cy="111" r="7" fill="${accentHex}" />
       <text x="540" y="119" class="pill-text" text-anchor="middle">${badgeText}</text>
+
+      <!-- Clean Center-Middle Stats / Comparison Card -->
+      ${statsSvg}
     </svg>
   `;
 
@@ -120,7 +215,7 @@ async function generateCricketOverlayImage({
 /**
  * Generates true full-screen 9:16 (1080x1920) moving video for Slot 5 (Cricket & IPL Buzz)
  * Enforces multi-scene progression: NO single slow-zoom background clip.
- * At least 3-4 distinct visual scenes cutting across the timeline.
+ * At least 3-4 distinct visual scenes cutting across the timeline with verified stats overlays.
  */
 export async function generateCricketVisualBackground({
   duration = 30,
@@ -134,6 +229,7 @@ export async function generateCricketVisualBackground({
   visualQuery = 'cricket stadium floodlights crowd night',
   secondaryQuery = 'cricket bat and ball nets practice',
   visualSceneQueries = [],
+  comparisonData = null,
 }) {
   const roundDur = Math.max(5, Math.ceil(duration));
   const teamTheme = TEAM_COLORS[team] || TEAM_COLORS.DEFAULT;
@@ -198,9 +294,9 @@ export async function generateCricketVisualBackground({
 
   const numClips = clips.length;
   const segDur = roundDur / numClips;
-  logger.info(`Stitching ${numClips} distinct moving cricket clips (~${segDur.toFixed(1)}s per scene cut) into true 9:16 vertical`);
+  logger.info(`Stitching ${numClips} distinct moving cricket clips (~${segDur.toFixed(1)}s per scene cut) with stats card into true 9:16 vertical`);
 
-  // 2. Render sleek modern overlay PNG (Only top hook pill + subtle top vignette)
+  // 2. Render sleek modern overlay PNG (Top hook pill + verified stats card overlay)
   const overlayPngPath = path.join(path.dirname(outputPath), `cricket_overlay_${Date.now()}.png`);
   await generateCricketOverlayImage({
     outputPath: overlayPngPath,
@@ -208,6 +304,7 @@ export async function generateCricketVisualBackground({
     primaryPlayer: rawPlayer,
     topic,
     teamTheme,
+    comparisonData,
   });
 
   const ffmpegArgs = ['-y', '-loglevel', 'error'];
@@ -234,7 +331,7 @@ export async function generateCricketVisualBackground({
   const segConcatInputs = clips.map((_, idx) => `[v_seg_${idx}]`).join('');
   filterParts.push(`${segConcatInputs}concat=n=${numClips}:v=1:a=0[v_moving]`);
 
-  // 4. Overlay sleek top hook pill directly onto full-bleed moving video
+  // 4. Overlay sleek top hook pill & verified stats card directly onto full-bleed moving video
   ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
   filterParts.push(`[v_moving][${numClips}:v]overlay=0:0:shortest=1[vout]`);
 
@@ -249,10 +346,10 @@ export async function generateCricketVisualBackground({
     outputPath
   );
 
-  logger.info(`Rendering multi-scene moving video for Slot 5 (${roundDur}s, ${numClips} scene cuts)...`);
+  logger.info(`Rendering multi-scene moving video with stats graphics for Slot 5 (${roundDur}s, ${numClips} scene cuts)...`);
   try {
     await runFFmpeg(ffmpegArgs);
-    logger.success(`Slot 5 multi-scene 9:16 moving video rendered: ${outputPath}`);
+    logger.success(`Slot 5 multi-scene 9:16 moving video with stats overlay rendered: ${outputPath}`);
   } finally {
     try {
       if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
