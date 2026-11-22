@@ -92,7 +92,7 @@ function renderBigStatCard(cardData, headlineTag, accentHex, textAccentHex) {
 
   return `
     <!-- Mode A: Big Number Hook Card (Safe Area: y=320 to 1160) -->
-    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.94" stroke="${accentHex}" stroke-width="2.5" />
+    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
     
     <!-- Header Badge -->
     <rect x="330" y="312" width="420" height="34" rx="17" fill="${accentHex}" />
@@ -183,7 +183,7 @@ function renderSquadGridCard(cardData, headlineTag, accentHex, textAccentHex) {
 
   return `
     <!-- Mode B: Squad Grid Card (Safe Area: y=320 to 1160) -->
-    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.94" stroke="${accentHex}" stroke-width="2.5" />
+    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
     
     <!-- Header Badge -->
     <rect x="330" y="312" width="420" height="34" rx="17" fill="${accentHex}" />
@@ -210,7 +210,7 @@ function renderDepartureReplacementCard(cardData, headlineTag, accentHex, textAc
 
   return `
     <!-- Mode C: Departure vs Replacement Card (Safe Area: y=320 to 1160) -->
-    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.94" stroke="${accentHex}" stroke-width="2.5" />
+    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
     
     <!-- Header Badge -->
     <rect x="330" y="312" width="420" height="34" rx="17" fill="${accentHex}" />
@@ -258,7 +258,7 @@ function renderTacticalTwistCard(cardData, headlineTag, accentHex, textAccentHex
 
   return `
     <!-- Mode D: Tactical Twist Card (Safe Area: y=320 to 1160) -->
-    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.94" stroke="${accentHex}" stroke-width="2.5" />
+    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
     
     <!-- Header Badge -->
     <rect x="330" y="312" width="420" height="34" rx="17" fill="#ef4444" />
@@ -294,13 +294,14 @@ function renderTacticalTwistCard(cardData, headlineTag, accentHex, textAccentHex
  * Builds SVG elements for Beat 4: Verdict & Viewer Question Card
  */
 function renderQuestionHookCard(cardData, headlineTag, accentHex, textAccentHex) {
-  const qTitle = escapeXml((cardData.questionTitle || 'THE BIG VERDICT').toUpperCase());
+  const rawQ = cardData.questionTitle || 'THE BIG VERDICT';
+  const qTitle = escapeXml(rawQ.toUpperCase().replace(/\bVEROICT\b/gi, 'VERDICT'));
   const optA = cardData.optionA || 'Back Young Indian Core';
   const optB = cardData.optionB || 'Spend Big on Overseas Match-Winner';
 
   return `
     <!-- Mode E: Question & Debate Card (Safe Area: y=320 to 1160) -->
-    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.94" stroke="${accentHex}" stroke-width="2.5" />
+    <rect x="70" y="330" width="940" height="780" rx="32" fill="#070c18" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
     
     <!-- Header Badge -->
     <rect x="330" y="312" width="420" height="34" rx="17" fill="#6366f1" />
@@ -344,7 +345,8 @@ function buildBeatSvg({
 }) {
   const accentHex = teamTheme.accent;
   const textAccentHex = teamTheme.textAccent || accentHex;
-  const headlineTag = beat.headlineTag || headline || 'TACTICAL EXPLAINER';
+  const rawTag = beat.headlineTag || headline || 'TACTICAL EXPLAINER';
+  const headlineTag = rawTag.replace(/\bVEROICT\b/gi, 'VERDICT');
 
   // Render top hook pill at y=105 to y=175
   const topBadgeSvg = `
@@ -470,17 +472,29 @@ export async function generateExplainerVisualBackground({
     clips.push(fs.existsSync(defaultStadium) ? defaultStadium : path.join(config.assetsDir, 'defaults', 'slot1_dance.mp4'));
   }
 
-  // Dynamic multi-scene progression: ensure background cuts every 4.0 - 5.5 seconds across the timeline!
-  const targetSceneDuration = 4.8;
-  const numScenes = Math.max(clips.length, Math.ceil(roundDur / targetSceneDuration));
+  // Separate into Stadium/Atmosphere and Action/Motion categories so adjacent cuts alternate
+  const stadiumClips = clips.filter((c) => /stadium|crowd|atmosphere/i.test(path.basename(c)));
+  const actionClips = clips.filter((c) => !/stadium|crowd|atmosphere/i.test(path.basename(c)));
+
+  const alternatingClips = [];
+  const maxPool = Math.max(stadiumClips.length, actionClips.length);
+  for (let p = 0; p < maxPool; p++) {
+    if (stadiumClips.length > 0) alternatingClips.push(stadiumClips[p % stadiumClips.length]);
+    if (actionClips.length > 0) alternatingClips.push(actionClips[p % actionClips.length]);
+  }
+  const effectivePool = alternatingClips.length > 0 ? alternatingClips : clips;
+
+  // Dynamic multi-scene progression: ensure background cuts every 4.0 - 5.0 seconds across the timeline!
+  const targetSceneDuration = 4.5;
+  const numScenes = Math.max(effectivePool.length, Math.ceil(roundDur / targetSceneDuration));
   const segDur = roundDur / numScenes;
 
   // Build sequenced scene cuts cycling through diverse available cricket clips
   const sequencedClips = [];
   for (let s = 0; s < numScenes; s++) {
-    sequencedClips.push(clips[s % clips.length]);
+    sequencedClips.push(effectivePool[s % effectivePool.length]);
   }
-  logger.info(`Stitching ${numScenes} dynamic scene cuts (~${segDur.toFixed(1)}s per cut) cycling across ${clips.length} distinct cricket clips`);
+  logger.info(`Stitching ${numScenes} dynamic scene cuts (~${segDur.toFixed(1)}s per cut) cycling across ${effectivePool.length} distinct cricket clips`);
 
   // 2. Compute proportional start and end timestamps for each beat
   const totalWords = beats.reduce((sum, b) => {
@@ -531,14 +545,21 @@ export async function generateExplainerVisualBackground({
   const ffmpegArgs = ['-y', '-loglevel', 'error'];
   const filterParts = [];
 
-  // Add background video clips cycling across diverse camera angles and grades
+  // Add background video clips cycling across diverse camera angles and dynamic motion
+  const segDurStr = segDur.toFixed(2);
   const segmentFilters = [
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.14:saturation=1.22:brightness=-0.03,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,hflip,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.16:saturation=1.25:brightness=-0.01,setsar=1,fps=30',
-    'scale=1140:2026:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.12:saturation=1.20:brightness=-0.02,hflip,setsar=1,fps=30',
+    // 0: Dynamic downward camera glide
+    `scale=1200:2133:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/2\':\'(in_h-1920)*(t/${segDurStr})\',setsar=1,fps=30`,
+    // 1: Dynamic push-in zoom
+    `scale=\'1080+140*(t/${segDurStr})\':\'1920+248*(t/${segDurStr})\':eval=frame,crop=1080:1920,eq=contrast=1.12:saturation=1.2:brightness=0.01,setsar=1,fps=30`,
+    // 2: Dynamic horizontal pan left-to-right
+    `scale=1280:1920:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)*(t/${segDurStr})\':\'(in_h-1920)/2\',setsar=1,fps=30`,
+    // 3: Dynamic pull-out zoom
+    `scale=\'1220-140*(t/${segDurStr})\':\'2168-248*(t/${segDurStr})\':eval=frame,crop=1080:1920,eq=contrast=1.14:saturation=1.22:brightness=-0.02,setsar=1,fps=30`,
+    // 4: Dynamic horizontal pan right-to-left with hflip
+    `scale=1280:1920:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)*(1-t/${segDurStr})\':\'(in_h-1920)/2\',hflip,setsar=1,fps=30`,
+    // 5: Dynamic upward camera push
+    `scale=1200:2133:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/2\':\'(in_h-1920)*(1-t/${segDurStr})\',eq=contrast=1.10:saturation=1.20,setsar=1,fps=30`,
   ];
 
   sequencedClips.forEach((c, idx) => {

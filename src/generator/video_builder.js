@@ -183,28 +183,30 @@ export async function buildShortVideo({
     filterComplex += delayMs > 0
       ? `[1:a]aresample=44100,${safeAudioFmt},adelay=${delayMs}|${delayMs},volume=1.0,${safeAudioFmt}[vce];`
       : `[1:a]aresample=44100,${safeAudioFmt},volume=1.0,${safeAudioFmt}[vce];`;
-    filterComplex += `[clip_ducked][vce]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout];`;
+    filterComplex += `[clip_ducked][vce]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,atrim=0:${totalDuration}[aout];`;
   } else if (hasAudioTrack2 && hasSfx) {
     // Mix Voiceover + BGM + SFX impact
     const sfxIdx = 3;
     filterComplex += `[1:a]aresample=44100,${safeAudioFmt},volume=1.0,${safeAudioFmt}[vce];`;
     filterComplex += `[2:a]aresample=44100,${safeAudioFmt},volume=0.18,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6,${safeAudioFmt}[bgm];`;
     filterComplex += `[${sfxIdx}:a]aresample=44100,${safeAudioFmt},adelay=150|150,volume=0.25,${safeAudioFmt}[sfx];`;
-    filterComplex += `[vce][bgm][sfx]amix=inputs=3:duration=first:dropout_transition=2:normalize=0[aout];`;
+    filterComplex += `[vce][bgm][sfx]amix=inputs=3:duration=longest:dropout_transition=0:normalize=0,atrim=0:${totalDuration}[aout];`;
   } else if (hasAudioTrack2) {
-    // Normal BGM mix for Slots 1, 2, 3, 5
+    // Normal BGM mix for all slots
     filterComplex += `[1:a]aresample=44100,${safeAudioFmt},volume=1.0,${safeAudioFmt}[vce];`;
     filterComplex += `[2:a]aresample=44100,${safeAudioFmt},volume=0.15,atrim=0:${totalDuration},afade=t=out:st=${fadeOutStart}:d=0.6,${safeAudioFmt}[bgm];`;
-    filterComplex += `[vce][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout];`;
+    filterComplex += `[vce][bgm]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0,atrim=0:${totalDuration}[aout];`;
   } else {
-    filterComplex += `[1:a]aresample=44100,${safeAudioFmt},volume=1.0[aout];`;
+    // Voiceover padded to match exact video duration
+    filterComplex += `[1:a]aresample=44100,${safeAudioFmt},volume=1.0,apad,atrim=0:${totalDuration}[aout];`;
   }
 
-  // Build video filter
+  // Build video filter with strict 30 fps CFR, exact 1080x1920 scaling and subtitle overlay
+  const baseVideoFilter = 'fps=30,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1';
   if (subtitleFilter) {
-    filterComplex += `[0:v]scale=1080:1920,${subtitleFilter}[vout]`;
+    filterComplex += `[0:v]${baseVideoFilter},${subtitleFilter}[vout]`;
   } else {
-    filterComplex += `[0:v]scale=1080:1920[vout]`;
+    filterComplex += `[0:v]${baseVideoFilter}[vout]`;
   }
 
   args.push(
@@ -213,10 +215,18 @@ export async function buildShortVideo({
     '-map', '[aout]',
     '-t', String(totalDuration),
     '-c:v', 'libx264',
+    '-profile:v', 'high',
+    '-level', '4.1',
     '-preset', 'fast',
     '-pix_fmt', 'yuv420p',
+    '-b:v', '6M',
+    '-maxrate', '8M',
+    '-bufsize', '12M',
     '-c:a', 'aac',
-    '-b:a', '192k',
+    '-b:a', '128k',
+    '-ar', '44100',
+    '-ac', '2',
+    '-shortest',
     '-movflags', '+faststart',
     outputPath
   );

@@ -76,7 +76,7 @@ function renderStatsOverlaySvg(comparisonData, accentHex) {
 
     return `
       <!-- Comparison Card Container (y=725 to y=1075) -->
-      <rect x="70" y="725" width="940" height="345" rx="28" fill="#080e1a" fill-opacity="0.88" stroke="${accentHex}" stroke-width="2.5" />
+      <rect x="70" y="725" width="940" height="345" rx="28" fill="#080e1a" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
       
       <!-- Top Card Header Badge -->
       <rect x="360" y="710" width="360" height="30" rx="15" fill="${accentHex}" />
@@ -128,7 +128,7 @@ function renderStatsOverlaySvg(comparisonData, accentHex) {
 
     return `
       <!-- 3-Player Comparison Card Container (y=725 to y=1075) -->
-      <rect x="60" y="725" width="960" height="345" rx="28" fill="#080e1a" fill-opacity="0.90" stroke="${accentHex}" stroke-width="2.5" />
+      <rect x="60" y="725" width="960" height="345" rx="28" fill="#080e1a" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
 
       <!-- Top Card Header Badge -->
       <rect x="340" y="708" width="400" height="30" rx="15" fill="${accentHex}" />
@@ -176,7 +176,7 @@ function renderStatsOverlaySvg(comparisonData, accentHex) {
 
     return `
       <!-- Single Player Stats Card Container (y=750 to y=1050) -->
-      <rect x="90" y="750" width="900" height="295" rx="28" fill="#080e1a" fill-opacity="0.88" stroke="${accentHex}" stroke-width="2.5" />
+      <rect x="90" y="750" width="900" height="295" rx="28" fill="#080e1a" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
 
       <!-- Top Card Header Badge -->
       <rect x="360" y="735" width="360" height="30" rx="15" fill="${accentHex}" />
@@ -209,7 +209,7 @@ function renderStatsOverlaySvg(comparisonData, accentHex) {
 
     return `
       <!-- Topic Context / Key Points Card Container (y=745 to y=1055) -->
-      <rect x="75" y="745" width="930" height="310" rx="26" fill="#080e1a" fill-opacity="0.90" stroke="${accentHex}" stroke-width="2.5" />
+      <rect x="75" y="745" width="930" height="310" rx="26" fill="#080e1a" fill-opacity="0.80" stroke="${accentHex}" stroke-width="2.5" />
 
       <!-- Top Card Header Badge -->
       <rect x="340" y="728" width="400" height="30" rx="15" fill="${accentHex}" />
@@ -377,17 +377,29 @@ export async function generateCricketVisualBackground({
     clips.push(fs.existsSync(defaultStadium) ? defaultStadium : path.join(config.assetsDir, 'defaults', 'slot1_dance.mp4'));
   }
 
-  // Dynamic multi-scene progression: ensure background cuts every 4.0 - 5.5 seconds across the timeline!
-  const targetSceneDuration = 4.8;
-  const numScenes = Math.max(clips.length, Math.ceil(roundDur / targetSceneDuration));
+  // Separate clips into Stadium Atmosphere vs Player / Action Motion to strictly alternate across cuts
+  const stadiumClips = clips.filter((c) => /stadium|crowd|atmosphere/i.test(path.basename(c)));
+  const actionClips = clips.filter((c) => !/stadium|crowd|atmosphere/i.test(path.basename(c)));
+
+  const alternatingClips = [];
+  const maxPool = Math.max(stadiumClips.length, actionClips.length);
+  for (let p = 0; p < maxPool; p++) {
+    if (stadiumClips.length > 0) alternatingClips.push(stadiumClips[p % stadiumClips.length]);
+    if (actionClips.length > 0) alternatingClips.push(actionClips[p % actionClips.length]);
+  }
+  const effectivePool = alternatingClips.length > 0 ? alternatingClips : clips;
+
+  // Dynamic multi-scene progression: ensure background cuts every 4.0 - 5.0 seconds across the timeline!
+  const targetSceneDuration = 4.5;
+  const numScenes = Math.max(effectivePool.length, Math.ceil(roundDur / targetSceneDuration));
   const segDur = roundDur / numScenes;
 
   // Build sequenced scene cuts cycling through diverse available cricket clips
   const sequencedClips = [];
   for (let s = 0; s < numScenes; s++) {
-    sequencedClips.push(clips[s % clips.length]);
+    sequencedClips.push(effectivePool[s % effectivePool.length]);
   }
-  logger.info(`Stitching ${numScenes} dynamic scene cuts (~${segDur.toFixed(1)}s per cut) cycling across ${clips.length} distinct cricket clips`);
+  logger.info(`Stitching ${numScenes} dynamic scene cuts (~${segDur.toFixed(1)}s per cut) cycling across ${effectivePool.length} distinct cricket clips`);
 
   // 2. Render sleek modern overlay PNG (Top hook pill + verified stats card overlay)
   const overlayPngPath = path.join(path.dirname(outputPath), `cricket_overlay_${Date.now()}.png`);
@@ -403,14 +415,21 @@ export async function generateCricketVisualBackground({
   const ffmpegArgs = ['-y', '-loglevel', 'error'];
   const filterParts = [];
 
-  // 3. Dynamic per-segment styling ensuring unmistakable scene cuts across the timeline:
+  // 3. Dynamic per-segment camera motion ensuring unmistakable scene transitions across the timeline:
+  const segDurStr = segDur.toFixed(2);
   const segmentFilters = [
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.14:saturation=1.22:brightness=-0.03,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,hflip,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.16:saturation=1.25:brightness=-0.01,setsar=1,fps=30',
-    'scale=1140:2026:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.12:saturation=1.20:brightness=-0.02,hflip,setsar=1,fps=30',
+    // 0: Dynamic downward camera glide
+    `scale=1200:2133:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/2\':\'(in_h-1920)*(t/${segDurStr})\',setsar=1,fps=30`,
+    // 1: Dynamic push-in zoom
+    `scale=\'1080+140*(t/${segDurStr})\':\'1920+248*(t/${segDurStr})\':eval=frame,crop=1080:1920,eq=contrast=1.12:saturation=1.2:brightness=0.01,setsar=1,fps=30`,
+    // 2: Dynamic horizontal pan left-to-right
+    `scale=1280:1920:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)*(t/${segDurStr})\':\'(in_h-1920)/2\',setsar=1,fps=30`,
+    // 3: Dynamic pull-out zoom
+    `scale=\'1220-140*(t/${segDurStr})\':\'2168-248*(t/${segDurStr})\':eval=frame,crop=1080:1920,eq=contrast=1.14:saturation=1.22:brightness=-0.02,setsar=1,fps=30`,
+    // 4: Dynamic horizontal pan right-to-left with hflip
+    `scale=1280:1920:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)*(1-t/${segDurStr})\':\'(in_h-1920)/2\',hflip,setsar=1,fps=30`,
+    // 5: Dynamic upward camera push
+    `scale=1200:2133:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/2\':\'(in_h-1920)*(1-t/${segDurStr})\',eq=contrast=1.10:saturation=1.20,setsar=1,fps=30`,
   ];
 
   sequencedClips.forEach((c, idx) => {

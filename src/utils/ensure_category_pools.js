@@ -8,6 +8,7 @@ import { logger } from './logger.js';
 const DEVOTIONAL_DIR = path.join(config.assetsDir, 'clips', 'devotional');
 const SCRIPTURES_DIR = path.join(config.assetsDir, 'clips', 'scriptures');
 const CRICKET_DIR = path.join(config.assetsDir, 'clips', 'cricket');
+const CRICKET_DEFAULTS_DIR = path.join(config.assetsDir, 'defaults', 'cricket');
 
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
@@ -16,6 +17,37 @@ function runFFmpeg(args) {
       else resolve(stdout);
     });
   });
+}
+
+async function createImageMotionVariant({ src, dest, t = 8, vf }) {
+  if (fs.existsSync(dest) && fs.statSync(dest).size > 100000) {
+    return;
+  }
+  if (!fs.existsSync(src)) {
+    return;
+  }
+  const tmpDest = dest + '.tmp.mp4';
+  const args = [
+    '-y',
+    '-loop', '1',
+    '-i', src,
+    '-t', String(t),
+    '-vf', vf,
+    '-c:v', 'libx264',
+    '-preset', 'fast',
+    '-pix_fmt', 'yuv420p',
+    '-movflags', '+faststart',
+    tmpDest,
+  ];
+  try {
+    await runFFmpeg(args);
+    if (fs.existsSync(dest)) fs.unlinkSync(dest);
+    fs.renameSync(tmpDest, dest);
+    logger.info(`Generated motion pool clip: ${path.basename(dest)}`);
+  } catch (err) {
+    logger.warn(`Failed to generate motion pool clip ${path.basename(dest)}: ${err.message}`);
+    try { if (fs.existsSync(tmpDest)) fs.unlinkSync(tmpDest); } catch (_) {}
+  }
 }
 
 async function createVariant({ src, dest, ss, t, vf }) {
@@ -75,6 +107,56 @@ export async function ensureCategoryPools() {
       vf: 'eq=contrast=1.18:brightness=0.05:saturation=1.25,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
     });
   }
+
+  // Generate dynamic Ken Burns motion clips from official player portraits and cricket action imagery
+  await createImageMotionVariant({
+    src: path.join(CRICKET_DEFAULTS_DIR, 'jasprit_bumrah.jpg'),
+    dest: path.join(CRICKET_DIR, 'cricket_bumrah_action.mp4'),
+    t: 8,
+    vf: 'scale=1350:2400:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/2\':\'(in_h-1920)/4*(t/8)\',eq=contrast=1.12:saturation=1.2,setsar=1,fps=30',
+  });
+
+  await createImageMotionVariant({
+    src: path.join(CRICKET_DEFAULTS_DIR, 'virat_kohli.jpg'),
+    dest: path.join(CRICKET_DIR, 'cricket_kohli_intensity.mp4'),
+    t: 8,
+    vf: 'scale=1350:2400:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/2 + (in_w-1080)/4*(t/8)\':\'(in_h-1920)/3\',eq=contrast=1.15:saturation=1.25,setsar=1,fps=30',
+  });
+
+  await createImageMotionVariant({
+    src: path.join(CRICKET_DEFAULTS_DIR, 'rohit_sharma.jpg'),
+    dest: path.join(CRICKET_DIR, 'cricket_rohit_tactics.mp4'),
+    t: 8,
+    vf: 'scale=1350:2400:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)*(1-t/8)\':\'(in_h-1920)/2\',eq=contrast=1.12:saturation=1.18,hflip,setsar=1,fps=30',
+  });
+
+  await createImageMotionVariant({
+    src: path.join(CRICKET_DEFAULTS_DIR, 'hardik_pandya.jpg'),
+    dest: path.join(CRICKET_DIR, 'cricket_hardik_allrounder.mp4'),
+    t: 8,
+    vf: 'scale=1350:2400:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/2\':\'(in_h-1920)*(1-t/8)\',eq=contrast=1.14:saturation=1.22,setsar=1,fps=30',
+  });
+
+  await createImageMotionVariant({
+    src: path.join(CRICKET_DEFAULTS_DIR, 'ms_dhoni.jpg'),
+    dest: path.join(CRICKET_DIR, 'cricket_dhoni_legend.mp4'),
+    t: 8,
+    vf: 'scale=1350:2400:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/3\':\'(in_h-1920)/4*(t/8)\',eq=contrast=1.10:saturation=1.15,setsar=1,fps=30',
+  });
+
+  await createImageMotionVariant({
+    src: path.join(CRICKET_DEFAULTS_DIR, 'rishabh_pant.jpg'),
+    dest: path.join(CRICKET_DIR, 'cricket_pant_power.mp4'),
+    t: 8,
+    vf: 'scale=1350:2400:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)*(t/8)\':\'(in_h-1920)/2\',eq=contrast=1.16:saturation=1.24,setsar=1,fps=30',
+  });
+
+  await createImageMotionVariant({
+    src: path.join(CRICKET_DEFAULTS_DIR, 'cricket_action.jpg'),
+    dest: path.join(CRICKET_DIR, 'cricket_ground_action.mp4'),
+    t: 8,
+    vf: 'scale=1440:2560:force_original_aspect_ratio=increase,crop=1080:1920:\'(in_w-1080)/2\':\'(in_h-1920)/3 + (in_h-1920)/4*(t/8)\',eq=contrast=1.15:saturation=1.25,setsar=1,fps=30',
+  });
 
   const shivaSrc = path.join(DEVOTIONAL_DIR, 'shiva_mahadev_darshan.mp4');
   const aartiSrc = path.join(DEVOTIONAL_DIR, 'temple_sacred_aarti.mp4');
