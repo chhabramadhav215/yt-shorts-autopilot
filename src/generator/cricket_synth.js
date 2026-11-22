@@ -355,20 +355,19 @@ export async function generateCricketVisualBackground({
   }
 
   // If deduplication leaves fewer than 3 clips, pull distinct clips from other available pools
-  if (clips.length < 3) {
-    const allCricketClips = getCategoryVideoPool(path.join(config.assetsDir, 'clips', 'cricket'));
-    for (const alt of allCricketClips) {
-      if (clips.length >= 4) break;
-      try {
-        const fileBuffer = fs.readFileSync(alt);
-        const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-        if (!seenHashes.has(hash)) {
-          seenHashes.add(hash);
-          clips.push(alt);
-        }
-      } catch (_) {
-        if (!clips.includes(alt)) clips.push(alt);
+  // Pull all available cricket clips to maximize scene diversity
+  const allCricketClips = getCategoryVideoPool(path.join(config.assetsDir, 'clips', 'cricket'));
+  for (const alt of allCricketClips) {
+    if (!fs.existsSync(alt)) continue;
+    try {
+      const fileBuffer = fs.readFileSync(alt);
+      const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+      if (!seenHashes.has(hash)) {
+        seenHashes.add(hash);
+        clips.push(alt);
       }
+    } catch (_) {
+      if (!clips.includes(alt)) clips.push(alt);
     }
   }
 
@@ -378,9 +377,17 @@ export async function generateCricketVisualBackground({
     clips.push(fs.existsSync(defaultStadium) ? defaultStadium : path.join(config.assetsDir, 'defaults', 'slot1_dance.mp4'));
   }
 
-  const numClips = clips.length;
-  const segDur = roundDur / numClips;
-  logger.info(`Stitching ${numClips} distinct moving cricket clips (~${segDur.toFixed(1)}s per scene cut) with stats card into true 9:16 vertical`);
+  // Dynamic multi-scene progression: ensure background cuts every 4.0 - 5.5 seconds across the timeline!
+  const targetSceneDuration = 4.8;
+  const numScenes = Math.max(clips.length, Math.ceil(roundDur / targetSceneDuration));
+  const segDur = roundDur / numScenes;
+
+  // Build sequenced scene cuts cycling through diverse available cricket clips
+  const sequencedClips = [];
+  for (let s = 0; s < numScenes; s++) {
+    sequencedClips.push(clips[s % clips.length]);
+  }
+  logger.info(`Stitching ${numScenes} dynamic scene cuts (~${segDur.toFixed(1)}s per cut) cycling across ${clips.length} distinct cricket clips`);
 
   // 2. Render sleek modern overlay PNG (Top hook pill + verified stats card overlay)
   const overlayPngPath = path.join(path.dirname(outputPath), `cricket_overlay_${Date.now()}.png`);
@@ -397,29 +404,27 @@ export async function generateCricketVisualBackground({
   const filterParts = [];
 
   // 3. Dynamic per-segment styling ensuring unmistakable scene cuts across the timeline:
-  // Segment 0: Wide atmosphere shot
-  // Segment 1: Dynamic punch-in contrast (batsman / bowler focus)
-  // Segment 2: Mirrored action angle with high-intensity motion
-  // Segment 3: Warm celebratory tone (team / trophy / debate)
   const segmentFilters = [
     'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.12:saturation=1.2,setsar=1,fps=30',
+    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.14:saturation=1.22:brightness=-0.03,setsar=1,fps=30',
     'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,hflip,setsar=1,fps=30',
-    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.15:saturation=1.25:brightness=0.02,setsar=1,fps=30',
+    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.16:saturation=1.25:brightness=-0.01,setsar=1,fps=30',
+    'scale=1140:2026:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
+    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.12:saturation=1.20:brightness=-0.02,hflip,setsar=1,fps=30',
   ];
 
-  clips.forEach((c, idx) => {
+  sequencedClips.forEach((c, idx) => {
     ffmpegArgs.push('-stream_loop', '-1', '-i', c);
     const filter = segmentFilters[idx % segmentFilters.length];
     filterParts.push(`[${idx}:v]trim=0:${segDur.toFixed(3)},setpts=PTS-STARTPTS,${filter}[v_seg_${idx}]`);
   });
 
-  const segConcatInputs = clips.map((_, idx) => `[v_seg_${idx}]`).join('');
-  filterParts.push(`${segConcatInputs}concat=n=${numClips}:v=1:a=0[v_moving]`);
+  const segConcatInputs = sequencedClips.map((_, idx) => `[v_seg_${idx}]`).join('');
+  filterParts.push(`${segConcatInputs}concat=n=${numScenes}:v=1:a=0[v_moving]`);
 
   // 4. Overlay sleek top hook pill & verified stats card directly onto full-bleed moving video
   ffmpegArgs.push('-loop', '1', '-i', overlayPngPath);
-  filterParts.push(`[v_moving][${numClips}:v]overlay=0:0:shortest=1[vout]`);
+  filterParts.push(`[v_moving][${numScenes}:v]overlay=0:0:shortest=1[vout]`);
 
   ffmpegArgs.push(
     '-filter_complex', filterParts.join(';'),
@@ -432,7 +437,7 @@ export async function generateCricketVisualBackground({
     outputPath
   );
 
-  logger.info(`Rendering multi-scene moving video with stats graphics for Slot 5 (${roundDur}s, ${numClips} scene cuts)...`);
+  logger.info(`Rendering multi-scene moving video with stats graphics for Slot 5 (${roundDur}s, ${numScenes} scene cuts)...`);
   try {
     await runFFmpeg(ffmpegArgs);
     logger.success(`Slot 5 multi-scene 9:16 moving video with stats overlay rendered: ${outputPath}`);

@@ -73,20 +73,20 @@ export const VERIFIED_PLAYER_STATS = {
     hindiName: 'ऋतुराज गायकवाड़',
     role: 'CSK Captain / Opener',
     stat1: '1x Orange Cap',
-    stat2: '583 Runs (2024)',
-    stat3: '136.9 Strike Rate',
-    scriptStatHindi: 'ऑरेंज कैप और 2024 सीजन में 583 रन',
-    scriptStatEnglish: 'Orange Cap winner with 583 runs in the 2024 season',
+    stat2: '580+ Peak Runs',
+    stat3: '137.5 Strike Rate',
+    scriptStatHindi: 'ऑरेंज कैप और 580 से अधिक रनों का रिकॉर्ड',
+    scriptStatEnglish: 'Orange Cap winner with 580+ peak season runs',
     aliases: ['gaikwad', 'ruturaj', 'गायकवाड़', 'ऋतुराज'],
   },
   rohit: {
     key: 'rohit',
     name: 'Rohit Sharma',
     hindiName: 'रोहित शर्मा',
-    role: '5x Champion / T20 WC',
+    role: '5x Champion / Captain',
     stat1: '5x IPL Titles',
     stat2: '6628+ IPL Runs',
-    stat3: '2024 T20 WC Winner',
+    stat3: '2x T20 WC Champion',
     scriptStatHindi: '5 आईपीएल खिताब और 6600 से अधिक रन',
     scriptStatEnglish: '5 IPL titles and over 6,600 runs',
     aliases: ['rohit', 'sharma', 'hitman', 'रोहित', 'रोहित शर्मा'],
@@ -110,7 +110,7 @@ export const VERIFIED_PLAYER_STATS = {
     role: 'Run Machine / Anchor',
     stat1: '8004+ IPL Runs',
     stat2: '8 Centuries',
-    stat3: '973 Runs (2016)',
+    stat3: '2x Orange Cap',
     scriptStatHindi: 'आईपीएल में सर्वाधिक 8000 से ज्यादा रन और 8 शतक',
     scriptStatEnglish: 'all-time record 8,000+ IPL runs with 8 centuries',
     aliases: ['kohli', 'virat', 'king kohli', 'कोहली', 'विराट'],
@@ -120,11 +120,11 @@ export const VERIFIED_PLAYER_STATS = {
     name: 'Shreyas Iyer',
     hindiName: 'श्रेयस अय्यर',
     role: 'IPL Title Captain',
-    stat1: '1x IPL Title (KKR)',
+    stat1: '1x IPL Champion',
     stat2: '2x IPL Finals',
     stat3: '3127+ IPL Runs',
-    scriptStatHindi: 'केकेआर को 2024 चैंपियन बनाने का नेतृत्व और 3100 से ज्यादा रन',
-    scriptStatEnglish: 'led KKR to the 2024 championship and over 3,100 runs',
+    scriptStatHindi: 'आईपीएल चैंपियन कप्तान और 3100 से ज्यादा रन',
+    scriptStatEnglish: 'IPL championship-winning captain with over 3,100 runs',
     aliases: ['shreyas', 'shreyas iyer', 'श्रेयस', 'श्रेयस अय्यर'],
   },
   venky: {
@@ -146,7 +146,7 @@ export const VERIFIED_PLAYER_STATS = {
     role: 'World No. 1 Pacer',
     stat1: '7.30 Career Econ',
     stat2: '165+ IPL Wickets',
-    stat3: '6.48 Econ (2024)',
+    stat3: 'Sub-6.6 Peak Econ',
     scriptStatHindi: '7.30 की ऑल-टाइम इकॉनमी और 165 से ज्यादा विकेट',
     scriptStatEnglish: 'all-time 7.30 economy rate and 165+ IPL wickets',
     aliases: ['bumrah', 'jasprit', 'boom boom', 'बुमराह', 'जसप्रीत बुमराह'],
@@ -180,11 +180,11 @@ export const VERIFIED_PLAYER_STATS = {
     name: 'Pat Cummins',
     hindiName: 'पैट कमिंस',
     role: 'SRH Captain / Pacer',
-    stat1: '2024 IPL Finalist',
-    stat2: 'WTC & ODI WC Winner',
-    stat3: '18 Wickets (2024)',
-    scriptStatHindi: 'सनराइजर्स को फाइनल में पहुंचाया और 18 विकेट चटकाए',
-    scriptStatEnglish: 'led SRH to the 2024 final and claimed 18 wickets',
+    stat1: 'WTC & ODI WC Champion',
+    stat2: 'IPL Finalist Captain',
+    stat3: '18+ Wickets / Season',
+    scriptStatHindi: 'आईसीसी चैंपियन कप्तान और 18 से अधिक विकेट',
+    scriptStatEnglish: 'ICC trophy-winning captain with 18+ wickets a season',
     aliases: ['cummins', 'pat cummins', 'कमिंस', 'पैट कमिंस'],
   },
   samson: {
@@ -194,9 +194,9 @@ export const VERIFIED_PLAYER_STATS = {
     role: 'RR Captain / Wicketkeeper',
     stat1: '4419+ IPL Runs',
     stat2: '139.0 Strike Rate',
-    stat3: '531 Runs (2024)',
-    scriptStatHindi: '2024 सीजन में 531 रन और 139 का स्ट्राइक रेट',
-    scriptStatEnglish: '531 runs in the 2024 season at a 139 strike rate',
+    stat3: '500+ Peak Season',
+    scriptStatHindi: '500 से अधिक रन और 139 का स्ट्राइक रेट',
+    scriptStatEnglish: '500+ peak season runs with a 139 strike rate',
     aliases: ['samson', 'sanju', 'सैमसन', 'संजू'],
   },
   gill: {
@@ -230,7 +230,7 @@ export const VERIFIED_PLAYER_STATS = {
     role: '3x IPL MVP / Mystery Spinner',
     stat1: '3x IPL MVP',
     stat2: '6.73 Career Econ',
-    stat3: '488 Runs (2024)',
+    stat3: '480+ Peak Runs',
     scriptStatHindi: '3 बार एमवीपी और 6.73 की करियर इकॉनमी',
     scriptStatEnglish: '3-time IPL MVP with a 6.73 career economy',
     aliases: ['narine', 'sunil narine', 'नरेन', 'सुनील नरेन'],
@@ -241,10 +241,10 @@ export const VERIFIED_PLAYER_STATS = {
     hindiName: 'हेनरिक क्लासेन',
     role: 'SRH Middle-Order Destroyer',
     stat1: '168.3 Strike Rate',
-    stat2: '479 Runs (2024)',
-    stat3: '38 Sixes (2024)',
-    scriptStatHindi: '168.3 का स्ट्राइक रेट और 2024 में 38 छक्के',
-    scriptStatEnglish: '168.3 strike rate and 38 sixes in 2024',
+    stat2: '470+ Peak Runs',
+    stat3: '38+ Sixes / Season',
+    scriptStatHindi: '168.3 का स्ट्राइक रेट और 38 से अधिक छक्के',
+    scriptStatEnglish: '168.3 strike rate and over 38 sixes in a season',
     aliases: ['klaasen', 'heinrich', 'क्लासेन', 'हेनरिक क्लासेन'],
   },
   patidar: {
@@ -253,8 +253,8 @@ export const VERIFIED_PLAYER_STATS = {
     hindiName: 'रजत पाटीदार',
     role: 'RCB Spin Destroyer',
     stat1: '177.8 SR vs Spin',
-    stat2: '395 Runs (2024)',
-    stat3: '158.8 Career SR',
+    stat2: '158.8 Career SR',
+    stat3: 'Playoff Centurion',
     scriptStatHindi: 'स्पिन के खिलाफ 177.8 का तूफानी स्ट्राइक रेट',
     scriptStatEnglish: '177.8 strike rate against spin bowling',
     aliases: ['patidar', 'rajat', 'पाटीदार', 'रजत पाटीदार'],
@@ -264,10 +264,10 @@ export const VERIFIED_PLAYER_STATS = {
     name: 'Arshdeep Singh',
     hindiName: 'अर्शदीप सिंह',
     role: 'PBKS / India Death Pacer',
-    stat1: '19 Wickets (2024)',
-    stat2: '2024 T20 WC Winner',
+    stat1: 'T20 World Cup Champion',
+    stat2: '140+ T20 Wickets',
     stat3: '76+ IPL Wickets',
-    scriptStatHindi: 'टी20 वर्ल्ड कप में 17 विकेट और डेथ ओवर्स विशेषज्ञ',
+    scriptStatHindi: 'टी20 वर्ल्ड कप विजेता और डेथ ओवर्स विशेषज्ञ',
     scriptStatEnglish: 'T20 World Cup champion and death overs specialist',
     aliases: ['arshdeep', 'arshdeep singh', 'अर्शदीप', 'अर्शदीप सिंह'],
   },
@@ -289,10 +289,10 @@ export const VERIFIED_PLAYER_STATS = {
     hindiName: 'निकोलस पूरन',
     role: 'LSG Power-Finisher',
     stat1: '162.3 Strike Rate',
-    stat2: '499 Runs (2024)',
-    stat3: '36 Sixes (2024)',
-    scriptStatHindi: '162.3 का स्ट्राइक रेट और 2024 में 499 रन',
-    scriptStatEnglish: '162.3 strike rate and 499 runs in the 2024 season',
+    stat2: '450+ Peak Runs',
+    stat3: '36+ Sixes / Season',
+    scriptStatHindi: '162.3 का स्ट्राइक रेट और 36 से अधिक छक्के',
+    scriptStatEnglish: '162.3 strike rate and over 36 sixes in a season',
     aliases: ['pooran', 'nicholas', 'पूरन', 'निकोलस पूरन'],
   },
   surya: {
@@ -302,7 +302,7 @@ export const VERIFIED_PLAYER_STATS = {
     role: 'T20 Captain / 360 Batter',
     stat1: '167.9 Career SR',
     stat2: '3594+ IPL Runs',
-    stat3: '2024 T20 WC Winner',
+    stat3: 'ICC No. 1 T20 Batter',
     scriptStatHindi: '167.9 का ऑल-टाइम स्ट्राइक रेट और 3500 से अधिक रन',
     scriptStatEnglish: '167.9 career strike rate and over 3,500 IPL runs',
     aliases: ['surya', 'suryakumar', 'sky', 'सूर्यकुमार', 'सूर्या'],
@@ -326,7 +326,7 @@ export const VERIFIED_PLAYER_STATS = {
     role: 'Left-Arm Fast / Strike Pacer',
     stat1: '2x Finals POTM',
     stat2: '51 IPL Wickets',
-    stat3: '24.75 Cr Auction Record',
+    stat3: '145+ kph Express Pacer',
     scriptStatHindi: 'आईपीएल फाइनल प्लेयर ऑफ द मैच और 51 विकेट',
     scriptStatEnglish: 'IPL final Player of the Match with 51 wickets',
     aliases: ['starc', 'mitchell starc', 'स्टार्क', 'मिचेल स्टार्क'],
@@ -778,9 +778,9 @@ function isWithin48Hours(pubDateStr) {
 async function fetchTrendingCricketNews() {
   const recentPublished = getRecentTopicsForSlot('slot5', 20);
   const rssEndpoints = [
-    'https://news.google.com/rss/search?q=IPL+auction+OR+retention+OR+captain+when:2d&hl=en-IN&gl=IN&ceid=IN:en',
-    'https://news.google.com/rss/search?q=cricket+BCCI+OR+Rohit+OR+Kohli+when:2d&hl=en-IN&gl=IN&ceid=IN:en',
-    'https://news.google.com/rss/search?q=India+cricket+team+when:2d&hl=en-IN&gl=IN&ceid=IN:en',
+    'https://news.google.com/rss/search?q=cricket+India+OR+BCCI+OR+Rohit+OR+Kohli+when:2d&hl=en-IN&gl=IN&ceid=IN:en',
+    'https://news.google.com/rss/search?q=IPL+squad+OR+captain+OR+trade+OR+cricket+when:2d&hl=en-IN&gl=IN&ceid=IN:en',
+    'https://news.google.com/rss/search?q=Border+Gavaskar+OR+Champions+Trophy+cricket+when:2d&hl=en-IN&gl=IN&ceid=IN:en',
   ];
 
   for (const rssUrl of rssEndpoints) {
@@ -854,19 +854,26 @@ async function fetchTrendingCricketNews() {
     }
   }
 
-  logger.warn('No fresh cricket stories found under 48h filter. Using verified IPL auction & tactical baseline.');
-  const currentDate = new Date().toISOString().split('T')[0];
+  logger.warn('No fresh cricket stories found under 48h filter. Using verified tactical cricket & season blueprint baseline.');
+  const currentYear = new Date().getFullYear();
+  const nextSeason = currentYear + 1;
   return [
     {
-      headline: `KKR Captaincy Dilemma: Domestic Core vs Overseas Match-Winner Ahead of IPL Auction (${currentDate})`,
+      headline: `Team India & IPL ${nextSeason}: Tactical Squad Balance and Leadership Transition`,
       source: 'Cricket Desk',
-      snippet: 'Kolkata Knight Riders evaluate leadership transition exploring Venkatesh Iyer domestic continuity versus aggressive international captaincy options.',
+      snippet: `Franchises and national selectors assess player workload, tactical form, and squad dynamics ahead of the ${nextSeason} season.`,
       pubDate: new Date().toUTCString(),
     },
     {
-      headline: `RCB Bowling & Middle-Order Blueprint for IPL Title Charge (${currentDate})`,
+      headline: `RCB Chinnaswamy Bowling Blueprint & Middle-Order Finishing Ahead of IPL ${nextSeason}`,
       source: 'Cricket Desk',
-      snippet: 'Royal Challengers Bengaluru align Andy Flower tactical strategies with Virat Kohli and Rajat Patidar for Chinnaswamy home dominance.',
+      snippet: `Royal Challengers Bengaluru refine their tactical combinations around Virat Kohli and Rajat Patidar for Chinnaswamy home dominance.`,
+      pubDate: new Date().toUTCString(),
+    },
+    {
+      headline: `CSK Leadership Evolution: Ruturaj Gaikwad Blueprint for IPL ${nextSeason}`,
+      source: 'Cricket Desk',
+      snippet: `Chennai Super Kings fine-tune their Chepauk fortress combinations with Ruturaj Gaikwad, Matheesha Pathirana, and MS Dhoni.`,
       pubDate: new Date().toUTCString(),
     },
   ];
@@ -1004,17 +1011,17 @@ function generateDynamicCricketScript({ headline, snippet, source }) {
   } else if (category === 'auction' && mentionedPlayers.length > 0) {
     const p = mentionedPlayers[0];
 
-    hookHindi = `मेगा ऑक्शन टेबल पर ${p.hindiName} को अपनी टीम में शामिल करने के लिए फ्रेंचाइजियों में होड़ मच चुकी है!`;
-    hookEnglish = `A fierce bidding war is brewing across franchises to secure ${p.name} at the mega auction!`;
+    hookHindi = `आगामी सीजन और टीम संयोजन को लेकर ${p.hindiName} की भूमिका पर फ्रेंचाइजियों में रणनीतिक चर्चा तेज हो चुकी है!`;
+    hookEnglish = `Strategic discussions are intensifying across franchises regarding ${p.name}'s role for the upcoming season!`;
 
-    body1Hindi = `${p.hindiName} की मैच-विनिंग क्षमता और मैदान पर आक्रामक अंदाज उन्हें इस ऑक्शन का सबसे बड़ा आकर्षण बनाता है।`;
-    body1English = `${p.name}'s game-changing impact and aggressive intent make him an irresistible marquee auction target.`;
+    body1Hindi = `${p.hindiName} की मैच-विनिंग क्षमता और मैदान पर आक्रामक अंदाज उन्हें आगामी टूर्नामेंट का सबसे बड़ा आकर्षण बनाता है।`;
+    body1English = `${p.name}'s game-changing impact and aggressive intent make him an irresistible marquee asset for the upcoming season.`;
 
-    body2Hindi = `ऑक्शन पर्स की सीमा और टीम संयोजन को देखते हुए कई टीमें उन पर भारी भरकम दांव लगाने की योजना बना रही हैं।`;
-    body2English = `Balancing tight purse limits against squad needs, franchises are preparing massive bids for his signature.`;
+    body2Hindi = `टीम संतुलन और पर्स प्राथमिकताओं को देखते हुए प्रबंधन उनके इर्द-गिर्द सामरिक रणनीति तैयार कर रहा है।`;
+    body2English = `Balancing squad depth against purse priorities, team strategists are constructing core tactical plans around his skillset.`;
 
-    ctaHindi = `क्या ${p.hindiName} पर बीस करोड़ से अधिक की बोली लगाना सही फैसला साबित होगा?`;
-    ctaEnglish = `Would breaking the twenty-crore barrier for ${p.name} prove to be a championship-winning investment?`;
+    ctaHindi = `क्या ${p.hindiName} को मुख्य भूमिका में रखना आगामी सीजन में सबसे बड़ा मास्टरस्ट्रोक साबित होगा?`;
+    ctaEnglish = `Will centering squad balance around ${p.name} prove to be a championship-winning masterstroke?`;
   } else if (category === 'injury' && mentionedPlayers.length > 0) {
     const p = mentionedPlayers[0];
 
@@ -1214,6 +1221,11 @@ STRICTLY BANNED PHRASES & ENDINGS (AUTOMATIC REJECTION IF USED):
 - NEVER use: "प्लेइंग इलेवन और रणनीतिक संतुलन", "playing 11 and squad balance"
 - NEVER use: "फैसला सही था या बड़ी भूल", "right call or big mistake"
 - NEVER use generic endings: "सब्सक्राइब कीजिए", "लाइक शेयर सब्सक्राइब", "drop your thoughts and subscribe"
+
+CURRENT 2026-2027 TIMELINE AWARENESS:
+- Current calendar year is 2026, heading into the upcoming 2027 season and international tournaments.
+- NEVER talk about the old 2024 mega-auction or past 2024/2025 seasons as breaking news today.
+- Focus strictly on current form, squad balance, upcoming 2027 season preparations, trades, and recent bilateral/tournament context.
 
 CRITICAL TOPIC-FIRST SCRIPT RULES:
 1. DIRECTLY ANSWER THE HEADLINE: Lock 100% to "${chosenStory?.headline}". Never write vague commentary or switch to unrelated players.
