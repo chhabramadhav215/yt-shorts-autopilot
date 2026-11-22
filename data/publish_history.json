@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-22T04:25:22.296Z",
+  "lastUpdated": "2026-11-22T09:18:33.813Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -273,6 +273,22 @@
       "headline": "Bedtime Match Victory! 👶🏆 Baby Defeats Sleep Routine",
       "url": "https://youtube.com/shorts/PmZXc701TFg",
       "publishedAt": "2026-11-22T04:25:22.296Z"
+    },
+    {
+      "hash": "5157228a953d90c5c9732c3292e80926",
+      "slot": "slot2",
+      "title": "Lord Ganesha Supreme Wisdom 🕉️ Respecting Loving Parents",
+      "headline": "Lord Ganesha Supreme Wisdom 🕉️ Respecting Loving Parents",
+      "url": "",
+      "publishedAt": "2026-11-22T09:18:32.253Z"
+    },
+    {
+      "hash": "5157228a953d90c5c9732c3292e80926",
+      "slot": "slot2",
+      "title": "Lord Ganesha Supreme Wisdom 🕉️ Respecting Loving Parents",
+      "headline": "Lord Ganesha Supreme Wisdom 🕉️ Respecting Loving Parents",
+      "url": "https://youtube.com/shorts/VsQLXqpBCXQ",
+      "publishedAt": "2026-11-22T09:18:33.813Z"
     }
   ],
   "usedVideoClips": [
@@ -795,6 +811,30 @@
       "slot": "slot1",
       "type": "video",
       "usedAt": "2026-11-22T04:25:20.723Z"
+    },
+    {
+      "id": "shiva_mahadev_darshan.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-22T09:18:00.726Z"
+    },
+    {
+      "id": "shiva_tandav_energy.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-22T09:18:00.820Z"
+    },
+    {
+      "id": "himalayas_kedarnath_shrine.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-22T09:18:00.980Z"
+    },
+    {
+      "id": "hanuman_divine_darshan.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-22T09:18:01.172Z"
     }
   ],
   "usedScriptures": [],
@@ -828,6 +868,12 @@
       "slot": "slot4",
       "title": "",
       "usedAt": "2026-11-21T12:08:43.403Z"
+    },
+    {
+      "id": "ganesha_parents_pradakshina",
+      "slot": "slot2",
+      "title": "Lord Ganesha Supreme Wisdom 🕉️ Respecting Loving Parents",
+      "usedAt": "2026-11-22T09:17:55.165Z"
     }
   ]
 }
