@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-22T19:09:58.742Z",
+  "lastUpdated": "2026-11-22T19:55:18.802Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -417,6 +417,22 @@
       "headline": "Explained: Nz Fight on After Centurion Pant Powers India 🚨",
       "url": "https://youtube.com/shorts/tEiJNvr3fbg",
       "publishedAt": "2026-11-22T19:09:58.742Z"
+    },
+    {
+      "hash": "2383d90a242ccc38f9abcea0b182db6f",
+      "slot": "slot6",
+      "title": "MI Tactical Paradox: 5-Star Indian Core & Death Overs Puzzle",
+      "headline": "MI AUCTION DILEMMA • BUMRAH & CO.",
+      "url": "",
+      "publishedAt": "2026-11-22T19:55:17.309Z"
+    },
+    {
+      "hash": "858b627b059c8ad33456e714f9330ce7",
+      "slot": "slot6",
+      "title": "MI Tactical Paradox: 5-Star Indian Core & Death Overs Puzzle",
+      "headline": "MI Tactical Paradox: 5-Star Indian Core & Death Overs Puzzle",
+      "url": "https://youtube.com/shorts/bhc8y2ok_Vc",
+      "publishedAt": "2026-11-22T19:55:18.802Z"
     }
   ],
   "usedVideoClips": [
@@ -1155,6 +1171,30 @@
       "slot": "slot3",
       "type": "video",
       "usedAt": "2026-11-22T19:09:10.224Z"
+    },
+    {
+      "id": "stadium_crowd_lights.mp4",
+      "slot": "slot6",
+      "type": "video",
+      "usedAt": "2026-11-22T19:53:08.432Z"
+    },
+    {
+      "id": "cricket_nets_practice.mp4",
+      "slot": "slot6",
+      "type": "video",
+      "usedAt": "2026-11-22T19:53:08.640Z"
+    },
+    {
+      "id": "cricket_pitch_floodlights.mp4",
+      "slot": "slot6",
+      "type": "video",
+      "usedAt": "2026-11-22T19:53:08.847Z"
+    },
+    {
+      "id": "cricket_match_action.mp4",
+      "slot": "slot6",
+      "type": "video",
+      "usedAt": "2026-11-22T19:53:09.044Z"
     }
   ],
   "usedScriptures": [],
