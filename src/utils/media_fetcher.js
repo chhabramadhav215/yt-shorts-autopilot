@@ -179,7 +179,17 @@ export async function tryDownloadPexels(query, orientation = 'portrait', options
     if (!res.ok) return null;
     const data = await res.json();
     const videos = data.videos || [];
-    if (videos.length === 0) return null;
+    if (videos.length === 0) {
+      const words = query
+        .replace(/\b(rcb|csk|mi|kkr|srh|dc|rr|gt|lsg|pbks|ipl|bcci|vs)\b/gi, '')
+        .split(/\s+/)
+        .filter((w) => w.length > 2);
+      if (words.length >= 2 && words.join(' ') !== query.trim()) {
+        const fallbackQuery = words.slice(0, 3).join(' ');
+        return tryDownloadPexels(fallbackQuery, orientation, options);
+      }
+      return null;
+    }
 
     // Filter out previously used video IDs to prevent consecutive repeats
     const unusedVideos = videos.filter((v) => !isPexelsVideoUsed(String(v.id)));
@@ -250,10 +260,18 @@ export async function fetchMultiClipSequence({
 
   // 1. Determine slot directory and fallback pool
   let categoryDir = BABY_DIR;
-  if (slotType === 'slot2') categoryDir = DEVOTIONAL_DIR;
-  else if (slotType === 'slot3') categoryDir = NEWS_DIR;
-  else if (slotType === 'slot4') categoryDir = SCRIPTURES_DIR;
-  else if (slotType === 'slot5') categoryDir = CRICKET_DIR;
+  if (slotType === 'slot2') {
+    await ensureCategoryPools();
+    categoryDir = DEVOTIONAL_DIR;
+  } else if (slotType === 'slot3') {
+    categoryDir = NEWS_DIR;
+  } else if (slotType === 'slot4') {
+    await ensureCategoryPools();
+    categoryDir = SCRIPTURES_DIR;
+  } else if (slotType === 'slot5') {
+    await ensureCategoryPools();
+    categoryDir = CRICKET_DIR;
+  }
 
   const localPool = getCategoryVideoPool(categoryDir);
 

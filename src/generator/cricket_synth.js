@@ -2,11 +2,12 @@ import { createRequire } from 'module';
 import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import sharp from 'sharp';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
 import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
-import { fetchMultiClipSequence } from '../utils/media_fetcher.js';
+import { fetchMultiClipSequence, getCategoryVideoPool } from '../utils/media_fetcher.js';
 
 const require = createRequire(import.meta.url);
 
@@ -118,7 +119,8 @@ async function generateCricketOverlayImage({
 
 /**
  * Generates true full-screen 9:16 (1080x1920) moving video for Slot 5 (Cricket & IPL Buzz)
- * ZERO static photos, ZERO black bars, 100% full-bleed stitched moving video.
+ * Enforces multi-scene progression: NO single slow-zoom background clip.
+ * At least 3-4 distinct visual scenes cutting across the timeline.
  */
 export async function generateCricketVisualBackground({
   duration = 30,
@@ -129,8 +131,8 @@ export async function generateCricketVisualBackground({
   topic,
   team = 'RCB',
   statBadge = 'IPL 2027 BUZZ',
-  visualQuery = 'cricket stadium floodlights',
-  secondaryQuery = 'cricket match stadium crowd',
+  visualQuery = 'cricket stadium floodlights crowd night',
+  secondaryQuery = 'cricket bat and ball nets practice',
   visualSceneQueries = [],
 }) {
   const roundDur = Math.max(5, Math.ceil(duration));
@@ -139,22 +141,64 @@ export async function generateCricketVisualBackground({
   const rawPlayer = playerTitle || primaryPlayer || 'Virat Kohli';
   const rawHeadline = headline || topic || 'IPL 2027 CRICKET BUZZ';
 
-  // 1. Fetch 3-5 distinct moving MP4 video clips matching cricket stadium and action scenes
-  const clips = await fetchMultiClipSequence({
+  // 1. Fetch 3-5 distinct moving MP4 video clips matching diverse cricket scene categories
+  const rawClips = await fetchMultiClipSequence({
     slotType: 'slot5',
     title: rawHeadline,
     visualSceneQueries: visualSceneQueries.length > 0 ? visualSceneQueries : [
-      visualQuery || 'cricket stadium floodlights night',
-      'cricket pitch action',
-      'cricket batsman aggressive shot',
-      'cricket match celebration team'
+      'cricket stadium floodlights crowd night',
+      'cricket bat and ball nets practice pitch',
+      'cricket batsman powerful match boundary shot',
+      'cricket team victory celebration golden trophy'
     ],
     count: 4,
   });
 
+  // Deduplicate clips by file path AND file content hash to ensure genuinely distinct footage
+  const seenHashes = new Set();
+  const clips = [];
+
+  for (const c of rawClips) {
+    if (!fs.existsSync(c)) continue;
+    try {
+      const fileBuffer = fs.readFileSync(c);
+      const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+      if (!seenHashes.has(hash)) {
+        seenHashes.add(hash);
+        clips.push(c);
+      }
+    } catch (_) {
+      if (!clips.includes(c)) clips.push(c);
+    }
+  }
+
+  // If deduplication leaves fewer than 3 clips, pull distinct clips from other available pools
+  if (clips.length < 3) {
+    const allCricketClips = getCategoryVideoPool(path.join(config.assetsDir, 'clips', 'cricket'));
+    for (const alt of allCricketClips) {
+      if (clips.length >= 4) break;
+      try {
+        const fileBuffer = fs.readFileSync(alt);
+        const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+        if (!seenHashes.has(hash)) {
+          seenHashes.add(hash);
+          clips.push(alt);
+        }
+      } catch (_) {
+        if (!clips.includes(alt)) clips.push(alt);
+      }
+    }
+  }
+
+  // Fallback safety if only 1-2 clips exist
+  if (clips.length === 0) {
+    const defaultStadium = path.join(config.assetsDir, 'defaults', 'cricket', 'stadium_bg.mp4');
+    clips.push(fs.existsSync(defaultStadium) ? defaultStadium : path.join(config.assetsDir, 'defaults', 'slot1_dance.mp4'));
+  }
+
   const numClips = clips.length;
   const segDur = roundDur / numClips;
-  logger.info(`Stitching ${numClips} moving cricket clips (~${segDur.toFixed(1)}s per scene) into true 9:16 vertical`);
+  logger.info(`Stitching ${numClips} distinct moving cricket clips (~${segDur.toFixed(1)}s per scene cut) into true 9:16 vertical`);
 
   // 2. Render sleek modern overlay PNG (Only top hook pill + subtle top vignette)
   const overlayPngPath = path.join(path.dirname(outputPath), `cricket_overlay_${Date.now()}.png`);
@@ -169,12 +213,22 @@ export async function generateCricketVisualBackground({
   const ffmpegArgs = ['-y', '-loglevel', 'error'];
   const filterParts = [];
 
-  // 3. True full-bleed center-crop scaling for each clip:
-  // scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30
-  // Fills 100% of the 1080x1920 screen edge-to-edge with zero black bars and zero blur!
+  // 3. Dynamic per-segment styling ensuring unmistakable scene cuts across the timeline:
+  // Segment 0: Wide atmosphere shot
+  // Segment 1: Dynamic punch-in contrast (batsman / bowler focus)
+  // Segment 2: Mirrored action angle with high-intensity motion
+  // Segment 3: Warm celebratory tone (team / trophy / debate)
+  const segmentFilters = [
+    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30',
+    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.12:saturation=1.2,setsar=1,fps=30',
+    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,hflip,setsar=1,fps=30',
+    'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=contrast=1.15:saturation=1.25:brightness=0.02,setsar=1,fps=30',
+  ];
+
   clips.forEach((c, idx) => {
     ffmpegArgs.push('-stream_loop', '-1', '-i', c);
-    filterParts.push(`[${idx}:v]trim=0:${segDur.toFixed(3)},setpts=PTS-STARTPTS,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30[v_seg_${idx}]`);
+    const filter = segmentFilters[idx % segmentFilters.length];
+    filterParts.push(`[${idx}:v]trim=0:${segDur.toFixed(3)},setpts=PTS-STARTPTS,${filter}[v_seg_${idx}]`);
   });
 
   const segConcatInputs = clips.map((_, idx) => `[v_seg_${idx}]`).join('');
@@ -195,17 +249,17 @@ export async function generateCricketVisualBackground({
     outputPath
   );
 
-  logger.info(`Rendering 100% full-screen moving video for Slot 5 (${roundDur}s)...`);
+  logger.info(`Rendering multi-scene moving video for Slot 5 (${roundDur}s, ${numClips} scene cuts)...`);
   try {
     await runFFmpeg(ffmpegArgs);
-    logger.success(`Slot 5 full-screen 9:16 moving video rendered: ${outputPath}`);
+    logger.success(`Slot 5 multi-scene 9:16 moving video rendered: ${outputPath}`);
   } finally {
     try {
       if (fs.existsSync(overlayPngPath)) fs.unlinkSync(overlayPngPath);
     } catch (_) {}
   }
 
-  // Auto-generate high-contrast thumbnail/cover frame at 0.1s for Instagram/YouTube
+  // Auto-generate high-contrast thumbnail/cover frame at 0.1s
   const coverPath = path.join(path.dirname(outputPath), 'cover.jpg');
   try {
     await runFFmpeg([

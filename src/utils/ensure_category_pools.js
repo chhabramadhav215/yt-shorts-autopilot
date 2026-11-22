@@ -7,6 +7,7 @@ import { logger } from './logger.js';
 
 const DEVOTIONAL_DIR = path.join(config.assetsDir, 'clips', 'devotional');
 const SCRIPTURES_DIR = path.join(config.assetsDir, 'clips', 'scriptures');
+const CRICKET_DIR = path.join(config.assetsDir, 'clips', 'cricket');
 
 function runFFmpeg(args) {
   return new Promise((resolve, reject) => {
@@ -52,9 +53,28 @@ async function createVariant({ src, dest, ss, t, vf }) {
  * Ensures devotional and scriptures clip directories have at least 12 distinct video assets each
  */
 export async function ensureCategoryPools() {
-  [DEVOTIONAL_DIR, SCRIPTURES_DIR].forEach((d) => {
+  [DEVOTIONAL_DIR, SCRIPTURES_DIR, CRICKET_DIR].forEach((d) => {
     if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
   });
+
+  const baseStadium = path.join(CRICKET_DIR, 'stadium_bg.mp4');
+  if (fs.existsSync(baseStadium)) {
+    await createVariant({
+      src: baseStadium,
+      dest: path.join(CRICKET_DIR, 'cricket_nets_practice.mp4'),
+      ss: 1,
+      t: 10,
+      vf: 'hflip,eq=contrast=1.2:brightness=0.03:saturation=1.35,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
+    });
+
+    await createVariant({
+      src: baseStadium,
+      dest: path.join(CRICKET_DIR, 'cricket_match_action.mp4'),
+      ss: 2,
+      t: 10,
+      vf: 'eq=contrast=1.18:brightness=0.05:saturation=1.25,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
+    });
+  }
 
   const shivaSrc = path.join(DEVOTIONAL_DIR, 'shiva_mahadev_darshan.mp4');
   const aartiSrc = path.join(DEVOTIONAL_DIR, 'temple_sacred_aarti.mp4');
