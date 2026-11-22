@@ -40,7 +40,7 @@ const YTDLP_PATH = fs.existsSync(path.join(BIN_DIR, YTDLP_BIN))
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
-const WIKIMEDIA_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const WIKIMEDIA_USER_AGENT = 'YtShortsAutopilot/1.0 (https://github.com/dailypulseshortss; contact@dailypulse.com) Mozilla/5.0 (compatible)';
 
 /**
  * Searches Wikimedia Commons API for imagery (used for official player portraits)
@@ -143,8 +143,8 @@ export async function downloadFile(url, destPath) {
   const cleanUrl = url.split('?')[0]; // Strip tracking params
   const res = await fetch(cleanUrl, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'video/*,*/*',
+      'User-Agent': WIKIMEDIA_USER_AGENT,
+      'Accept': 'video/*,image/*,*/*',
     },
   });
 
@@ -239,14 +239,57 @@ export async function tryDownloadPexels(query, orientation = 'portrait', options
  * @param {string[]} [params.visualSceneQueries]
  * @param {number} [params.count] - target number of clips (default 4, between 3 and 5)
  * @param {string} [params.clipPath] - optional pre-selected primary clip
+ * @param {string} [params.deity] - optional deity or epic name for strict spiritual lock
+ * @param {string} [params.epic] - optional epic name (Mahabharata/Ramayana)
  * @returns {Promise<string[]>} Array of valid video file paths
  */
+export function detectDevotionalRealm(text = '') {
+  const str = String(text).toLowerCase();
+  if (/shiva|mahadev|bhole|kedarnath|somnath|markandeya|shivling|lingam|trishul|neelkanth|kailash|tandav|namah shivaya|rudra|nataraja|mrityunjaya|kashi/i.test(str)) {
+    return 'shiva';
+  }
+  if (/mahabharata|kurukshetra|bhishma|karna|yudhishthira|yaksha|dronacharya|vidura|shibi|arjuna|gandiva|pandav|duryodhana|hastinapur/i.test(str)) {
+    return 'mahabharata';
+  }
+  if (/krishna|sudama|dwarka|vrindavan|mathura|geeta|gita|parthasarathi|makhan|bansuri|flute|radha|govinda|yashoda/i.test(str)) {
+    return 'krishna';
+  }
+  if (/ramayan|ayodhya|shabari|raghunandan|paduka|lanka vijay|dandakaranya|kodanda|\b(rama|ram|sita|lakshman|bharata)\b/i.test(str)) {
+    return 'rama';
+  }
+  if (/hanuman|bajrangbali|sanjeevani|lanka dahan|ravana|anjaneya|maruti|sundarkand|dronagiri/i.test(str)) {
+    return 'hanuman';
+  }
+  if (/ganesh|ganpati|vinayaka|siddhivinayak|modak|lambodara/i.test(str)) {
+    return 'ganesha';
+  }
+  if (/vishnu|narayana|vaikuntha|gajendra|bhrigu|narasimha|prahlada|dhruva|sheshnag|garuda|lakshmi|kanakadhara|ksheera|sudarshan/i.test(str)) {
+    return 'vishnu';
+  }
+  return 'universal_sacred';
+}
+
+export function getClipDevotionalRealm(filePath = '') {
+  const base = path.basename(filePath).toLowerCase();
+  if (/shiva|kedarnath|kailash|himalayas/i.test(base)) return 'shiva';
+  if (/krishna/i.test(base)) return 'krishna';
+  if (/geeta|kurukshetra|arjuna|bhishma|karna/i.test(base)) return 'mahabharata';
+  if (/ram_mandir|ramayana|rama/i.test(base)) return 'rama';
+  if (/hanuman/i.test(base)) return 'hanuman';
+  if (/ganesh/i.test(base)) return 'ganesha';
+  if (/vishnu|vishwaroop|sudarshan/i.test(base)) return 'vishnu';
+  if (/aarti|temple|ganga/i.test(base)) return 'universal_sacred';
+  return 'other';
+}
+
 export async function fetchMultiClipSequence({
   slotType,
   title = '',
   visualSceneQueries = [],
   count = 4,
   clipPath = null,
+  deity = null,
+  epic = null,
 }) {
   const targetCount = Math.max(3, Math.min(5, count));
   const selectedClips = [];
@@ -300,18 +343,71 @@ export async function fetchMultiClipSequence({
     }
   }
 
-  // 3. If we still need more clips, fill from local category video pool with non-repeating deduplication
+  // 3. Fill from local category video pool with strict deity/story lock and non-repeating deduplication
   if (selectedClips.length < targetCount && localPool.length > 0) {
     const available = localPool.filter((f) => !selectedKeys.has(path.basename(f).toLowerCase()));
+    let candidateClips = available;
 
-    // Sort strictly by Least Recently Used (LRU) in this slot
-    const sortedAvailable = sortClipsByLeastRecentlyUsed(available, slotType);
+    // STRICT DEITY & KATHA VISUAL LOCK FOR SLOTS 2 & 4
+    if (slotType === 'slot2' || slotType === 'slot4') {
+      const storyContext = `${deity || ''} ${epic || ''} ${title || ''} ${(visualSceneQueries || []).join(' ')}`;
+      const targetRealm = detectDevotionalRealm(storyContext);
+      logger.info(`[Multi-Clip] Enforcing strict spiritual visual lock: target realm [${targetRealm.toUpperCase()}] for [${slotType}]`);
+
+      const primaryMatches = [];
+      const sacredAtmosphere = [];
+
+      for (const clip of available) {
+        const clipRealm = getClipDevotionalRealm(clip);
+        if (targetRealm !== 'universal_sacred') {
+          if (clipRealm === targetRealm) {
+            primaryMatches.push(clip);
+          } else if (clipRealm === 'universal_sacred') {
+            sacredAtmosphere.push(clip);
+          } else if (targetRealm === 'krishna' && clipRealm === 'mahabharata') {
+            primaryMatches.push(clip);
+          } else if (targetRealm === 'mahabharata' && clipRealm === 'krishna') {
+            primaryMatches.push(clip);
+          }
+          // Conflicting specific deities (e.g. Shiva vs Krishna, Rama vs Shiva) are strictly excluded!
+        } else {
+          if (clipRealm === 'universal_sacred') {
+            primaryMatches.push(clip);
+          } else {
+            sacredAtmosphere.push(clip);
+          }
+        }
+      }
+
+      // Sort both groups by Least Recently Used (LRU)
+      const sortedPrimary = sortClipsByLeastRecentlyUsed(primaryMatches, slotType);
+      const sortedSacred = sortClipsByLeastRecentlyUsed(sacredAtmosphere, slotType);
+
+      // Prioritize primary deity matches first, then neutral sacred temple/aarti B-roll
+      candidateClips = [...sortedPrimary, ...sortedSacred];
+
+      // If still need more clips, also pull matching deity / universal sacred clips from the peer directory
+      if (candidateClips.length < (targetCount - selectedClips.length)) {
+        const peerDir = slotType === 'slot2' ? SCRIPTURES_DIR : DEVOTIONAL_DIR;
+        const peerPool = getCategoryVideoPool(peerDir).filter((f) => !selectedKeys.has(path.basename(f).toLowerCase()));
+        for (const clip of peerPool) {
+          const clipRealm = getClipDevotionalRealm(clip);
+          if (clipRealm === targetRealm || clipRealm === 'universal_sacred' ||
+              (targetRealm === 'krishna' && clipRealm === 'mahabharata') ||
+              (targetRealm === 'mahabharata' && clipRealm === 'krishna')) {
+            candidateClips.push(clip);
+          }
+        }
+      }
+    } else {
+      candidateClips = sortClipsByLeastRecentlyUsed(available, slotType);
+    }
 
     // Prefer clips not on cooldown (7 days); if all are on cooldown, LRU ensures the oldest is picked
-    const offCooldown = sortedAvailable.filter((clip) => !isClipOnCooldown(clip, slotType, 7));
-    const candidates = offCooldown.length >= (targetCount - selectedClips.length) ? offCooldown : sortedAvailable;
+    const offCooldown = candidateClips.filter((clip) => !isClipOnCooldown(clip, slotType, 7));
+    const finalCandidates = offCooldown.length >= (targetCount - selectedClips.length) ? offCooldown : candidateClips;
 
-    for (const clip of candidates) {
+    for (const clip of finalCandidates) {
       if (selectedClips.length >= targetCount) break;
       const base = path.basename(clip).toLowerCase();
       if (!selectedKeys.has(base)) {
@@ -320,20 +416,33 @@ export async function fetchMultiClipSequence({
           selectedClips.push(clip);
           selectedKeys.add(base);
           recordUsedClip(path.basename(clip), slotType);
-          logger.info(`[Multi-Clip] Selected LRU local clip ${selectedClips.length}/${targetCount} for [${slotType}]: ${path.basename(clip)}`);
+          logger.info(`[Multi-Clip] Selected deity-locked local clip ${selectedClips.length}/${targetCount} for [${slotType}]: ${path.basename(clip)}`);
         }
       }
     }
   }
 
-  // 3b. If still under targetCount, pull from backup pools to guarantee 3-5 distinct clips
+  // 3b. Backup pools (NEVER pull cricket or news for devotional or scripture slots!)
   if (selectedClips.length < targetCount) {
-    const backupPools = [
-      getCategoryVideoPool(CRICKET_DIR),
-      getCategoryVideoPool(NEWS_DIR),
-      getCategoryVideoPool(DEVOTIONAL_DIR),
-      getCategoryVideoPool(SCRIPTURES_DIR),
-    ].flat();
+    let backupPools = [];
+    if (slotType === 'slot2' || slotType === 'slot4') {
+      const storyContext = `${deity || ''} ${epic || ''} ${title || ''}`;
+      const targetRealm = detectDevotionalRealm(storyContext);
+      backupPools = [
+        ...getCategoryVideoPool(DEVOTIONAL_DIR),
+        ...getCategoryVideoPool(SCRIPTURES_DIR),
+      ].filter((f) => {
+        const r = getClipDevotionalRealm(f);
+        return r === targetRealm || r === 'universal_sacred';
+      });
+    } else {
+      backupPools = [
+        getCategoryVideoPool(CRICKET_DIR),
+        getCategoryVideoPool(NEWS_DIR),
+        getCategoryVideoPool(DEVOTIONAL_DIR),
+        getCategoryVideoPool(SCRIPTURES_DIR),
+      ].flat();
+    }
 
     const sortedBackups = sortClipsByLeastRecentlyUsed(
       backupPools.filter((f) => !selectedKeys.has(path.basename(f).toLowerCase())),
@@ -357,7 +466,9 @@ export async function fetchMultiClipSequence({
 
   // 4. Emergency fallback: if still empty, use defaults
   if (selectedClips.length === 0) {
-    const defaultMp4 = path.join(DEFAULTS_DIR, 'slot1_dance.mp4');
+    const defaultMp4 = slotType === 'slot2' || slotType === 'slot4'
+      ? path.join(DEVOTIONAL_DIR, 'temple_sacred_aarti.mp4')
+      : path.join(DEFAULTS_DIR, 'slot1_dance.mp4');
     if (fs.existsSync(defaultMp4)) {
       selectedClips.push(defaultMp4);
     }
@@ -506,19 +617,24 @@ export async function fetchSlotBackgroundMedia({
 
     // 3. Fallback: Context-aware selection from assets/clips/devotional/
     const allDevotionalClips = getCategoryVideoPool(DEVOTIONAL_DIR);
-    let matchedCandidates = [];
+    const targetRealm = detectDevotionalRealm(combinedText);
+    const primaryMatches = [];
+    const sacredAtmosphere = [];
 
-    if (textLower.includes('shiva') || textLower.includes('mahadev') || textLower.includes('kedarnath')) {
-      matchedCandidates = allDevotionalClips.filter((f) => /shiva|kedarnath|himalayas/i.test(f));
-    } else if (textLower.includes('hanuman') || textLower.includes('bajrangbali')) {
-      matchedCandidates = allDevotionalClips.filter((f) => /hanuman|aarti/i.test(f));
-    } else if (textLower.includes('krishna') || textLower.includes('sudama') || textLower.includes('gita')) {
-      matchedCandidates = allDevotionalClips.filter((f) => /krishna|aarti/i.test(f));
-    } else if (textLower.includes('ganesh') || textLower.includes('ganpati')) {
-      matchedCandidates = allDevotionalClips.filter((f) => /ganesha|aarti/i.test(f));
+    for (const clip of allDevotionalClips) {
+      const clipRealm = getClipDevotionalRealm(clip);
+      if (targetRealm !== 'universal_sacred') {
+        if (clipRealm === targetRealm) primaryMatches.push(clip);
+        else if (clipRealm === 'universal_sacred') sacredAtmosphere.push(clip);
+      } else {
+        if (clipRealm === 'universal_sacred') primaryMatches.push(clip);
+        else sacredAtmosphere.push(clip);
+      }
     }
 
-    const candidatePool = matchedCandidates.length > 0 ? matchedCandidates : allDevotionalClips;
+    const candidatePool = primaryMatches.length > 0
+      ? primaryMatches
+      : (sacredAtmosphere.length > 0 ? sacredAtmosphere : allDevotionalClips);
     const sortedPool = sortClipsByLeastRecentlyUsed(candidatePool, 'slot2');
     const offCooldown = sortedPool.filter((c) => !isClipOnCooldown(c, 'slot2', 7));
     const chosenClip = (offCooldown.length > 0 ? offCooldown[0] : sortedPool[0]) ||
@@ -736,39 +852,7 @@ export async function fetchScriptureClip(item = {}) {
     return targetPath;
   }
 
-  // 2. Try yt-dlp slicing if yt-dlp is available
-  if (fs.existsSync(YTDLP_PATH) || YTDLP_PATH === 'yt-dlp') {
-    const theme = item.dialogueTheme || item.englishTitle || 'Mahabharat Krishna Arjun Geeta';
-    const searchQuery = `ytsearch1:${theme} animation scene`;
-    logger.info(`Executing yt-dlp to slice 30s scripture clip: "${searchQuery}"...`);
-
-    const ytdlpArgs = [
-      '--ffmpeg-location', ffmpegStatic,
-      '-f', 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-      '--download-sections', '*00:15-00:50',
-      '--no-playlist',
-      '-o', targetPath,
-      searchQuery,
-    ];
-
-    try {
-      await new Promise((resolve, reject) => {
-        execFile(YTDLP_PATH, ytdlpArgs, { timeout: 45000 }, (err, stdout, stderr) => {
-          if (err) reject(err);
-          else resolve(stdout);
-        });
-      });
-
-      if (fs.existsSync(targetPath) && fs.statSync(targetPath).size > 100000) {
-        logger.success(`Successfully sliced and saved scripture clip: ${filename}`);
-        return targetPath;
-      }
-    } catch (_) {
-      logger.info('yt-dlp slice skipped or failed; selecting from verified category video pool.');
-    }
-  }
-
-  // 3. Category-Aware Local Moving Video Pool (100% MP4 videos, ZERO static images)
+  // 2. Category-Aware Local Moving Video Pool (100% MP4 videos, ZERO static images)
   const epicCategory = detectScriptureEpic(item);
   logger.info(`Resolving local scripture moving video for category: [${epicCategory.toUpperCase()}] (topic: "${item.englishTitle || item.id || ''}")`);
 

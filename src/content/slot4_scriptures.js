@@ -146,9 +146,17 @@ Return ONLY a valid JSON object matching this schema:
     chosenData = aiData;
   } else {
     logger.info('[Slot 4 Scriptures] Using dynamic procedural epic scripture synthesizer.');
-    const availableSeeds = EPIC_SCRIPTURE_SEEDS.filter(
+    let availableSeeds = EPIC_SCRIPTURE_SEEDS.filter(
       (s) => !isStoryOnCooldown('slot4', s.id, 21) && !isTopicRecentlyPublished(s.theme, 30)
     );
+    if (topicSeed) {
+      const matched = EPIC_SCRIPTURE_SEEDS.filter(s =>
+        s.id.toLowerCase().includes(topicSeed.toLowerCase()) ||
+        s.epic.toLowerCase().includes(topicSeed.toLowerCase()) ||
+        s.theme.toLowerCase().includes(topicSeed.toLowerCase())
+      );
+      if (matched.length > 0) availableSeeds = matched;
+    }
     const seed = availableSeeds.length > 0
       ? availableSeeds[Math.floor(Math.random() * availableSeeds.length)]
       : EPIC_SCRIPTURE_SEEDS[Math.floor(Math.random() * EPIC_SCRIPTURE_SEEDS.length)];
@@ -206,6 +214,8 @@ Return ONLY a valid JSON object matching this schema:
     slotName: 'Epic Hindu Scriptures & Wisdom Clips (Mahabharata & Ramayana)',
     title: chosenData.title,
     headline: chosenData.title.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').slice(0, 50),
+    epic: chosenData.epic,
+    deity: chosenData.epic || chosenData.theme,
     description,
     tags: chosenData.tags || [
       'shorts', 'mahabharata', 'ramayana', 'bhagavadgita', 'krishna', 'dharma',

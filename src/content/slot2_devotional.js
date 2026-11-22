@@ -196,10 +196,17 @@ Return JSON with this exact schema:
     chosenData = aiData;
   } else {
     logger.info('[Slot 2 Devotional] Using dynamic procedural Vedic katha synthesizer.');
-    // Pick an episode not on cooldown
-    const availableSeeds = VEDIC_EPISODE_SEEDS.filter(
+    // Pick an episode not on cooldown (prefer matching customTopic if provided)
+    let availableSeeds = VEDIC_EPISODE_SEEDS.filter(
       (s) => !isStoryOnCooldown('slot2', s.id, 21) && !isTopicRecentlyPublished(s.deity, 30)
     );
+    if (topicSeed) {
+      const matched = VEDIC_EPISODE_SEEDS.filter(s =>
+        s.id.toLowerCase().includes(topicSeed.toLowerCase()) ||
+        s.deity.toLowerCase().includes(topicSeed.toLowerCase())
+      );
+      if (matched.length > 0) availableSeeds = matched;
+    }
     const seed = availableSeeds.length > 0
       ? availableSeeds[Math.floor(Math.random() * availableSeeds.length)]
       : VEDIC_EPISODE_SEEDS[Math.floor(Math.random() * VEDIC_EPISODE_SEEDS.length)];
@@ -263,6 +270,7 @@ Return JSON with this exact schema:
     slotName: 'Devotional (Sanatan Dharma Katha)',
     title: chosenData.title.slice(0, 95),
     headline: chosenData.title.slice(0, 50),
+    deity: chosenData.deity,
     voiceScript,
     subtitleText,
     englishSubtitles: subtitleText,

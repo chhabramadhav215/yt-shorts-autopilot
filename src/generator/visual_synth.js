@@ -165,6 +165,8 @@ export async function generateVisualBackground({
   statBadge = null,
   customTopic = null,
   comparisonData = null,
+  deity = null,
+  epic = null,
 }) {
   const roundDur = Math.ceil(duration) + 1;
 
@@ -200,6 +202,8 @@ export async function generateVisualBackground({
     visualSceneQueries,
     count: 4,
     clipPath,
+    deity,
+    epic,
   });
 
   const numClips = clips.length;

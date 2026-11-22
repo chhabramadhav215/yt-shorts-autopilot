@@ -82,6 +82,7 @@ export async function ensureCategoryPools() {
   const krishnaSrc = path.join(DEVOTIONAL_DIR, 'krishna_vrindavan_darshan.mp4');
   const hanumanSrc = path.join(DEVOTIONAL_DIR, 'hanuman_divine_darshan.mp4');
   const ganeshSrc = path.join(DEVOTIONAL_DIR, 'ganesha_divine_darshan.mp4');
+  const ramaSrcDevo = path.join(DEVOTIONAL_DIR, 'ram_mandir_divine_jyoti.mp4');
 
   await createVariant({
     src: aartiSrc,
@@ -123,34 +124,36 @@ export async function ensureCategoryPools() {
     vf: 'eq=contrast=1.2:brightness=0.04:saturation=1.35,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
   });
 
-  await createVariant({
-    src: ganeshSrc,
-    dest: path.join(DEVOTIONAL_DIR, 'ram_mandir_divine_jyoti.mp4'),
-    ss: 1,
-    t: 9,
-    vf: 'hflip,eq=contrast=1.15:brightness=0.06:saturation=1.3,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
-  });
+  const ramaSrc = path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4');
+  if (!fs.existsSync(ramaSrcDevo) && fs.existsSync(ramaSrc)) {
+    await createVariant({
+      src: ramaSrc,
+      dest: ramaSrcDevo,
+      ss: 1,
+      t: 10,
+      vf: 'eq=contrast=1.15:brightness=0.05:saturation=1.25,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
+    });
+  }
 
   const geetaSrc = path.join(SCRIPTURES_DIR, 'geeta_saar.mp4');
-  const karnaSrc = path.join(SCRIPTURES_DIR, 'karna_daan.mp4');
+  const arjunaSrc = path.join(SCRIPTURES_DIR, 'arjuna_dhanush_focus.mp4');
   const bhishmaSrc = path.join(SCRIPTURES_DIR, 'bhishma_pratigya.mp4');
-  const ramaSrc = path.join(SCRIPTURES_DIR, 'ramayana_rama.mp4');
   const vishwaSrc = path.join(SCRIPTURES_DIR, 'vishwaroop_darshan.mp4');
   const hanumanRavanaSrc = path.join(SCRIPTURES_DIR, 'hanuman_ravana.mp4');
 
   await createVariant({
     src: geetaSrc,
     dest: path.join(SCRIPTURES_DIR, 'kurukshetra_geeta_updesh.mp4'),
-    ss: 14,
-    t: 12,
+    ss: 2,
+    t: 10,
     vf: 'hflip,eq=contrast=1.18:brightness=0.03:saturation=1.25,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
   });
 
   await createVariant({
-    src: karnaSrc,
+    src: arjunaSrc,
     dest: path.join(SCRIPTURES_DIR, 'arjuna_dhanush_focus.mp4'),
-    ss: 12,
-    t: 12,
+    ss: 1,
+    t: 10,
     vf: 'eq=contrast=1.2:brightness=0.04:saturation=1.3,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
   });
 
@@ -165,16 +168,16 @@ export async function ensureCategoryPools() {
   await createVariant({
     src: vishwaSrc,
     dest: path.join(SCRIPTURES_DIR, 'sudarshana_chakra_divine.mp4'),
-    ss: 10,
-    t: 12,
+    ss: 2,
+    t: 10,
     vf: 'hflip,eq=contrast=1.22:brightness=0.04:saturation=1.35,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
   });
 
   await createVariant({
     src: bhishmaSrc,
     dest: path.join(SCRIPTURES_DIR, 'bhishma_gangaputra_oath.mp4'),
-    ss: 12,
-    t: 12,
+    ss: 2,
+    t: 10,
     vf: 'eq=contrast=1.16:brightness=0.04:saturation=1.2,scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
   });
 
