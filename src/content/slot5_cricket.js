@@ -295,118 +295,199 @@ export const VERIFIED_PLAYER_STATS = {
     scriptStatEnglish: '162.3 strike rate and 499 runs in the 2024 season',
     aliases: ['pooran', 'nicholas', 'पूरन', 'निकोलस पूरन'],
   },
+  surya: {
+    key: 'surya',
+    name: 'Suryakumar Yadav',
+    hindiName: 'सूर्यकुमार यादव',
+    role: 'T20 Captain / 360 Batter',
+    stat1: '167.9 Career SR',
+    stat2: '3594+ IPL Runs',
+    stat3: '2024 T20 WC Winner',
+    scriptStatHindi: '167.9 का ऑल-टाइम स्ट्राइक रेट और 3500 से अधिक रन',
+    scriptStatEnglish: '167.9 career strike rate and over 3,500 IPL runs',
+    aliases: ['surya', 'suryakumar', 'sky', 'सूर्यकुमार', 'सूर्या'],
+  },
+  shami: {
+    key: 'shami',
+    name: 'Mohammed Shami',
+    hindiName: 'मोहम्मद शमी',
+    role: 'Seam Specialist',
+    stat1: '127 IPL Wickets',
+    stat2: '28 Wkts Purple Cap',
+    stat3: '8.44 Career Econ',
+    scriptStatHindi: 'पर्पल कैप और 127 आईपीएल विकेट',
+    scriptStatEnglish: 'Purple Cap winner with 127 IPL wickets',
+    aliases: ['shami', 'mohammed shami', 'शमी', 'मोहम्मद शमी'],
+  },
+  starc: {
+    key: 'starc',
+    name: 'Mitchell Starc',
+    hindiName: 'मिचेल स्टार्क',
+    role: 'Left-Arm Fast / Strike Pacer',
+    stat1: '2x Finals POTM',
+    stat2: '51 IPL Wickets',
+    stat3: '24.75 Cr Auction Record',
+    scriptStatHindi: 'आईपीएल फाइनल प्लेयर ऑफ द मैच और 51 विकेट',
+    scriptStatEnglish: 'IPL final Player of the Match with 51 wickets',
+    aliases: ['starc', 'mitchell starc', 'स्टार्क', 'मिचेल स्टार्क'],
+  },
+  mayank: {
+    key: 'mayank',
+    name: 'Mayank Yadav',
+    hindiName: 'मयंक यादव',
+    role: 'Express Pacer (156.7 kph)',
+    stat1: '156.7 Kph Fastest Ball',
+    stat2: '7 IPL Wickets',
+    stat3: '6.98 Econ',
+    scriptStatHindi: '156.7 किमी प्रति घंटे की रफ्तार और 7 विकेट',
+    scriptStatEnglish: '156.7 kph thunderbolts with a 6.98 economy',
+    aliases: ['mayank', 'mayank yadav', 'मयंक', 'मयंक यादव'],
+  },
+  axar: {
+    key: 'axar',
+    name: 'Axar Patel',
+    hindiName: 'अक्षर पटेल',
+    role: 'All-Rounder / Spin Ace',
+    stat1: '123 IPL Wickets',
+    stat2: '1653+ IPL Runs',
+    stat3: '7.24 Career Econ',
+    scriptStatHindi: '123 विकेट और 1650 से अधिक रन',
+    scriptStatEnglish: '123 IPL wickets and over 1,650 runs',
+    aliases: ['axar', 'axar patel', 'अक्षर', 'अक्षर पटेल'],
+  },
+  rinku: {
+    key: 'rinku',
+    name: 'Rinku Singh',
+    hindiName: 'रिंकू सिंह',
+    role: 'Clutch Finisher',
+    stat1: '143.3 Strike Rate',
+    stat2: '5 Sixes in Final Over',
+    stat3: '893+ IPL Runs',
+    scriptStatHindi: 'आखिरी ओवर में 5 छक्के और 143 का स्ट्राइक रेट',
+    scriptStatEnglish: 'historic 5 sixes in an over with a 143 strike rate',
+    aliases: ['rinku', 'rinku singh', 'रिंकू', 'रिंकू सिंह'],
+  },
+  jadeja: {
+    key: 'jadeja',
+    name: 'Ravindra Jadeja',
+    hindiName: 'रविंद्र जडेजा',
+    role: '4x Champion / All-Rounder',
+    stat1: '4x IPL Titles',
+    stat2: '2959+ Runs / 160 Wkts',
+    stat3: '7.60 Career Econ',
+    scriptStatHindi: '4 बार आईपीएल चैंपियन और 160 विकेट',
+    scriptStatEnglish: '4x IPL champion with 160 wickets and 2950+ runs',
+    aliases: ['jadeja', 'ravindra', 'jaddu', 'जडेजा', 'रविंद्र जडेजा'],
+  },
 };
 
 /**
- * Detect comparison players or single featured player from text
+ * Topic-First Analyzer for Cricket Shorts.
+ * STRICT RULES:
+ * 1. Topic-First Matching: Only detect players whose names actually appear in the headline or snippet.
+ *    Never force or switch to unrelated players (like Virat Kohli, Rohit Sharma, Gautam Gambhir, or Jasprit Bumrah).
+ * 2. Stats Only When Topic Calls For It:
+ *    - Only create a player stats/comparison card (for 1, 2, or 3 players) when the topic is genuinely about stats, records, or player/captaincy comparisons.
+ *    - For auction price/bidding, injury/fitness, team/role fit, or squad news where stats aren't the point,
+ *      produce a topic-relevant key points card ('topic_card') instead of forcing player stats.
  */
-export function detectComparisonPlayers(headline = '', snippet = '', teamKey = 'IPL') {
+export function analyzeTopicIntent(headline = '', snippet = '') {
   const combined = `${headline} ${snippet}`.toLowerCase();
-  const matchedKeys = [];
 
+  // 1. Detect ALL players actually mentioned in headline / snippet
+  const mentionedPlayers = [];
   for (const [key, player] of Object.entries(VERIFIED_PLAYER_STATS)) {
-    if (player.aliases.some((alias) => combined.includes(alias.toLowerCase()))) {
-      matchedKeys.push(key);
-    }
-  }
-
-  // If 2 distinct players matched directly
-  if (matchedKeys.length >= 2) {
-    return {
-      type: 'comparison',
-      p1Key: matchedKeys[0],
-      p2Key: matchedKeys[1],
-    };
-  }
-
-  const teamDefaultPairs = {
-    KKR: ['venky', 'shreyas'],
-    CSK: ['gaikwad', 'dhoni'],
-    RCB: ['kohli', 'patidar'],
-    MI: ['hardik', 'rohit'],
-    SRH: ['cummins', 'klaasen'],
-    LSG: ['pooran', 'rahul'],
-    DC: ['pant', 'rohit'],
-    RR: ['samson', 'rohit'],
-    GT: ['gill', 'rohit'],
-    PBKS: ['arshdeep', 'rohit'],
-    INDIA: ['rohit', 'bumrah'],
-  };
-
-  // If 1 player matched
-  if (matchedKeys.length === 1) {
-    const singleKey = matchedKeys[0];
-    const isComparisonTopic = /vs|versus|against|or|या|कप्तानी|captain|leadership|race|options/i.test(combined);
-    if (isComparisonTopic) {
-      const pair = teamDefaultPairs[teamKey];
-      if (pair) {
-        const otherKey = pair[0] === singleKey ? pair[1] : pair[0];
-        return {
-          type: 'comparison',
-          p1Key: singleKey,
-          p2Key: otherKey,
-        };
+    const isMatched = player.aliases.some((alias) => {
+      const lowerAlias = alias.toLowerCase();
+      if (/^[a-z0-9 ]+$/i.test(lowerAlias)) {
+        const regex = new RegExp(`\\b${lowerAlias.replace(/\s+/g, '\\s+')}\\b`, 'i');
+        return regex.test(combined);
       }
+      return combined.includes(lowerAlias);
+    });
+
+    if (isMatched && !mentionedPlayers.some((p) => p.key === key)) {
+      mentionedPlayers.push(player);
     }
-    return {
-      type: 'stat_card',
-      pKey: singleKey,
-    };
   }
 
-  // If no players mentioned directly by alias
-  const isComparisonTopic = /captain|leadership|कप्तानी|race|options|battle|vs|versus/i.test(combined);
-  const defaultPair = teamDefaultPairs[teamKey] || ['kohli', 'rohit'];
+  // 2. Detect Franchise / Team
+  let teamKey = 'IPL';
+  if (combined.includes('kkr') || combined.includes('kolkata') || combined.includes('knight riders')) teamKey = 'KKR';
+  else if (combined.includes('rcb') || combined.includes('bangalore') || combined.includes('bengaluru')) teamKey = 'RCB';
+  else if (combined.includes('csk') || combined.includes('chennai') || combined.includes('super kings')) teamKey = 'CSK';
+  else if (combined.includes('mi') || combined.includes('mumbai indians')) teamKey = 'MI';
+  else if (combined.includes('srh') || combined.includes('hyderabad') || combined.includes('sunrisers')) teamKey = 'SRH';
+  else if (combined.includes('dc') || combined.includes('delhi capitals') || combined.includes('delhi daredevils')) teamKey = 'DC';
+  else if (combined.includes('rr') || combined.includes('rajasthan royals')) teamKey = 'RR';
+  else if (combined.includes('gt') || combined.includes('gujarat titans')) teamKey = 'GT';
+  else if (combined.includes('lsg') || combined.includes('lucknow')) teamKey = 'LSG';
+  else if (combined.includes('pbks') || combined.includes('punjab kings')) teamKey = 'PBKS';
+  else if (combined.includes('bcci') || combined.includes('team india') || combined.includes('india cricket') || combined.includes('gambhir')) teamKey = 'INDIA';
 
-  if (isComparisonTopic) {
-    return {
-      type: 'comparison',
-      p1Key: defaultPair[0],
-      p2Key: defaultPair[1],
-    };
+  // If franchise was not mentioned explicitly, infer from primary player's franchise
+  if (teamKey === 'IPL' && mentionedPlayers.length > 0) {
+    const pKey = mentionedPlayers[0].key;
+    if (['dhoni', 'gaikwad', 'pathirana', 'jadeja'].includes(pKey)) teamKey = 'CSK';
+    else if (['kohli', 'patidar'].includes(pKey)) teamKey = 'RCB';
+    else if (['rohit', 'hardik', 'bumrah', 'surya'].includes(pKey)) teamKey = 'MI';
+    else if (['venky', 'shreyas', 'russell', 'narine', 'rinku', 'starc'].includes(pKey)) teamKey = 'KKR';
+    else if (['cummins', 'klaasen'].includes(pKey)) teamKey = 'SRH';
+    else if (['pant', 'axar'].includes(pKey)) teamKey = 'DC';
+    else if (['samson'].includes(pKey)) teamKey = 'RR';
+    else if (['gill', 'shami'].includes(pKey)) teamKey = 'GT';
+    else if (['pooran', 'rahul', 'mayank'].includes(pKey)) teamKey = 'LSG';
+    else if (['arshdeep'].includes(pKey)) teamKey = 'PBKS';
   }
 
-  return {
-    type: 'stat_card',
-    pKey: defaultPair[0],
-  };
-}
+  // 3. Detect Topic Category
+  const isAuction = /auction|purse|retention|retain|released|release|bid|bidding|crore|rtm|ऑक्शन|रिटेंशन|बोली/i.test(combined);
+  const isInjury = /injury|ruled out|fitness|surgery|rehab|medical|fracture|चोट|फिटनेस|बाहर/i.test(combined);
+  const isComparisonOrCaptaincy = /vs|versus|against|who is better|better captain|कप्तानी|तुलना|captaincy race|leadership battle|captaincy dilemma/i.test(combined);
+  const isStatsExplicit = /stats|record|records|numbers|strike rate|economy|average|centuries|runs record|wickets record|सर्वाधिक रन|आंकड़े|रिकॉर्ड/i.test(combined);
 
-/**
- * Builds structured comparison data for SVG overlay and script generator
- */
-export function buildComparisonData(comparisonInfo) {
-  if (!comparisonInfo) return null;
+  // 4. Decide Card Type & Data
+  let comparisonData = null;
 
-  if (comparisonInfo.type === 'comparison') {
-    const p1 = VERIFIED_PLAYER_STATS[comparisonInfo.p1Key] || VERIFIED_PLAYER_STATS.gaikwad;
-    const p2 = VERIFIED_PLAYER_STATS[comparisonInfo.p2Key] || VERIFIED_PLAYER_STATS.dhoni;
-
-    return {
-      type: 'comparison',
-      title: 'LEADERSHIP COMPARISON',
-      player1: {
-        name: p1.name,
-        role: p1.role,
-        stat1: p1.stat1,
-        stat2: p1.stat2,
-        stat3: p1.stat3,
-      },
-      player2: {
-        name: p2.name,
-        role: p2.role,
-        stat1: p2.stat1,
-        stat2: p2.stat2,
-        stat3: p2.stat3,
-      },
-      p1Data: p1,
-      p2Data: p2,
-    };
-  }
-
-  if (comparisonInfo.type === 'stat_card') {
-    const p = VERIFIED_PLAYER_STATS[comparisonInfo.pKey] || VERIFIED_PLAYER_STATS.kohli;
-    return {
+  if (isComparisonOrCaptaincy && mentionedPlayers.length >= 2) {
+    if (mentionedPlayers.length === 2) {
+      comparisonData = {
+        type: 'comparison',
+        title: 'HEAD-TO-HEAD COMPARISON',
+        player1: {
+          name: mentionedPlayers[0].name,
+          role: mentionedPlayers[0].role,
+          stat1: mentionedPlayers[0].stat1,
+          stat2: mentionedPlayers[0].stat2,
+          stat3: mentionedPlayers[0].stat3,
+        },
+        player2: {
+          name: mentionedPlayers[1].name,
+          role: mentionedPlayers[1].role,
+          stat1: mentionedPlayers[1].stat1,
+          stat2: mentionedPlayers[1].stat2,
+          stat3: mentionedPlayers[1].stat3,
+        },
+        p1Data: mentionedPlayers[0],
+        p2Data: mentionedPlayers[1],
+      };
+    } else if (mentionedPlayers.length >= 3) {
+      comparisonData = {
+        type: 'comparison_3',
+        title: '3-WAY LEADERSHIP COMPARISON',
+        players: mentionedPlayers.slice(0, 3).map((p) => ({
+          name: p.name,
+          role: p.role,
+          stat1: p.stat1,
+          stat2: p.stat2,
+          hindiName: p.hindiName,
+        })),
+        pList: mentionedPlayers.slice(0, 3),
+      };
+    }
+  } else if ((isStatsExplicit || isComparisonOrCaptaincy) && mentionedPlayers.length === 1) {
+    const p = mentionedPlayers[0];
+    comparisonData = {
       type: 'stat_card',
       title: 'VERIFIED PLAYER STATS',
       player: {
@@ -418,9 +499,64 @@ export function buildComparisonData(comparisonInfo) {
       },
       pData: p,
     };
+  } else if (isAuction) {
+    const targetName = mentionedPlayers.length > 0 ? mentionedPlayers.map((p) => p.name).join(' & ') : 'Mega Auction Target';
+    comparisonData = {
+      type: 'topic_card',
+      title: 'AUCTION & RETENTION FOCUS',
+      header: 'AUCTION STRATEGY & PURSE',
+      point1: `Subject: ${targetName}`,
+      point2: 'Key Factor: Purse Budget & Bidding Battle',
+      point3: 'Impact: Squad Balance & Match Winning Impact',
+    };
+  } else if (isInjury) {
+    const targetName = mentionedPlayers.length > 0 ? mentionedPlayers.map((p) => p.name).join(' & ') : 'Squad Fitness';
+    comparisonData = {
+      type: 'topic_card',
+      title: 'FITNESS & SQUAD UPDATE',
+      header: 'MEDICAL & RECOVERY REPORT',
+      point1: `Player: ${targetName}`,
+      point2: 'Status: Medical Evaluation & Recovery Timeline',
+      point3: 'Squad Impact: Tactical Replacement & Bench Depth',
+    };
+  } else if (mentionedPlayers.length > 0 && !isStatsExplicit) {
+    const p = mentionedPlayers[0];
+    comparisonData = {
+      type: 'topic_card',
+      title: 'PLAYER TACTICAL FOCUS',
+      header: 'TACTICAL ROLE & MATCH IMPACT',
+      point1: `Featured: ${p.name}`,
+      point2: `Role: ${p.role}`,
+      point3: 'Match Focus: Strategic Impact & Key Strengths',
+    };
+  } else {
+    comparisonData = {
+      type: 'topic_card',
+      title: 'CRICKET TACTICAL DEBATE',
+      header: 'MATCH & TOURNAMENT ANALYSIS',
+      point1: 'Focus: Strategic Gameplan & Match Execution',
+      point2: 'Key Angle: Squad Balance & High-Pressure Performance',
+      point3: 'Fan Verdict: Critical Tactical Debate',
+    };
   }
 
-  return null;
+  const category = isAuction ? 'auction' : (isInjury ? 'injury' : (isComparisonOrCaptaincy ? 'captaincy' : (isStatsExplicit ? 'stats' : 'general')));
+
+  return {
+    mentionedPlayers,
+    teamKey,
+    category,
+    comparisonData,
+  };
+}
+
+export function detectComparisonPlayers(headline = '', snippet = '', teamKey = 'IPL') {
+  const analysis = analyzeTopicIntent(headline, snippet);
+  return analysis.comparisonData;
+}
+
+export function buildComparisonData(comparisonInfo) {
+  return comparisonInfo;
 }
 
 /**
@@ -800,18 +936,16 @@ function extractCricketEntities(headline = '', snippet = '') {
 /**
  * Intelligent domain-grounded tactical script synthesizer for Cricket & IPL Buzz.
  * ZERO generic template filler. ZERO "sutron ki report". ZERO "playing 11 balance". ZERO "subscribe" clichés.
- * Names real players and explains WHY each fits or what the tactical trade-off is with verified stats.
+ * Strictly locks script, voiceover, and visual badges to the actual topic subject.
  */
 function generateDynamicCricketScript({ headline, snippet, source }) {
   const cleanHeadline = headline.replace(/['":]/g, '').trim();
   const summary = summarizeNewsHeadline(cleanHeadline);
-  const { teamKey, primaryPlayer, category } = extractCricketEntities(cleanHeadline, snippet);
+  const topicAnalysis = analyzeTopicIntent(cleanHeadline, snippet);
+  const { mentionedPlayers, teamKey, category, comparisonData } = topicAnalysis;
 
   const franchise = IPL_FRANCHISES[teamKey] || IPL_FRANCHISES.INDIA;
   const teamHindi = franchise.hindiName;
-
-  const comparisonInfo = detectComparisonPlayers(cleanHeadline, snippet, teamKey);
-  const comparisonData = buildComparisonData(comparisonInfo);
 
   let hookHindi = '';
   let hookEnglish = '';
@@ -837,50 +971,91 @@ function generateDynamicCricketScript({ headline, snippet, source }) {
 
     ctaHindi = `इन दोनों के रिकॉर्ड्स को देखते हुए, आप ${teamHindi} की कमान किसे सौंपेंगे?`;
     ctaEnglish = `Looking at these verified records, who would you choose to lead: ${p1.name} or ${p2.name}?`;
+  } else if (comparisonData && comparisonData.type === 'comparison_3') {
+    const p1 = comparisonData.pList[0];
+    const p2 = comparisonData.pList[1];
+    const p3 = comparisonData.pList[2];
+
+    hookHindi = `${teamHindi} की कप्तानी रेस में ${p1.hindiName}, ${p2.hindiName} और ${p3.hindiName} के बीच त्रिकोणीय मुकाबला छिड़ चुका है!`;
+    hookEnglish = `A three-way leadership battle has erupted at ${franchise.name} between ${p1.name}, ${p2.name}, and ${p3.name}!`;
+
+    body1Hindi = `${p1.hindiName} के नाम ${p1.scriptStatHindi} है, जबकि ${p2.hindiName} के पास ${p2.scriptStatHindi} का अनुभव है।`;
+    body1English = `${p1.name} holds ${p1.scriptStatEnglish}, while ${p2.name} offers ${p2.scriptStatEnglish}.`;
+
+    body2Hindi = `वहीं ${p3.hindiName} का आक्रामक अंदाज और ${p3.scriptStatHindi} टीम को अप्रत्याशित मजबूती देता है।`;
+    body2English = `Meanwhile, ${p3.name}'s explosive impact with ${p3.scriptStatEnglish} presents a lethal dynamic.`;
+
+    ctaHindi = `इस त्रिकोणीय मुकाबले में आप किसे टीम की कमान सौंपना चाहेंगे?`;
+    ctaEnglish = `In this three-way race, which leader would you back to guide the franchise?`;
   } else if (comparisonData && comparisonData.type === 'stat_card') {
     const p = comparisonData.pData;
 
-    hookHindi = `${p.hindiName} का हालिया प्रदर्शन और मैच-विनिंग आंकड़े विरोधी टीमों के लिए सबसे बड़ा सिरदर्द बन चुके हैं!`;
+    hookHindi = `${p.hindiName} का यह रिकॉर्ड और मैच-विनिंग आंकड़े विरोधी खेमे के लिए सबसे बड़ा सिरदर्द बन चुके हैं!`;
     hookEnglish = `${p.name}'s verified match-winning numbers have become a massive nightmare for opposition plans!`;
 
     body1Hindi = `${p.hindiName} के नाम ${p.scriptStatHindi} दर्ज है, जो मैदान पर उनके विशाल प्रभाव को साबित करता है।`;
     body1English = `With ${p.scriptStatEnglish}, ${p.name} consistently dictates high-intensity match situations.`;
 
-    body2Hindi = `${franchise.tacticalTraits} के साथ उनका संयोजन आगामी मुकाबलों में टीम को जीत दिलाने का सबसे बड़ा हथियार है।`;
+    body2Hindi = `${franchise.tacticalTraits} के साथ उनका संयोजन आगामी टूर्नामेंट में जीत की सबसे बड़ी चाबी है।`;
     body2English = `Combined with ${franchise.name} core strengths, this skillset represents pure championship-winning firepower.`;
 
     ctaHindi = `क्या आपको लगता है कि आगामी टूर्नामेंट में यह प्रदर्शन और रिकॉर्ड्स नए मुकाम छुएंगे?`;
     ctaEnglish = `Do you see these match-winning records climbing even higher this season?`;
-  } else if (category === 'captaincy') {
-    const candidate1 = franchise.hindiPlayers[0] || 'विराट कोहली';
-    const candidate2 = franchise.hindiPlayers[1] || 'रोहित शर्मा';
-    const candidate1En = franchise.keyPlayers[0] || 'Star Player';
-    const candidate2En = franchise.keyPlayers[1] || 'Match Winner';
+  } else if (category === 'auction' && mentionedPlayers.length > 0) {
+    const p = mentionedPlayers[0];
 
-    hookHindi = `${teamHindi} की कप्तानी की रेस में ${candidate1} और ${candidate2} के बीच मुकाबला बेहद दिलचस्प हो चुका है!`;
-    hookEnglish = `The captaincy race for ${franchise.name} has ignited a fierce debate between ${candidate1En} and ${candidate2En}!`;
+    hookHindi = `मेगा ऑक्शन टेबल पर ${p.hindiName} को अपनी टीम में शामिल करने के लिए फ्रेंचाइजियों में होड़ मच चुकी है!`;
+    hookEnglish = `A fierce bidding war is brewing across franchises to secure ${p.name} at the mega auction!`;
 
-    body1Hindi = franchise.captaincyReasons[0] || `${candidate1} का शांत और आक्रामक स्वभाव उन्हें स्वाभाविक घरेलू लीडर बनाता है।`;
-    body1English = franchise.captaincyReasonsEn?.[0] || `${candidate1En} brings tactical composure and deep understanding of the team core.`;
+    body1Hindi = `${p.hindiName} की मैच-विनिंग क्षमता और मैदान पर आक्रामक अंदाज उन्हें इस ऑक्शन का सबसे बड़ा आकर्षण बनाता है।`;
+    body1English = `${p.name}'s game-changing impact and aggressive intent make him an irresistible marquee auction target.`;
 
-    body2Hindi = franchise.captaincyReasons[1] || `दूसरी तरफ ${candidate2} का अनुभव मैच के निर्णायक मोड़ों पर दबाव सोखने की क्षमता रखता है।`;
-    body2English = franchise.captaincyReasonsEn?.[1] || `On the flip side, ${candidate2En} offers proven authority in clutch high-pressure moments.`;
+    body2Hindi = `ऑक्शन पर्स की सीमा और टीम संयोजन को देखते हुए कई टीमें उन पर भारी भरकम दांव लगाने की योजना बना रही हैं।`;
+    body2English = `Balancing tight purse limits against squad needs, franchises are preparing massive bids for his signature.`;
 
-    ctaHindi = `अगर कमान आपके हाथों में हो, तो आप ${candidate1} को कप्तान बनाएंगे या ${candidate2} को?`;
-    ctaEnglish = `If you held the decision, would you hand the captaincy armband to ${candidate1En} or ${candidate2En}?`;
+    ctaHindi = `क्या ${p.hindiName} पर बीस करोड़ से अधिक की बोली लगाना सही फैसला साबित होगा?`;
+    ctaEnglish = `Would breaking the twenty-crore barrier for ${p.name} prove to be a championship-winning investment?`;
+  } else if (category === 'injury' && mentionedPlayers.length > 0) {
+    const p = mentionedPlayers[0];
+
+    hookHindi = `${p.hindiName} की फिटनेस और मैच उपलब्धता को लेकर टीम के सामने बड़ा सवाल खड़ा हो चुका है!`;
+    hookEnglish = `Major fitness and selection concerns have surfaced regarding ${p.name} ahead of upcoming fixtures!`;
+
+    body1Hindi = `मेडिकल टीम उनकी रिकवरी पर लगातार नजर बनाए हुए है, और आगामी सीरीज से पहले उनका शत-प्रतिशत फिट होना बेहद जरूरी है।`;
+    body1English = `The medical staff is monitoring recovery closely, with full match-fitness vital before upcoming clashes.`;
+
+    body2Hindi = `उनकी अनुपस्थिति में टीम को अपने गेंदबाजी और बल्लेबाजी संयोजन में बड़े सामरिक बदलाव करने पड़ सकते हैं।`;
+    body2English = `Any potential absence forces major tactical adjustments to squad balance and playing plans.`;
+
+    ctaHindi = `क्या टीम को उनकी जगह किसी युवा विकल्प को मौका देना चाहिए?`;
+    ctaEnglish = `Should the team test an exciting young alternative in the interim?`;
+  } else if (mentionedPlayers.length === 1) {
+    const p = mentionedPlayers[0];
+
+    hookHindi = `${cleanHeadline} को लेकर ${p.hindiName} की भूमिका पर चर्चा तेज हो चुकी है!`;
+    hookEnglish = `Debate has intensified around ${p.name}'s tactical role regarding ${cleanHeadline}!`;
+
+    body1Hindi = `${p.hindiName} का मैदान पर अनुभव और आक्रामक माइंडसेट टीम को दबाव के पलों में मजबूती प्रदान करता है।`;
+    body1English = `${p.name}'s on-field presence and fearless approach provide crucial composure under high pressure.`;
+
+    body2Hindi = `${franchise.name} की रणनीति में उनका योगदान आगामी बड़े मुकाबलों की दिशा तय कर सकता है।`;
+    body2English = `His specific execution in ${franchise.name}'s blueprint will shape tournament outcomes.`;
+
+    ctaHindi = `इस मुकाबले में आप उनके प्रदर्शन से कितनी उम्मीद कर रहे हैं?`;
+    ctaEnglish = `What match-winning impact do you foresee from him in the upcoming games?`;
   } else {
-    // General / Tactical Blueprint
+    // General match / auction / tournament topic without specific players
     hookHindi = `${cleanHeadline} को लेकर क्रिकेट जगत में एक तीखी बहस छिड़ चुकी है!`;
     hookEnglish = `A fierce tactical debate has erupted surrounding ${cleanHeadline}!`;
 
-    body1Hindi = `${franchise.tacticalTraits} को देखते हुए आगामी टूर्नामेंट में इस फैसले का प्रभाव साफ नजर आएगा।`;
-    body1English = `Rooted in ${franchise.name} tactical strengths, this development directly reshapes their tournament approach.`;
+    body1Hindi = `${franchise.name} की रणनीति और प्राथमिकताओं को देखते हुए यह फैसला आगामी टूर्नामेंट के लिए बेहद निर्णायक है।`;
+    body1English = `Aligning with ${franchise.name}'s tournament blueprint and squad priorities, this development directly reshapes plans.`;
 
-    body2Hindi = `मैदान पर टीम का संतुलन और मैच रणनीति ही खिताब की दावेदारी तय करेगी।`;
-    body2English = `On-field execution and tournament tactical discipline will decide the championship run.`;
+    body2Hindi = `मैदान पर टीम का संतुलन और दबाव के पलों में सही फैसले ही जीत और हार का अंतर तय करते हैं।`;
+    body2English = `Tournament squad balance and sharp tactical execution under pressure will decide championship fortunes.`;
 
-    ctaHindi = `इस बड़े मुकाबले में आपकी फेवरेट टीम का पलड़ा कितना भारी दिखाई दे रहा है?`;
-    ctaEnglish = `How do you rate your favorite team chances heading into this massive clash?`;
+    ctaHindi = `इस बड़े घटनाक्रम पर आपकी क्या राय है, कमेंट्स में बताइए!`;
+    ctaEnglish = `What is your take on this major development? Share your perspective below!`;
   }
 
   // Ensure clean Devanagari text with zero banned clichés
@@ -899,13 +1074,21 @@ function generateDynamicCricketScript({ headline, snippet, source }) {
     'cricket team victory celebration golden trophy'
   ];
 
-  const statBadge = comparisonData?.type === 'comparison'
-    ? 'HEAD-TO-HEAD'
-    : 'VERIFIED STATS';
+  let statBadge = 'CRICKET BUZZ';
+  if (comparisonData?.type === 'comparison') statBadge = 'HEAD-TO-HEAD';
+  else if (comparisonData?.type === 'comparison_3') statBadge = '3-WAY BATTLE';
+  else if (comparisonData?.type === 'stat_card') statBadge = 'VERIFIED STATS';
+  else if (category === 'auction') statBadge = 'AUCTION DYNAMICS';
+  else if (category === 'injury') statBadge = 'FITNESS UPDATE';
 
-  const detectedPrimaryPlayer = comparisonData?.type === 'comparison'
-    ? `${comparisonData.player1.name} vs ${comparisonData.player2.name}`
-    : (comparisonData?.player?.name || primaryPlayer);
+  let detectedPrimaryPlayer = franchise.name;
+  if (mentionedPlayers.length === 1) {
+    detectedPrimaryPlayer = mentionedPlayers[0].name;
+  } else if (mentionedPlayers.length === 2) {
+    detectedPrimaryPlayer = `${mentionedPlayers[0].name} vs ${mentionedPlayers[1].name}`;
+  } else if (mentionedPlayers.length >= 3) {
+    detectedPrimaryPlayer = `${mentionedPlayers[0].name} vs ${mentionedPlayers[1].name} vs ${mentionedPlayers[2].name}`;
+  }
 
   return {
     title: `${summary.fullSummary} 🏏🔥`.slice(0, 95),
@@ -956,11 +1139,21 @@ export async function generateSlot5Content(customTopic = null) {
     }
   }
 
-  const { teamKey, primaryPlayer, category } = extractCricketEntities(chosenStory?.headline || '', chosenStory?.snippet || '');
+  const topicAnalysis = analyzeTopicIntent(chosenStory?.headline || '', chosenStory?.snippet || '');
+  const { mentionedPlayers, teamKey, category, comparisonData } = topicAnalysis;
   const franchise = IPL_FRANCHISES[teamKey] || IPL_FRANCHISES.INDIA;
 
-  const comparisonInfo = detectComparisonPlayers(chosenStory?.headline || '', chosenStory?.snippet || '', teamKey);
-  const comparisonData = buildComparisonData(comparisonInfo);
+  let defaultPlayerName = franchise.name;
+  if (mentionedPlayers.length === 1) defaultPlayerName = mentionedPlayers[0].name;
+  else if (mentionedPlayers.length === 2) defaultPlayerName = `${mentionedPlayers[0].name} vs ${mentionedPlayers[1].name}`;
+  else if (mentionedPlayers.length >= 3) defaultPlayerName = `${mentionedPlayers[0].name} vs ${mentionedPlayers[1].name} vs ${mentionedPlayers[2].name}`;
+
+  let defaultStatBadge = 'CRICKET BUZZ';
+  if (comparisonData?.type === 'comparison') defaultStatBadge = 'HEAD-TO-HEAD';
+  else if (comparisonData?.type === 'comparison_3') defaultStatBadge = '3-WAY BATTLE';
+  else if (comparisonData?.type === 'stat_card') defaultStatBadge = 'VERIFIED STATS';
+  else if (category === 'auction') defaultStatBadge = 'AUCTION DYNAMICS';
+  else if (category === 'injury') defaultStatBadge = 'FITNESS UPDATE';
 
   let verifiedStatsPrompt = '';
   if (comparisonData && comparisonData.type === 'comparison') {
@@ -977,6 +1170,15 @@ STRICT STAT ACCURACY RULE:
 - NEVER fabricate, hallucinate, or guess player statistics.
 - You MUST weave Player 1's verified record into Beat 2 (bodyPart1Hindi & bodyPart1English) and Player 2's verified record into Beat 3 (bodyPart2Hindi & bodyPart2English).
 `;
+  } else if (comparisonData && comparisonData.type === 'comparison_3') {
+    verifiedStatsPrompt = `
+VERIFIED CRICKET & IPL STATS (GROUND TRUTH - STRICTLY CITE ACCURATELY FOR 3 PLAYERS):
+${comparisonData.pList.map((p, i) => `- Player ${i + 1}: "${p.name}" (${p.hindiName}) -> ${p.stat1}, ${p.stat2}`).join('\n')}
+
+STRICT STAT ACCURACY RULE:
+- NEVER fabricate, hallucinate, or guess player statistics.
+- Weave these 3 players' verified records into the script beats.
+`;
   } else if (comparisonData && comparisonData.type === 'stat_card') {
     verifiedStatsPrompt = `
 VERIFIED CRICKET & IPL STATS (GROUND TRUTH - STRICTLY CITE ACCURATELY):
@@ -988,6 +1190,14 @@ STRICT STAT ACCURACY RULE:
 - NEVER fabricate, hallucinate, or guess player statistics.
 - You MUST weave the player's verified stats into Beat 2 (bodyPart1Hindi & bodyPart1English).
 `;
+  } else {
+    verifiedStatsPrompt = `
+TOPIC-FIRST SCRIPT RULE:
+- The topic is strictly about: "${chosenStory?.headline}".
+- DO NOT force player statistics or player comparison onto this story when stats/comparisons are not called for.
+- Focus 100% on the actual topic (auction bidding, purse, role fit, injury, squad news, or match situation).
+- DO NOT bring up or switch to unrelated players like Virat Kohli, Gautam Gambhir, Rohit Sharma, or Jasprit Bumrah unless they are explicitly in the source headline!
+`;
   }
 
   const prompt = `You are the lead cricket analyst and scriptwriter for a high-retention viral YouTube Shorts sports channel (@dailypulseshortss).
@@ -995,7 +1205,7 @@ Topic Context (Verified recent cricket news <48h):
 - Headline: "${chosenStory?.headline || 'Cricket Match Update'}"
 - RSS Details / Snippet: "${chosenStory?.snippet || 'Breaking cricket news update'}"
 - Primary Franchise: "${franchise.name}" (${franchise.hindiName})
-- Featured Key Players: ${franchise.keyPlayers.join(', ')}
+- Featured Key Subject: "${defaultPlayerName}"
 - Tactical Category: ${category.toUpperCase()}
 ${verifiedStatsPrompt}
 STRICTLY BANNED PHRASES & ENDINGS (AUTOMATIC REJECTION IF USED):
@@ -1005,19 +1215,19 @@ STRICTLY BANNED PHRASES & ENDINGS (AUTOMATIC REJECTION IF USED):
 - NEVER use: "फैसला सही था या बड़ी भूल", "right call or big mistake"
 - NEVER use generic endings: "सब्सक्राइब कीजिए", "लाइक शेयर सब्सक्राइब", "drop your thoughts and subscribe"
 
-CRITICAL TOPIC-SPECIFIC SCRIPT RULES:
-1. DIRECTLY ANSWER THE HEADLINE: Never write vague commentary. If the topic is captaincy options (e.g. KKR), NAME actual candidates (e.g. Venkatesh Iyer, Shreyas Iyer, Andre Russell) and explain WHY each fits based on real cricket facts (title-winning domestic composure vs overseas aggressive mind).
+CRITICAL TOPIC-FIRST SCRIPT RULES:
+1. DIRECTLY ANSWER THE HEADLINE: Lock 100% to "${chosenStory?.headline}". Never write vague commentary or switch to unrelated players.
 2. If comparing players, state both names clearly and cite their exact verified stats.
-3. If the topic is an auction or player price, name the player, analyze their exact skill (death-overs yorker specialist, powerplay boundary hitter, mystery spin), and the bidding dilemma.
-4. Beat 1 (0-2s, 8-12 words): High-impact hook stating the exact dilemma and naming the real players.
-5. Beat 2 (2-20s, 14-18 words): Player 1 / Option A breakdown with concrete cricket stats or tactical reasoning.
-6. Beat 3 (20-35s, 14-18 words): Player 2 / Option B / Counter-tactics explaining the team dilemma.
-7. Beat 4 (35-45s, 10-14 words): Sharp, polarizing fan debate question asking viewers to choose between the specific players/options.
+3. If the topic is an auction or player price, name the player, analyze their exact skill, and the bidding dilemma without forcing player stats.
+4. Beat 1 (0-2s, 8-12 words): High-impact hook stating the exact dilemma and naming the real players/subject.
+5. Beat 2 (2-20s, 14-18 words): Subject / Option A breakdown with concrete facts or tactical reasoning.
+6. Beat 3 (20-35s, 14-18 words): Subject / Option B / Counter-tactics explaining the team dilemma.
+7. Beat 4 (35-45s, 10-14 words): Sharp, polarizing fan debate question asking viewers to choose.
 
 CRITICAL TTS & PRONUNCIATION INSTRUCTION:
 - Microsoft Edge TTS Hindi neural voice mispronounces English acronyms and letters if written in Latin script.
 - In ALL Hindi voiceover fields ("hookHindi", "bodyPart1Hindi", "bodyPart2Hindi", "ctaHindi"):
-  Write 100% in Devanagari script. All proper nouns and cricket terms MUST be written phonetically in Devanagari (e.g. "आईपीएल", "केकेआर", "आरसीबी", "सीएसके", "वेंकटेश अय्यर", "विराट कोहली", "रोहित शर्मा", "जसप्रीत बुमराह", "ऑक्शन", "कप्तानी"). NEVER use Latin/English letters inside Hindi voiceover fields.
+  Write 100% in Devanagari script. All proper nouns and cricket terms MUST be written phonetically in Devanagari (e.g. "आईपीएल", "केकेआर", "आरसीबी", "सीएसके", "ऋषभ पंत", "वेंकटेश अय्यर", "विराट कोहली", "रोहित शर्मा", "जसप्रीत बुमराह", "ऑक्शन", "कप्तानी"). NEVER use Latin/English letters inside Hindi voiceover fields.
 
 CRITICAL SUBTITLE INSTRUCTION:
 - In ALL English subtitle fields ("hookEnglish", "bodyPart1English", "bodyPart2English", "ctaEnglish"):
@@ -1042,9 +1252,9 @@ Return ONLY a valid JSON object matching this schema:
   "bodyPart2English": "...",
   "ctaHindi": "...",
   "ctaEnglish": "...",
-  "primaryPlayer": "${comparisonData?.type === 'comparison' ? `${comparisonData.player1.name} vs ${comparisonData.player2.name}` : comparisonData?.player?.name || primaryPlayer}",
+  "primaryPlayer": "${defaultPlayerName}",
   "team": "${teamKey}",
-  "statBadge": "${comparisonData?.type === 'comparison' ? 'HEAD-TO-HEAD' : 'VERIFIED STATS'}",
+  "statBadge": "${defaultStatBadge}",
   "visualQuery": "cricket stadium floodlights crowd night",
   "visualSceneQueries": [
     "cricket stadium floodlights crowd night",
@@ -1153,6 +1363,8 @@ Return ONLY a valid JSON object matching this schema:
       ];
 
   const resolvedComparisonData = generated.comparisonData || comparisonData;
+  const finalPrimaryPlayer = generated.primaryPlayer || defaultPlayerName;
+  const finalStatBadge = generated.statBadge || defaultStatBadge;
 
   return {
     slot: 'slot5',
@@ -1160,9 +1372,9 @@ Return ONLY a valid JSON object matching this schema:
     title: formattedTitle.slice(0, 95),
     headline: summary.fullSummary,
     cleanTitle: summary.fullSummary,
-    primaryPlayer: generated.primaryPlayer || (resolvedComparisonData?.type === 'comparison' ? `${resolvedComparisonData.player1.name} vs ${resolvedComparisonData.player2.name}` : resolvedComparisonData?.player?.name || primaryPlayer),
+    primaryPlayer: finalPrimaryPlayer,
     team: teamKey,
-    statBadge: generated.statBadge || (resolvedComparisonData?.type === 'comparison' ? 'HEAD-TO-HEAD' : 'VERIFIED STATS'),
+    statBadge: finalStatBadge,
     visualQuery: visualSceneQueries[0],
     secondaryQuery: visualSceneQueries[1],
     altQueries: visualSceneQueries.slice(2),

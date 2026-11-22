@@ -118,6 +118,58 @@ function renderStatsOverlaySvg(comparisonData, accentHex) {
       <!-- Verified Stats Footer Note -->
       <text x="540" y="1042" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#64748b" text-anchor="middle" letter-spacing="1">VERIFIED OFFICIAL IPL &amp; T20 RECORDS</text>
     `;
+  } else if (comparisonData.type === 'comparison_3') {
+    const players = comparisonData.players || [];
+    const cardTitle = escapeXml((comparisonData.title || '3-WAY LEADERSHIP COMPARISON').toUpperCase());
+
+    const p1 = players[0] || {};
+    const p2 = players[1] || {};
+    const p3 = players[2] || {};
+
+    return `
+      <!-- 3-Player Comparison Card Container (y=725 to y=1075) -->
+      <rect x="60" y="725" width="960" height="345" rx="28" fill="#080e1a" fill-opacity="0.90" stroke="${accentHex}" stroke-width="2.5" />
+
+      <!-- Top Card Header Badge -->
+      <rect x="340" y="708" width="400" height="30" rx="15" fill="${accentHex}" />
+      <text x="540" y="728" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="14" fill="#000000" text-anchor="middle" letter-spacing="1.2">${cardTitle}</text>
+
+      <!-- Column 1 (x=215) -->
+      <text x="215" y="772" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="21" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p1.name || '')}</text>
+      <rect x="95" y="788" width="240" height="24" rx="12" fill="#1e293b" />
+      <text x="215" y="805" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#94a3b8" text-anchor="middle">${escapeXml((p1.role || 'LEADER').toUpperCase())}</text>
+      <rect x="85" y="824" width="260" height="42" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="215" y="851" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="900" fill="${accentHex}" text-anchor="middle">${escapeXml(p1.stat1 || '')}</text>
+      <rect x="85" y="876" width="260" height="42" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="215" y="903" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p1.stat2 || '')}</text>
+
+      <!-- Divider 1 -->
+      <line x1="365" y1="755" x2="365" y2="1025" stroke="#334155" stroke-width="1.5" stroke-dasharray="4,4" />
+
+      <!-- Column 2 (x=540) -->
+      <text x="540" y="772" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="21" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p2.name || '')}</text>
+      <rect x="420" y="788" width="240" height="24" rx="12" fill="#1e293b" />
+      <text x="540" y="805" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#94a3b8" text-anchor="middle">${escapeXml((p2.role || 'LEADER').toUpperCase())}</text>
+      <rect x="410" y="824" width="260" height="42" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="540" y="851" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="900" fill="${accentHex}" text-anchor="middle">${escapeXml(p2.stat1 || '')}</text>
+      <rect x="410" y="876" width="260" height="42" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="540" y="903" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p2.stat2 || '')}</text>
+
+      <!-- Divider 2 -->
+      <line x1="695" y1="755" x2="695" y2="1025" stroke="#334155" stroke-width="1.5" stroke-dasharray="4,4" />
+
+      <!-- Column 3 (x=865) -->
+      <text x="865" y="772" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="21" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p3.name || '')}</text>
+      <rect x="745" y="788" width="240" height="24" rx="12" fill="#1e293b" />
+      <text x="865" y="805" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#94a3b8" text-anchor="middle">${escapeXml((p3.role || 'LEADER').toUpperCase())}</text>
+      <rect x="735" y="824" width="260" height="42" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="865" y="851" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="900" fill="${accentHex}" text-anchor="middle">${escapeXml(p3.stat1 || '')}</text>
+      <rect x="735" y="876" width="260" height="42" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <text x="865" y="903" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="900" fill="#ffffff" text-anchor="middle">${escapeXml(p3.stat2 || '')}</text>
+
+      <!-- Verified Stats Footer Note -->
+      <text x="540" y="1042" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#64748b" text-anchor="middle" letter-spacing="1">VERIFIED OFFICIAL IPL &amp; T20 RECORDS</text>
+    `;
   } else if (comparisonData.type === 'stat_card') {
     const p = comparisonData.player || {};
     const cardTitle = escapeXml((comparisonData.title || 'PLAYER IMPACT STATS').toUpperCase());
@@ -147,6 +199,40 @@ function renderStatsOverlaySvg(comparisonData, accentHex) {
 
       <!-- Verified Stats Footer Note -->
       <text x="540" y="1015" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#64748b" text-anchor="middle" letter-spacing="1">VERIFIED OFFICIAL IPL &amp; T20 RECORDS</text>
+    `;
+  } else if (comparisonData.type === 'topic_card') {
+    const cardTitle = escapeXml((comparisonData.title || 'TOPIC CONTEXT').toUpperCase());
+    const cardHeader = escapeXml((comparisonData.header || 'TACTICAL BREAKDOWN').toUpperCase());
+    const point1 = escapeXml(comparisonData.point1 || '');
+    const point2 = escapeXml(comparisonData.point2 || '');
+    const point3 = escapeXml(comparisonData.point3 || '');
+
+    return `
+      <!-- Topic Context / Key Points Card Container (y=745 to y=1055) -->
+      <rect x="75" y="745" width="930" height="310" rx="26" fill="#080e1a" fill-opacity="0.90" stroke="${accentHex}" stroke-width="2.5" />
+
+      <!-- Top Card Header Badge -->
+      <rect x="340" y="728" width="400" height="30" rx="15" fill="${accentHex}" />
+      <text x="540" y="748" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="14" fill="#000000" text-anchor="middle" letter-spacing="1.2">${cardTitle}</text>
+
+      <!-- Card Headline -->
+      <text x="540" y="792" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="900" fill="#ffffff" text-anchor="middle">${cardHeader}</text>
+
+      <!-- 3 Sleek Key Point Rows -->
+      <rect x="105" y="812" width="870" height="50" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <circle cx="135" cy="837" r="6" fill="${accentHex}" />
+      <text x="155" y="844" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="17" font-weight="700" fill="#f8fafc">${point1}</text>
+
+      <rect x="105" y="872" width="870" height="50" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <circle cx="135" cy="897" r="6" fill="#38bdf8" />
+      <text x="155" y="904" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="17" font-weight="700" fill="#f8fafc">${point2}</text>
+
+      <rect x="105" y="932" width="870" height="50" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+      <circle cx="135" cy="957" r="6" fill="${accentHex}" />
+      <text x="155" y="964" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="17" font-weight="700" fill="#f8fafc">${point3}</text>
+
+      <!-- Footer Note -->
+      <text x="540" y="1030" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#64748b" text-anchor="middle" letter-spacing="1">TACTICAL CRICKET INSIGHT • DAILY PULSE</text>
     `;
   }
   return '';
