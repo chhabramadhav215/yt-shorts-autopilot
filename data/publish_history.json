@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-22T13:38:16.453Z",
+  "lastUpdated": "2026-11-22T14:41:30.159Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -369,6 +369,22 @@
       "headline": "Lord Shiva & Sage Markandeya: Divine Grace & Sacred Wisdom 🕉️",
       "url": "https://youtube.com/shorts/GTlCbsG7wbg",
       "publishedAt": "2026-11-22T13:38:16.453Z"
+    },
+    {
+      "hash": "4793b478a929ccd53a7d33c0622af3c5",
+      "slot": "slot3",
+      "title": "Explained: PM Modi Says India Has Shown It Can Break Limits 🚨",
+      "headline": "PM Modi Says India Has Shown It Can Break Limits",
+      "url": "",
+      "publishedAt": "2026-11-22T14:41:28.425Z"
+    },
+    {
+      "hash": "5b86dfab0b97faf5bcc42e7c1a3371d9",
+      "slot": "slot3",
+      "title": "Explained: PM Modi Says India Has Shown It Can Break Limits 🚨",
+      "headline": "Explained: PM Modi Says India Has Shown It Can Break Limits 🚨",
+      "url": "https://youtube.com/shorts/U5E984XIreM",
+      "publishedAt": "2026-11-22T14:41:30.159Z"
     }
   ],
   "usedVideoClips": [
@@ -1035,6 +1051,30 @@
       "slot": "slot2",
       "type": "video",
       "usedAt": "2026-11-22T13:37:24.375Z"
+    },
+    {
+      "id": "financial_markets_radar.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-22T14:40:38.238Z"
+    },
+    {
+      "id": "city_traffic.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-22T14:40:38.395Z"
+    },
+    {
+      "id": "tech_digital_globe.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-22T14:40:38.560Z"
+    },
+    {
+      "id": "newsroom_studio.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-22T14:40:38.703Z"
     }
   ],
   "usedScriptures": [],
