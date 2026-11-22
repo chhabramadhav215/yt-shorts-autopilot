@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-22T16:15:00.758Z",
+  "lastUpdated": "2026-11-22T19:09:58.742Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -401,6 +401,22 @@
       "headline": "Auqib Nabi Dar Auction Price & Team 🏏🔥",
       "url": "https://youtube.com/shorts/ShsAet6iuig",
       "publishedAt": "2026-11-22T16:15:00.758Z"
+    },
+    {
+      "hash": "ab55d17908b5f1dd88d2b487a35acb55",
+      "slot": "slot3",
+      "title": "Explained: Nz Fight on After Centurion Pant Powers India 🚨",
+      "headline": "Nz Fight on After Centurion Pant Powers India",
+      "url": "",
+      "publishedAt": "2026-11-22T19:09:57.138Z"
+    },
+    {
+      "hash": "17199b81774b5ef7cdb723f2818cb624",
+      "slot": "slot3",
+      "title": "Explained: Nz Fight on After Centurion Pant Powers India 🚨",
+      "headline": "Explained: Nz Fight on After Centurion Pant Powers India 🚨",
+      "url": "https://youtube.com/shorts/tEiJNvr3fbg",
+      "publishedAt": "2026-11-22T19:09:58.742Z"
     }
   ],
   "usedVideoClips": [
@@ -1115,6 +1131,30 @@
       "slot": "slot5",
       "type": "video",
       "usedAt": "2026-11-22T16:14:24.464Z"
+    },
+    {
+      "id": "breaking_news_anchor.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-22T19:09:09.813Z"
+    },
+    {
+      "id": "global_geopolitics_network.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-22T19:09:09.944Z"
+    },
+    {
+      "id": "financial_markets_radar.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-22T19:09:10.081Z"
+    },
+    {
+      "id": "city_traffic.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-22T19:09:10.224Z"
     }
   ],
   "usedScriptures": [],
