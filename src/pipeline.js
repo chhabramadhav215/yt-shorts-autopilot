@@ -8,6 +8,7 @@ import { generateSlot2Content } from './content/slot2_devotional.js';
 import { generateSlot3Content } from './content/slot3_news.js';
 import { generateSlot4Content } from './content/slot4_scriptures.js';
 import { generateSlot5Content } from './content/slot5_cricket.js';
+import { generateSlot6Content } from './content/slot6_explainer.js';
 import { generateVoiceover, generateDialogueVoiceover } from './generator/tts.js';
 import { generateAssSubtitles } from './generator/subtitles.js';
 import { generateVisualBackground } from './generator/visual_synth.js';
@@ -43,8 +44,10 @@ export async function generateShortVideo(slot, customTopic = null) {
     content = await generateSlot4Content(customTopic);
   } else if (slot === 'slot5') {
     content = await generateSlot5Content(customTopic);
+  } else if (slot === 'slot6') {
+    content = await generateSlot6Content(customTopic);
   } else {
-    throw new Error(`Unknown slot identifier: ${slot}. Use 'slot1', 'slot2', 'slot3', 'slot4', or 'slot5'.`);
+    throw new Error(`Unknown slot identifier: ${slot}. Use 'slot1', 'slot2', 'slot3', 'slot4', 'slot5', or 'slot6'.`);
   }
 
   logger.slot(slot, `Title: "${content.title}"`);
@@ -116,6 +119,7 @@ export async function generateShortVideo(slot, customTopic = null) {
     comparisonData: content.comparisonData,
     deity: content.deity,
     epic: content.epic,
+    beats: content.beats,
   });
 
   // 5. Final Video Compilation (Clean Dual-Audio mix + subtitles burn)

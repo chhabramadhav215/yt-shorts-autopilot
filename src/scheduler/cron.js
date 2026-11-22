@@ -12,6 +12,7 @@ export function startScheduler() {
   logger.info(`Slot 4 (Epic Scriptures):"${config.cron.slot4}"`);
   logger.info(`Slot 3 (Viral News):    "${config.cron.slot3}"`);
   logger.info(`Slot 5 (Cricket Buzz):   "${config.cron.slot5}"`);
+  logger.info(`Slot 6 (Tactical Explainer): "${config.cron.slot6}"`);
 
   // 1. Morning Slot 1: Cute Baby Dance / Entertainment
   cron.schedule(
@@ -88,5 +89,20 @@ export function startScheduler() {
     { timezone: config.cron.timezone }
   );
 
-  logger.success('All 5 Daily Shorts schedules are active and armed!');
+  // 6. Late-Night Slot 6: Cricket Tactical / Squad & Auction Explainer (10:30 PM IST)
+  cron.schedule(
+    config.cron.slot6,
+    async () => {
+      logger.slot('slot6', 'Executing daily late-night scheduled run: Cricket Tactical / Squad & Auction Explainer');
+      try {
+        const result = await publishShort('slot6');
+        await notifyTelegramUpload(result);
+      } catch (err) {
+        logger.error('Scheduled Slot 6 error:', err.message);
+      }
+    },
+    { timezone: config.cron.timezone }
+  );
+
+  logger.success('All 6 Daily Shorts schedules are active and armed!');
 }

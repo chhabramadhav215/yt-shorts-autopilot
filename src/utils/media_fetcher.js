@@ -311,7 +311,7 @@ export async function fetchMultiClipSequence({
   } else if (slotType === 'slot4') {
     await ensureCategoryPools();
     categoryDir = SCRIPTURES_DIR;
-  } else if (slotType === 'slot5') {
+  } else if (slotType === 'slot5' || slotType === 'slot6') {
     await ensureCategoryPools();
     categoryDir = CRICKET_DIR;
   }
@@ -745,9 +745,9 @@ export async function fetchSlotBackgroundMedia({
   }
 
   // =================================================================
-  // SLOT 5: CRICKET & IPL BUZZ (100% Moving Video)
+  // SLOT 5 & 6: CRICKET & IPL BUZZ / TACTICAL EXPLAINER (100% Moving Video)
   // =================================================================
-  if (slotType === 'slot5') {
+  if (slotType === 'slot5' || slotType === 'slot6') {
     const stadiumQueries = [];
     if (visualQuery) stadiumQueries.push(visualQuery);
     if (secondaryQuery) stadiumQueries.push(secondaryQuery);

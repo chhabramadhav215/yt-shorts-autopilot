@@ -13,6 +13,7 @@ import {
 } from '../utils/media_fetcher.js';
 import { summarizeNewsHeadline, toTitleCase } from '../utils/text_utils.js';
 import { generateCricketVisualBackground } from './cricket_synth.js';
+import { generateExplainerVisualBackground } from './explainer_synth.js';
 
 const require = createRequire(import.meta.url);
 
@@ -167,8 +168,24 @@ export async function generateVisualBackground({
   comparisonData = null,
   deity = null,
   epic = null,
+  beats = [],
 }) {
   const roundDur = Math.ceil(duration) + 1;
+
+  // =================================================================
+  // SLOT 6 (Cricket Tactical & Auction Explainer): Beat-Driven Visual Synth
+  // =================================================================
+  if (slotType === 'slot6') {
+    return generateExplainerVisualBackground({
+      duration,
+      outputPath,
+      headline: headline || title,
+      team,
+      beats,
+      visualSceneQueries,
+      customTopic,
+    });
+  }
 
   // =================================================================
   // SLOT 5 (IPL & Cricket Buzz): Dedicated Sports Visual Synth

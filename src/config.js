@@ -47,6 +47,7 @@ export const config = {
     slot4: process.env.SLOT4_CRON || '0 17 * * *',  // 5:00 PM Evening (Epic Scriptures & Wisdom)
     slot3: process.env.SLOT3_CRON || '30 19 * * *', // 7:30 PM Night
     slot5: process.env.SLOT5_CRON || '0 21 * * *',  // 9:00 PM Night (Prime IPL & Cricket Buzz)
+    slot6: process.env.SLOT6_CRON || '30 22 * * *', // 10:30 PM Night (Cricket Tactical Explainer)
     timezone: process.env.TIMEZONE || 'Asia/Kolkata',
   },
 
@@ -56,6 +57,7 @@ export const config = {
     slot3: process.env.SLOT3_VOICE || 'hi-IN-MadhurNeural',      // Fast-paced News Anchor Hindi voice
     slot4: process.env.SLOT4_VOICE || 'hi-IN-MadhurNeural',      // Epic Philosophical Hindi voice
     slot5: process.env.SLOT5_VOICE || 'hi-IN-MadhurNeural',      // High-energy Cricket Anchor Hindi voice (+10% speed)
+    slot6: process.env.SLOT6_VOICE || 'hi-IN-MadhurNeural',      // High-energy Tactical Explainer Hindi voice (+10% speed)
   },
 
   meta: {

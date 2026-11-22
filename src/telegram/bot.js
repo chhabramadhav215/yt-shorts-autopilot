@@ -49,8 +49,10 @@ Welcome to your automated channel publisher! Control your daily slots directly f
 • \`/slot4\` - 🏹 Epic Hindu scriptures & wisdom clips (Gita, Mahabharata, Ramayana)
 • \`/slot3\` - 🚨 Viral breaking news / TRP explainer
 • \`/slot5\` - 🏏 IPL & Cricket Buzz (Trades, Auction, Captaincy)
+• \`/slot6\` - 📊 Cricket Tactical & Squad Explainer (Auction & Roster Beats)
 • \`/news <topic>\` - 📰 Explainer short on any specific custom news topic
 • \`/cricket <topic>\` - 🏏 Cricket short on any player or team
+• \`/explainer <topic>\` - 📊 Tactical squad breakdown on any team
 • \`/custom <topic>\` - 💡 Custom short on any topic
 
 👁️ *Preview Without Uploading:*
@@ -59,6 +61,7 @@ Welcome to your automated channel publisher! Control your daily slots directly f
 • \`/preview slot4\` - Generates Slot 4 video and sends MP4 here
 • \`/preview slot3\` - Generates Slot 3 video and sends MP4 here
 • \`/preview slot5\` - Generates Slot 5 video and sends MP4 here
+• \`/preview slot6\` - Generates Slot 6 video and sends MP4 here
 
 ⚙️ *Settings & Status:*
 • \`/status\` - View YouTube channel status & token validity
@@ -69,6 +72,8 @@ Welcome to your automated channel publisher! Control your daily slots directly f
 • Slot 2 (Devotional): 02:00 PM
 • Slot 4 (Epic Wisdom Clips): 05:00 PM
 • Slot 3 (Viral News): 07:30 PM
+• Slot 5 (Cricket Buzz): 09:00 PM
+• Slot 6 (Tactical Explainer): 10:30 PM
 `;
     bot.sendMessage(msg.chat.id, helpMessage, { parse_mode: 'Markdown' });
   });
@@ -140,6 +145,13 @@ Welcome to your automated channel publisher! Control your daily slots directly f
     triggerUpload(bot, msg.chat.id, 'slot5', customTopic);
   });
 
+  // /slot6 and /explainer command
+  bot.onText(/\/(slot6|explainer|tactical|auction)(?:\s+(.*))?/, async (msg, match) => {
+    if (!isAuthorized(msg)) return handleUnauthorized(msg);
+    const customTopic = match[2] ? match[2].trim() : null;
+    triggerUpload(bot, msg.chat.id, 'slot6', customTopic);
+  });
+
   // /custom command
   bot.onText(/\/custom\s+(.+)/, async (msg, match) => {
     if (!isAuthorized(msg)) return handleUnauthorized(msg);
@@ -157,6 +169,7 @@ Welcome to your automated channel publisher! Control your daily slots directly f
     else if (slotInput.includes('4') || slotInput.includes('scrip') || slotInput.includes('epic') || slotInput.includes('gita')) slot = 'slot4';
     else if (slotInput.includes('3') || slotInput.includes('news')) slot = 'slot3';
     else if (slotInput.includes('5') || slotInput.includes('cric') || slotInput.includes('ipl')) slot = 'slot5';
+    else if (slotInput.includes('6') || slotInput.includes('explain') || slotInput.includes('tact')) slot = 'slot6';
 
     bot.sendMessage(msg.chat.id, `🎨 Generating video preview for *${slot.toUpperCase()}*...\nPlease wait ~15-20 seconds.`, { parse_mode: 'Markdown' });
 

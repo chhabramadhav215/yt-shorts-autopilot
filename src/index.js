@@ -42,6 +42,8 @@ async function main() {
   console.log(' • Slot 2 (Devotional):    02:00 PM (Hindu devotional darshan)');
   console.log(' • Slot 4 (Epic Wisdom):   05:00 PM (Epic Scriptures & Wisdom Clips)');
   console.log(' • Slot 3 (Viral News):    07:30 PM (Trending 30s explainer)');
+  console.log(' • Slot 5 (Cricket Buzz):  09:00 PM (IPL & Cricket Buzz)');
+  console.log(' • Slot 6 (Tactical):      10:30 PM (Cricket Tactical & Auction Explainer)');
   console.log('-------------------------------------------------------------\n');
   logger.info('Service is active. Press Ctrl+C anytime to stop.');
 }

@@ -27,6 +27,7 @@ on:
           - slot3
           - slot4
           - slot5
+          - slot6
       customTopic:
         description: 'Optional custom topic'
         required: false

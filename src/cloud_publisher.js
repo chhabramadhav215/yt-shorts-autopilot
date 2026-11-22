@@ -17,6 +17,7 @@ function resolveTargetSlot() {
     if (explicitSlot.includes('3')) return 'slot3';
     if (explicitSlot.includes('4')) return 'slot4';
     if (explicitSlot.includes('5') || explicitSlot.includes('cric') || explicitSlot.includes('ipl')) return 'slot5';
+    if (explicitSlot.includes('6') || explicitSlot.includes('explain') || explicitSlot.includes('tact') || explicitSlot.includes('auction')) return 'slot6';
   }
 
   const cronSchedule = (process.env.SCHEDULE_CRON || '').trim();
