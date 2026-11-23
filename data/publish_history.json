@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-22T20:58:57.668Z",
+  "lastUpdated": "2026-11-23T04:42:03.111Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -465,6 +465,22 @@
       "headline": "SRH 250+ Destruction Formula: Cummins Leadership & Turning Pitch Balance",
       "url": "https://youtube.com/shorts/HS6jK3kpwj4",
       "publishedAt": "2026-11-22T20:58:57.668Z"
+    },
+    {
+      "hash": "0a0a51faf939bdbfc1e39c04a33c41b0",
+      "slot": "slot1",
+      "title": "Papa vs Baby! 👶💥 The TV Remote Heist",
+      "headline": "REMOTE CONTROL HEIST 📺🕵️",
+      "url": "",
+      "publishedAt": "2026-11-23T04:42:01.528Z"
+    },
+    {
+      "hash": "f657a98a28dd2891f74eef604302899a",
+      "slot": "slot1",
+      "title": "Papa vs Baby! 👶💥 The TV Remote Heist",
+      "headline": "Papa vs Baby! 👶💥 The TV Remote Heist",
+      "url": "https://youtube.com/shorts/zZMqrSKTVAw",
+      "publishedAt": "2026-11-23T04:42:03.111Z"
     }
   ],
   "usedVideoClips": [
@@ -1275,6 +1291,30 @@
       "slot": "slot6",
       "type": "video",
       "usedAt": "2026-11-22T20:57:33.487Z"
+    },
+    {
+      "id": "05_toddler_wobble.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-23T04:41:23.507Z"
+    },
+    {
+      "id": "09_toy_adventure.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-23T04:41:23.630Z"
+    },
+    {
+      "id": "02_baby_dance.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-23T04:41:23.731Z"
+    },
+    {
+      "id": "08_naughty_smile.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-23T04:42:01.529Z"
     }
   ],
   "usedScriptures": [],
@@ -1326,6 +1366,12 @@
       "slot": "slot2",
       "title": "Lord Shiva & Sage Markandeya: Divine Grace & Sacred Wisdom 🕉️",
       "usedAt": "2026-11-22T13:37:15.897Z"
+    },
+    {
+      "id": "tv_remote_couch_hide",
+      "slot": "slot1",
+      "title": "Papa vs Baby! 👶💥 The TV Remote Heist",
+      "usedAt": "2026-11-23T04:41:17.958Z"
     }
   ]
 }
