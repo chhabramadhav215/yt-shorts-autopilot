@@ -206,7 +206,7 @@ Return ONLY a valid JSON object matching this schema:
     `📜 SCRIPTURE REFERENCE & CONTEXT:\n` +
     `• Source: ${chosenData.epic || 'Sacred Indian Epics'}\n` +
     `• Narration in Hindi with burned-in English subtitles, set to sacred instrumental music.\n\n` +
-    `#Mahabharata #Ramayana #BhagavadGita #HinduScriptures #Dharma #VedicWisdom`;
+    `Follow`;
 
   return {
     slot: 'slot4',

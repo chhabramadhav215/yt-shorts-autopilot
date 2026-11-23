@@ -558,17 +558,51 @@ export function sanitizeCaptionAndAttribution(text) {
     .replace(/(?:source\s+)?(?:credits?|attribution)\s*:[^\n.,!?]+[.,!?]?/gi, '')
     // Strip fair use attribution boilerplate
     .replace(/⚖️\s*SECTION 107 FAIR USE & ATTRIBUTION DISCLAIMER:[\s\S]*$/gi, '')
-    // Strip generic subscribe / follow lines
-    .replace(/^[ \t]*(?:subscribe|follow)\b[^\n]*$/gim, '')
+    // Strip generic subscribe / follow lines (e.g. subscribe to channel, follow @x for more)
+    .replace(/^[ \t]*(?:subscribe|follow\s+@?\w+)\b[^\n]*$/gim, '')
     .replace(/(?:subscribe\s+(?:to|for)\s+[^.\n]+[.]?)/gi, '')
     .replace(/(?:follow\s+@?\w+\s+for\s+more[.]?)/gi, '')
     .replace(/@dailypulseshortss\b/gi, '')
+    // Strip lines composed purely of hashtags or trailing hashtag dumps
+    .replace(/^[ \t]*(?:#\w+[\s,]*)+$/gim, '')
+    .replace(/(?:#\w+\s*)+$/gi, '')
     // Clean up empty lines or lines with only isolated punctuation
     .split('\n')
     .filter((line) => line.trim() && !/^[\s.,!?:;\\/|\-_~]+$/.test(line.trim()))
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/**
+ * Formats a clean caption or description that keeps title/hook/summary clean and simply ends with "Follow".
+ * Ensures zero "Video by ..." attribution or spammy hashtag blocks.
+ * @param {Object} params
+ * @param {string} params.title
+ * @param {string} [params.description='']
+ * @param {string} [params.customCaption=null]
+ * @returns {string}
+ */
+export function formatCaptionWithFollow({ title, description = '', customCaption = null }) {
+  if (customCaption) {
+    const cleanCustom = sanitizeCaptionAndAttribution(customCaption);
+    return `${cleanCustom}\n\nFollow`.replace(/(?:\n\s*Follow\s*)+$/i, '\n\nFollow').trim();
+  }
+
+  const cleanDesc = sanitizeCaptionAndAttribution(description);
+  let baseText = '';
+
+  if (cleanDesc) {
+    if (title && !cleanDesc.toLowerCase().startsWith(title.toLowerCase().slice(0, 30))) {
+      baseText = `${title}\n\n${cleanDesc}`;
+    } else {
+      baseText = cleanDesc;
+    }
+  } else {
+    baseText = title || '';
+  }
+
+  return `${baseText}\n\nFollow`.replace(/(?:\n\s*Follow\s*)+$/i, '\n\nFollow').trim();
 }
 
 /**

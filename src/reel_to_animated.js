@@ -778,7 +778,7 @@ async function main() {
       youtubeResult = await uploadShort({
         videoPath: finalVideoPath,
         title: displayTitle,
-        description: `${displayTitle}\n\nStylized 2D cartoon / rotoscope animation with original audio preserved.\n\n#Shorts #ViralShorts #CartoonAnimation #Rotoscope #ReelToAnimated`,
+        description: `${displayTitle}\n\nStylized 2D cartoon / rotoscope animation with original audio preserved.\n\nFollow`,
         tags: ['shorts', 'reels', 'animated', 'cartoon', 'comic', 'rotoscope', 'viral'],
         privacyStatus: privacyStatus || 'public',
       });
@@ -810,7 +810,7 @@ async function main() {
     process.env.FACEBOOK_PAGE_ID ||
     process.env.FB_PAGE_ID;
 
-  const caption = `${displayTitle}\n\nStylized 2D cartoon / rotoscope animation with original audio preserved.\n\n#reels #viral #animated #cartoon #rotoscope #trending`;
+  const caption = `${displayTitle}\n\nStylized 2D cartoon / rotoscope animation with original audio preserved.\n\nFollow`;
 
   let igResult = null;
   let fbResult = null;

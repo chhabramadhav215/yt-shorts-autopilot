@@ -270,7 +270,7 @@ Return JSON with this exact schema:
     `• Deity / Theme: ${chosenData.deity}\n` +
     `• Katha: ${chosenData.hookEnglish || chosenData.title}\n` +
     `• Devotional Hindi narration with burned-in English subtitles.\n\n` +
-    `#SanatanDharma #Devotional #Bhakti #Hinduism #Mahadev #SpiritualShorts`;
+    `Follow`;
 
   return {
     slot: 'slot2',

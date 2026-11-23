@@ -4,7 +4,7 @@ import { execFile } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { logger } from '../utils/logger.js';
 import { config } from '../config.js';
-import { sanitizeCaptionAndAttribution, getSlotTrendingHashtags } from '../utils/text_utils.js';
+import { sanitizeCaptionAndAttribution, getSlotTrendingHashtags, formatCaptionWithFollow } from '../utils/text_utils.js';
 
 const META_GRAPH_VERSION = 'v20.0';
 const GRAPH_API_BASE = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
@@ -865,16 +865,8 @@ export async function publishToMetaReels({
     };
   }
 
-  // Format clean caption with trending hashtags (removing any generic "Video by ..." or channel credits)
-  const cleanDescription = sanitizeCaptionAndAttribution(description);
-  const trendingTags = getSlotTrendingHashtags(slot, tags);
-  const formattedHashtags = trendingTags.map((t) => `#${t}`).join(' ');
-
-  const caption = customCaption || [
-    title,
-    cleanDescription ? cleanDescription.slice(0, 350) : '',
-    formattedHashtags,
-  ].filter(Boolean).join('\n\n').trim();
+  // Format clean caption ending with "Follow" (removing any generic "Video by ..." or channel credits)
+  const caption = formatCaptionWithFollow({ title, description, customCaption });
 
   const results = { published: true };
 

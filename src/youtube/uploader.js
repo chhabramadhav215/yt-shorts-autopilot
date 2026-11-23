@@ -2,7 +2,7 @@ import fs from 'fs';
 import { getYouTubeService } from './client.js';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
-import { sanitizeCaptionAndAttribution, getSlotTrendingHashtags } from '../utils/text_utils.js';
+import { sanitizeCaptionAndAttribution, getSlotTrendingHashtags, formatCaptionWithFollow } from '../utils/text_utils.js';
 
 /**
  * Checks whether an error is a YouTube uploadLimitExceeded error
@@ -86,15 +86,9 @@ export async function uploadShort({
   logger.info(`Starting YouTube Short upload: "${finalTitle}" (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
   logger.info(`Privacy: ${privacyStatus.toUpperCase()}`);
 
-  // Format clean description with trending hashtags (removing any generic "Video by ..." or channel credits)
-  const cleanDesc = sanitizeCaptionAndAttribution(description);
+  // Format clean description ending with "Follow" (removing any generic "Video by ..." or channel credits)
+  const finalDescription = formatCaptionWithFollow({ title: finalTitle, description });
   const trendingTags = getSlotTrendingHashtags(slot, tags);
-  const formattedHashtags = trendingTags.map((t) => `#${t}`).join(' ');
-
-  const finalDescription = [
-    cleanDesc || finalTitle,
-    formattedHashtags,
-  ].filter(Boolean).join('\n\n').trim();
 
   try {
     const res = await youtube.videos.insert({
