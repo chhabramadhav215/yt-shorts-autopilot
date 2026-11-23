@@ -259,7 +259,7 @@ Return ONLY a valid JSON object matching this schema:
     slotName: 'Entertainment (Cute Baby Mini-Moments)',
     title: chosenData.title,
     headline: chosenData.badge || 'BABY MINI MOMENT 👶',
-    description: `${chosenData.title}\n\nCute 2-character baby comedy mini-moment!\n(Little ${chosenData.babyRole} vs ${chosenData.adultRole} banter in Hindi with bold burned-in English subtitles).\n\nSubscribe for daily toddler giggles, funny baby reactions, and pure cuteness!`,
+    description: `${chosenData.title}\n\nCute 2-character baby comedy mini-moment!\n(Little ${chosenData.babyRole} vs ${chosenData.adultRole} banter in Hindi with bold burned-in English subtitles).\n\n#BabyReels #CuteBaby #BabyShorts #ParentingHumor #ViralShorts`,
     tags: chosenData.tags || ['shorts', 'babycomedy', 'viralbaby', 'funnytoddler', 'cutebaby', 'fyp'],
     voice: config.voices.slot1 || 'hi-IN-SwaraNeural',
     adultVoice: config.voices.slot1Adult || 'hi-IN-MadhurNeural',

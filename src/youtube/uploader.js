@@ -2,6 +2,7 @@ import fs from 'fs';
 import { getYouTubeService } from './client.js';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
+import { sanitizeCaptionAndAttribution, getSlotTrendingHashtags } from '../utils/text_utils.js';
 
 /**
  * Checks whether an error is a YouTube uploadLimitExceeded error
@@ -59,6 +60,7 @@ export async function uploadShort({
   tags = [],
   categoryId = '24',
   privacyStatus = config.youtube.privacyStatus,
+  slot = null,
 }) {
   if (!fs.existsSync(videoPath)) {
     throw new Error(`Video file does not exist: ${videoPath}`);
@@ -84,14 +86,24 @@ export async function uploadShort({
   logger.info(`Starting YouTube Short upload: "${finalTitle}" (${(fileSize / (1024 * 1024)).toFixed(2)} MB)`);
   logger.info(`Privacy: ${privacyStatus.toUpperCase()}`);
 
+  // Format clean description with trending hashtags (removing any generic "Video by ..." or channel credits)
+  const cleanDesc = sanitizeCaptionAndAttribution(description);
+  const trendingTags = getSlotTrendingHashtags(slot, tags);
+  const formattedHashtags = trendingTags.map((t) => `#${t}`).join(' ');
+
+  const finalDescription = [
+    cleanDesc || finalTitle,
+    formattedHashtags,
+  ].filter(Boolean).join('\n\n').trim();
+
   try {
     const res = await youtube.videos.insert({
       part: ['snippet', 'status'],
       requestBody: {
         snippet: {
           title: finalTitle,
-          description: `${description}\n\n#Shorts #YouTubeShorts #ViralShorts`,
-          tags: Array.from(new Set(['shorts', 'youtube shorts', ...tags])),
+          description: finalDescription,
+          tags: Array.from(new Set(['shorts', 'youtube shorts', ...trendingTags.map((t) => t.toLowerCase())])),
           categoryId,
           defaultLanguage: 'en',
           defaultAudioLanguage: 'en',

@@ -1359,7 +1359,8 @@ Return ONLY a valid JSON object matching this schema:
     `• Topic: ${cleanHeadline}\n` +
     `• Featured Franchise: ${franchise.name}\n` +
     `• Language: Fast-paced Hindi commentary with burned-in English captions.\n\n` +
-    `Share your thoughts below! Which choice would you back?`;
+    `Share your thoughts below! Which choice would you back?\n\n` +
+    `#CricketShorts #IPL #CricketReels #T20Cricket #IndianCricketTeam`;
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'cricket.mp3');
   const sfxAudioPath = path.join(config.assetsDir, 'audio', 'whoosh.mp3');

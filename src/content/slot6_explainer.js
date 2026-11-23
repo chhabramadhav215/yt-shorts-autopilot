@@ -918,7 +918,8 @@ Return ONLY a valid JSON object matching this schema:
     `• Topic: ${headline}\n` +
     `• Team / Subject: ${teamKey}\n` +
     `• High-energy Hindi tactical analysis with real squad insights & burned-in English captions.\n\n` +
-    `Which tactical move would you back? Share your thoughts below!`;
+    `Which tactical move would you back? Share your thoughts below!\n\n` +
+    `#CricketShorts #IPL #CricketReels #T20Cricket #TacticalExplainer #IPL2026`;
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'cricket.mp3');
   const sfxAudioPath = path.join(config.assetsDir, 'audio', 'whoosh.mp3');

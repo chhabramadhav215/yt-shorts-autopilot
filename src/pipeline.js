@@ -183,6 +183,7 @@ export async function publishShort(slot, customTopic = null, privacyStatus = nul
       tags: generated.tags,
       categoryId: generated.categoryId,
       privacyStatus: privacyStatus || config.youtube.privacyStatus,
+      slot: generated.slot || slot,
     });
   } catch (err) {
     if (isUploadLimitExceeded(err)) {

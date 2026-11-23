@@ -343,7 +343,7 @@ Return ONLY a valid JSON object matching this schema:
     `• Summary: ${cardHeadline}\n` +
     `• Source: ${source}\n` +
     `• Language: Fast-paced Hindi narration with burned-in English on-screen subtitles.\n\n` +
-    `Share your perspective below! Like and subscribe for daily quick-fire news explainers.`;
+    `Share your perspective below!\n\n#NewsExplainer #CurrentAffairs #BharatNews #BreakingNews #DailyPulse`;
 
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'news.mp3');
 

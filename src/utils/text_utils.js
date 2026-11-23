@@ -540,3 +540,88 @@ export function transliterateHindiToHinglish(text) {
     return transliterated;
   });
 }
+
+/**
+ * Sanitizes captions and descriptions by removing generic "Video by ...", channel credits,
+ * fair use attribution boilerplate, or spammy subscribe/follow calls.
+ * @param {string} text
+ * @returns {string}
+ */
+export function sanitizeCaptionAndAttribution(text) {
+  if (!text) return '';
+  return text
+    // Strip "Video by @...", "Video by Channel", "Clip by ...", "Reel by ..."
+    .replace(/^[ \t]*(?:video|clip|reel|content|production)\s+by\s+[^\n]*$/gim, '')
+    .replace(/(?:video|clip|reel|content|production)\s+by\s+[^\n.,!?]+[.,!?]?/gi, '')
+    // Strip "Credit:", "Credits:", "Attribution:", "Source credit:"
+    .replace(/^[ \t]*(?:source\s+)?(?:credits?|attribution)\s*:[^\n]*$/gim, '')
+    .replace(/(?:source\s+)?(?:credits?|attribution)\s*:[^\n.,!?]+[.,!?]?/gi, '')
+    // Strip fair use attribution boilerplate
+    .replace(/⚖️\s*SECTION 107 FAIR USE & ATTRIBUTION DISCLAIMER:[\s\S]*$/gi, '')
+    // Strip generic subscribe / follow lines
+    .replace(/^[ \t]*(?:subscribe|follow)\b[^\n]*$/gim, '')
+    .replace(/(?:subscribe\s+(?:to|for)\s+[^.\n]+[.]?)/gi, '')
+    .replace(/(?:follow\s+@?\w+\s+for\s+more[.]?)/gi, '')
+    .replace(/@dailypulseshortss\b/gi, '')
+    // Clean up empty lines or lines with only isolated punctuation
+    .split('\n')
+    .filter((line) => line.trim() && !/^[\s.,!?:;\\/|\-_~]+$/.test(line.trim()))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Returns slot/topic-relevant trending hashtags for social media captions & YouTube descriptions.
+ * Keeps hashtags clean, focused, and free of spammy tag dumps.
+ * @param {string} slot - e.g. 'slot1', 'slot2', 'slot5', 'slot6'
+ * @param {string[]} [customTags=[]] - Topic-specific tags from generator
+ * @returns {string[]}
+ */
+export function getSlotTrendingHashtags(slot, customTags = []) {
+  const slotKey = String(slot || '').toLowerCase();
+  let baseTags = [];
+
+  if (slotKey.includes('slot1') || slotKey.includes('entertainment')) {
+    baseTags = ['BabyReels', 'CuteBaby', 'BabyShorts', 'ParentingHumor', 'ViralShorts', 'Shorts'];
+  } else if (slotKey.includes('slot2') || slotKey.includes('devotional')) {
+    baseTags = ['SanatanDharma', 'Devotional', 'Bhakti', 'Hinduism', 'Mahadev', 'SpiritualShorts', 'Shorts'];
+  } else if (slotKey.includes('slot3') || slotKey.includes('news')) {
+    baseTags = ['NewsExplainer', 'CurrentAffairs', 'BharatNews', 'BreakingNews', 'DailyPulse', 'Shorts'];
+  } else if (slotKey.includes('slot4') || slotKey.includes('scriptures')) {
+    baseTags = ['Mahabharata', 'Ramayana', 'BhagavadGita', 'HinduScriptures', 'Dharma', 'VedicWisdom', 'Shorts'];
+  } else if (slotKey.includes('slot5') || slotKey.includes('cricket')) {
+    baseTags = ['CricketShorts', 'IPL', 'CricketReels', 'T20Cricket', 'IndianCricketTeam', 'CricketFever', 'Shorts'];
+  } else if (slotKey.includes('slot6') || slotKey.includes('explainer')) {
+    baseTags = ['CricketShorts', 'IPL', 'CricketReels', 'T20Cricket', 'TacticalExplainer', 'IPL2026', 'Shorts'];
+  } else {
+    const lowerTags = (customTags || []).map((t) => String(t).toLowerCase());
+    if (lowerTags.some((t) => t.includes('cricket') || t.includes('ipl'))) {
+      baseTags = ['CricketShorts', 'IPL', 'CricketReels', 'T20Cricket', 'TacticalExplainer', 'Shorts'];
+    } else if (lowerTags.some((t) => t.includes('baby') || t.includes('kids') || t.includes('cute'))) {
+      baseTags = ['BabyReels', 'CuteBaby', 'BabyShorts', 'ParentingHumor', 'ViralShorts', 'Shorts'];
+    } else if (lowerTags.some((t) => t.includes('news') || t.includes('breaking'))) {
+      baseTags = ['NewsExplainer', 'CurrentAffairs', 'BharatNews', 'BreakingNews', 'DailyPulse', 'Shorts'];
+    } else if (lowerTags.some((t) => t.includes('mahabharata') || t.includes('gita') || t.includes('ramayana'))) {
+      baseTags = ['Mahabharata', 'Ramayana', 'BhagavadGita', 'HinduScriptures', 'Dharma', 'Shorts'];
+    } else if (lowerTags.some((t) => t.includes('devotional') || t.includes('shiva') || t.includes('bhakti'))) {
+      baseTags = ['SanatanDharma', 'Devotional', 'Bhakti', 'Hinduism', 'Mahadev', 'Shorts'];
+    } else {
+      baseTags = ['Shorts', 'ViralShorts', 'TrendingShorts', 'DailyPulse'];
+    }
+  }
+
+  // Add up to 3 clean topic-specific tags if not already present
+  const seen = new Set(baseTags.map((t) => t.toLowerCase()));
+  const extra = [];
+  for (const t of customTags || []) {
+    const clean = String(t).replace(/[^a-zA-Z0-9]/g, '');
+    if (clean && clean.length > 2 && !seen.has(clean.toLowerCase()) && extra.length < 3) {
+      seen.add(clean.toLowerCase());
+      extra.push(clean);
+    }
+  }
+
+  return [...baseTags, ...extra];
+}
+

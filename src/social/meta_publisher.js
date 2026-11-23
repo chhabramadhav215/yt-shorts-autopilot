@@ -4,6 +4,7 @@ import { execFile } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { logger } from '../utils/logger.js';
 import { config } from '../config.js';
+import { sanitizeCaptionAndAttribution, getSlotTrendingHashtags } from '../utils/text_utils.js';
 
 const META_GRAPH_VERSION = 'v20.0';
 const GRAPH_API_BASE = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
@@ -29,14 +30,19 @@ function runFFprobe(args) {
 /**
  * Validates and strictly ensures that a video file complies with Instagram Reels specs:
  * 1080x1920, 30fps CFR, H.264 High 4.1, yuv420p, AAC 44.1kHz stereo, and zero trailing silent frames.
+ * Also enforces compact file size (< 28 MB) to prevent rupload timeout / ProcessingFailedError.
  * Returns path to verified compliant file (or re-encoded version if mismatch detected).
  * @param {string} videoPath
+ * @param {boolean} [forceLightProfile=false] - Force ultra-light compression (~12-16 MB) for retry recovery
  * @returns {Promise<string>}
  */
-export async function ensureInstagramReelsCompatible(videoPath) {
+export async function ensureInstagramReelsCompatible(videoPath, forceLightProfile = false) {
   if (!fs.existsSync(videoPath)) {
     throw new Error(`Video file not found at ${videoPath}`);
   }
+
+  const fileStats = fs.statSync(videoPath);
+  const fileSizeMB = fileStats.size / (1024 * 1024);
 
   try {
     const stdout = await runFFprobe([
@@ -54,10 +60,12 @@ export async function ensureInstagramReelsCompatible(videoPath) {
 
     const durationDelta = Math.abs(vDur - aDur);
     logger.info(
-      `[Instagram Reels Specs Check] Video: ${vStream?.codec_name} (${vStream?.width}x${vStream?.height}, ${vStream?.r_frame_rate} fps, ${vStream?.pix_fmt}, ${vDur.toFixed(2)}s) | Audio: ${aStream?.codec_name} (${aDur.toFixed(2)}s, delta: ${durationDelta.toFixed(3)}s)`
+      `[Instagram Reels Specs Check] Video: ${vStream?.codec_name} (${vStream?.width}x${vStream?.height}, ${vStream?.r_frame_rate} fps, ${vStream?.pix_fmt}, ${vDur.toFixed(2)}s) | Audio: ${aStream?.codec_name} (${aDur.toFixed(2)}s, delta: ${durationDelta.toFixed(3)}s) | Size: ${fileSizeMB.toFixed(2)} MB`
     );
 
     const isMatch =
+      !forceLightProfile &&
+      fileSizeMB <= 28 &&
       vStream?.width === 1080 &&
       vStream?.height === 1920 &&
       vStream?.pix_fmt === 'yuv420p' &&
@@ -66,19 +74,33 @@ export async function ensureInstagramReelsCompatible(videoPath) {
       durationDelta <= 0.05;
 
     if (isMatch) {
-      logger.info(`[Instagram Reels] Source video satisfies all Instagram Reels specs.`);
+      logger.info(`[Instagram Reels] Source video satisfies all Instagram Reels specs (${fileSizeMB.toFixed(2)} MB).`);
       return videoPath;
     }
 
-    logger.warn(`[Instagram Reels] Stream delta or spec mismatch detected (${durationDelta.toFixed(3)}s delta). Normalizing for Instagram Reels...`);
+    if (forceLightProfile) {
+      logger.warn(`[Instagram Reels] Force light compression requested for retry recovery.`);
+    } else if (fileSizeMB > 28) {
+      logger.warn(`[Instagram Reels] Video file size (${fileSizeMB.toFixed(2)} MB) exceeds 28 MB ceiling for reliable Reels upload. Optimizing...`);
+    } else {
+      logger.warn(`[Instagram Reels] Stream delta or spec mismatch detected (${durationDelta.toFixed(3)}s delta). Normalizing for Instagram Reels...`);
+    }
   } catch (err) {
     logger.warn(`[Instagram Reels] Probe check warning: ${err.message}. Running safe normalizer...`);
   }
 
   // Safe Instagram-compatible re-encode
   const outDir = path.dirname(videoPath);
-  const igVideoPath = path.join(outDir, `short_ig_compatible_${Date.now()}.mp4`);
-  logger.info(`[Instagram Reels] Re-encoding MP4 to guaranteed Instagram Reels specs: ${path.basename(igVideoPath)}...`);
+  const prefix = forceLightProfile ? 'short_ig_light' : 'short_ig_compatible';
+  const igVideoPath = path.join(outDir, `${prefix}_${Date.now()}.mp4`);
+  logger.info(
+    `[Instagram Reels] Re-encoding MP4 to ${forceLightProfile ? 'ultra-light' : 'standard'} Instagram Reels specs: ${path.basename(igVideoPath)}...`
+  );
+
+  const crf = forceLightProfile ? '26' : '23';
+  const vBitrate = forceLightProfile ? '2.8M' : '3.5M';
+  const maxRate = forceLightProfile ? '3.5M' : '4.5M';
+  const bufSize = forceLightProfile ? '7M' : '9M';
 
   await runFFmpeg([
     '-y',
@@ -88,9 +110,10 @@ export async function ensureInstagramReelsCompatible(videoPath) {
     '-profile:v', 'high',
     '-level', '4.1',
     '-preset', 'fast',
-    '-b:v', '6M',
-    '-maxrate', '8M',
-    '-bufsize', '12M',
+    '-crf', crf,
+    '-b:v', vBitrate,
+    '-maxrate', maxRate,
+    '-bufsize', bufSize,
     '-c:a', 'aac',
     '-b:a', '128k',
     '-ar', '44100',
@@ -160,8 +183,9 @@ export function isRetryableMetaError(errOrData, status = 0) {
 }
 
 /**
- * Uploads video binary payload to Meta CDN (rupload.facebook.com) with automatic retry loop
- * Resets headers (offset: 0, file_size, Content-Length) and buffer cleanly before each retry attempt.
+ * Uploads video binary payload to Meta CDN (rupload.facebook.com) using chunked offset upload.
+ * Sends video in manageable 4 MB chunks (or single chunk if <= 4 MB) with exact offset and Content-Length headers.
+ * Recovers offset via GET if an intermediate chunk is interrupted.
  * @param {Object} params
  * @param {string} params.uploadUri - Resumable upload endpoint from container
  * @param {string} params.videoPath - Path to local MP4 video file
@@ -179,78 +203,139 @@ export async function uploadVideoBinary({
 }) {
   const fileStats = fs.statSync(videoPath);
   const fileSize = fileStats.size;
+  const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB chunks
 
-  let lastError = null;
+  logger.info(
+    `[${platform}] Starting chunked binary upload to Meta CDN for ${path.basename(videoPath)} (${(fileSize / 1024 / 1024).toFixed(2)} MB, chunk size: 4 MB)...`
+  );
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  let currentOffset = 0;
+  let lastData = {};
+
+  while (currentOffset < fileSize) {
+    const chunkLength = Math.min(CHUNK_SIZE, fileSize - currentOffset);
+    let chunkBuffer;
+
+    const fd = fs.openSync(videoPath, 'r');
     try {
-      logger.info(
-        `[${platform}] Uploading video binary to Meta CDN (attempt ${attempt}/${maxRetries}, ${(fileSize / 1024 / 1024).toFixed(2)} MB)...`
-      );
+      chunkBuffer = Buffer.alloc(chunkLength);
+      fs.readSync(fd, chunkBuffer, 0, chunkLength, currentOffset);
+    } finally {
+      fs.closeSync(fd);
+    }
 
-      // Cleanly reset headers and buffer before each transmission with explicit Content-Length
-      const headers = {
-        Authorization: `OAuth ${accessToken}`,
-        offset: '0',
-        file_size: String(fileSize),
-        'Content-Length': String(fileSize),
-        'Content-Type': 'application/octet-stream',
-      };
+    let chunkSuccess = false;
+    let chunkAttempt = 1;
 
-      const videoBuffer = fs.readFileSync(videoPath);
-
-      const uploadRes = await fetch(uploadUri, {
-        method: 'POST',
-        headers,
-        body: videoBuffer,
-      });
-
-      let uploadData = {};
-      const responseText = await uploadRes.text();
+    while (chunkAttempt <= maxRetries && !chunkSuccess) {
       try {
-        uploadData = JSON.parse(responseText);
-      } catch (e) {
-        uploadData = { raw: responseText };
-      }
-
-      const isSuccess = uploadRes.ok && uploadData.success !== false && !uploadData.error;
-
-      if (isSuccess) {
-        logger.success(`[${platform}] Video binary uploaded successfully on attempt ${attempt}.`);
-        return uploadData;
-      }
-
-      const formattedErr = formatMetaErrorPayload(uploadData, uploadRes.status);
-      const isRetryable = isRetryableMetaError(uploadData, uploadRes.status);
-
-      logger.warn(`[${platform}] Binary upload attempt ${attempt} failed: ${formattedErr}`);
-      logger.warn(`[${platform}] Raw Response: ${responseText.slice(0, 300)}`);
-      logger.error(`[${platform}] Diagnostics: File=${path.basename(videoPath)}, Size=${fileSize}B, Status=${uploadRes.status}`);
-      lastError = new Error(`Binary upload failed: ${formattedErr}`);
-
-      if (attempt < maxRetries && isRetryable) {
-        const backoffMs = attempt === 1 ? 3000 : 6000;
-        logger.info(`[${platform}] Retrying binary upload in ${backoffMs / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
-        await sleep(backoffMs);
-      } else if (!isRetryable) {
-        throw lastError;
-      }
-    } catch (err) {
-      lastError = err;
-      const isRetryable = isRetryableMetaError(err.message);
-      if (attempt < maxRetries && isRetryable) {
-        const backoffMs = attempt === 1 ? 3000 : 6000;
-        logger.warn(
-          `[${platform}] Binary upload network error on attempt ${attempt}: ${err.message}. Retrying in ${backoffMs / 1000}s...`
+        const chunkEnd = currentOffset + chunkLength;
+        const progressPct = ((chunkEnd / fileSize) * 100).toFixed(0);
+        logger.info(
+          `[${platform}] Uploading chunk [${currentOffset}..${chunkEnd}/${fileSize} bytes] (${progressPct}%) (attempt ${chunkAttempt}/${maxRetries})...`
         );
-        await sleep(backoffMs);
-      } else {
-        throw err;
+
+        const headers = {
+          Authorization: `OAuth ${accessToken}`,
+          offset: String(currentOffset),
+          file_size: String(fileSize),
+          'Content-Length': String(chunkLength),
+          'Content-Type': 'application/octet-stream',
+        };
+
+        const uploadRes = await fetch(uploadUri, {
+          method: 'POST',
+          headers,
+          body: chunkBuffer,
+        });
+
+        const responseText = await uploadRes.text();
+        let uploadData = {};
+        try {
+          uploadData = JSON.parse(responseText);
+        } catch (e) {
+          uploadData = { raw: responseText };
+        }
+
+        const isOk = uploadRes.ok && uploadData.success !== false && !uploadData.error;
+
+        if (isOk) {
+          chunkSuccess = true;
+          lastData = uploadData;
+
+          if (uploadData.offset !== undefined) {
+            const serverOffset = parseInt(uploadData.offset, 10);
+            if (!isNaN(serverOffset) && serverOffset > currentOffset) {
+              currentOffset = serverOffset;
+            } else {
+              currentOffset += chunkLength;
+            }
+          } else {
+            currentOffset += chunkLength;
+          }
+          break;
+        }
+
+        const formattedErr = formatMetaErrorPayload(uploadData, uploadRes.status);
+        logger.warn(`[${platform}] Chunk upload at offset ${currentOffset} failed: ${formattedErr}`);
+        logger.warn(`[${platform}] Raw Response: ${responseText.slice(0, 300)}`);
+        logger.error(`[${platform}] Diagnostics: File=${path.basename(videoPath)}, Size=${fileSize}B, Offset=${currentOffset}, Status=${uploadRes.status}`);
+
+        const isRetryable = isRetryableMetaError(uploadData, uploadRes.status);
+        if (!isRetryable) {
+          const nonRetryErr = new Error(`Binary upload failed: ${formattedErr}`);
+          nonRetryErr.rawResponse = responseText;
+          nonRetryErr.uploadData = uploadData;
+          nonRetryErr.status = uploadRes.status;
+          throw nonRetryErr;
+        }
+
+        chunkAttempt++;
+        if (chunkAttempt <= maxRetries) {
+          const backoffMs = chunkAttempt === 2 ? 3000 : 5000;
+          logger.info(`[${platform}] Checking server offset before retry in ${backoffMs / 1000}s...`);
+          await sleep(backoffMs);
+
+          try {
+            const checkRes = await fetch(uploadUri, {
+              method: 'GET',
+              headers: { Authorization: `OAuth ${accessToken}` },
+            });
+            const checkData = await checkRes.json();
+            if (checkData?.offset !== undefined) {
+              const confirmedOffset = parseInt(checkData.offset, 10);
+              if (!isNaN(confirmedOffset) && confirmedOffset >= 0 && confirmedOffset < fileSize) {
+                logger.info(`[${platform}] Synced server offset: ${confirmedOffset} bytes`);
+                currentOffset = confirmedOffset;
+                break;
+              }
+            }
+          } catch (_) {}
+        } else {
+          const err = new Error(`Binary chunk upload failed after ${maxRetries} attempts: ${formattedErr}`);
+          err.rawResponse = responseText;
+          err.uploadData = uploadData;
+          err.status = uploadRes.status;
+          throw err;
+        }
+      } catch (err) {
+        if (!isRetryableMetaError(err.message)) {
+          throw err;
+        }
+        chunkAttempt++;
+        if (chunkAttempt <= maxRetries) {
+          const backoffMs = chunkAttempt === 2 ? 3000 : 5000;
+          logger.warn(`[${platform}] Chunk network error: ${err.message}. Retrying in ${backoffMs / 1000}s...`);
+          await sleep(backoffMs);
+        } else {
+          throw err;
+        }
       }
     }
   }
 
-  throw lastError || new Error(`[${platform}] Binary upload failed after ${maxRetries} attempts.`);
+  logger.success(`[${platform}] Video binary uploaded successfully (${(fileSize / 1024 / 1024).toFixed(2)} MB).`);
+  return lastData;
 }
 
 /**
@@ -269,17 +354,26 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
     throw new Error(`Video file not found at ${videoPath}`);
   }
 
-  // Pre-validate & normalize to guaranteed Instagram Reels specs (1080x1920, 30fps CFR, yuv420p, aac stereo, synced streams)
-  const igVideoPath = await ensureInstagramReelsCompatible(videoPath);
-  const isTempReencode = igVideoPath !== videoPath;
+  const tempFilesToClean = new Set();
+  let igVideoPath = await ensureInstagramReelsCompatible(videoPath, false);
+  if (igVideoPath !== videoPath) tempFilesToClean.add(igVideoPath);
 
   try {
-    const fileStats = fs.statSync(igVideoPath);
-    const fileSize = fileStats.size;
     const maxContainerAttempts = 3;
 
     for (let containerAttempt = 1; containerAttempt <= maxContainerAttempts; containerAttempt++) {
       try {
+        if (containerAttempt > 1) {
+          logger.warn(
+            `[Instagram Reels] Container attempt ${containerAttempt}: Re-encoding video with ultra-light profile to bypass ProcessingFailedError...`
+          );
+          igVideoPath = await ensureInstagramReelsCompatible(videoPath, true);
+          if (igVideoPath !== videoPath) tempFilesToClean.add(igVideoPath);
+        }
+
+        const fileStats = fs.statSync(igVideoPath);
+        const fileSize = fileStats.size;
+
         logger.info(
           `[Instagram Reels] Initializing upload container (attempt ${containerAttempt}/${maxContainerAttempts}) for ${path.basename(igVideoPath)} (${(fileSize / 1024 / 1024).toFixed(2)} MB)...`
         );
@@ -322,13 +416,13 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
         logger.info('[Instagram Reels] Waiting 3 seconds for Meta CDN upload session initialization...');
         await new Promise((r) => setTimeout(r, 3000));
 
-        // Step 2: Upload binary video payload to uploadUri (single attempt per container so failed container is never reused)
+        // Step 2: Upload binary video payload to uploadUri using chunked offset upload
         await uploadVideoBinary({
           uploadUri,
           videoPath: igVideoPath,
           accessToken,
           platform: 'Instagram Reels',
-          maxRetries: 1,
+          maxRetries: 2,
         });
 
         // Step 3: Poll container status until FINISHED
@@ -433,9 +527,9 @@ async function uploadInstagramReel({ igAccountId, accessToken, videoPath, captio
 
     throw new Error(`[Instagram Reels] Publishing failed after ${maxContainerAttempts} container attempts.`);
   } finally {
-    if (isTempReencode) {
+    for (const tmpFile of tempFilesToClean) {
       try {
-        if (fs.existsSync(igVideoPath)) fs.unlinkSync(igVideoPath);
+        if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
       } catch (_) {}
     }
   }
@@ -730,6 +824,7 @@ export async function publishToMetaReels({
   description = '',
   tags = [],
   customCaption = null,
+  slot = null,
 }) {
   const accessToken =
     process.env.META_ACCESS_TOKEN ||
@@ -770,14 +865,16 @@ export async function publishToMetaReels({
     };
   }
 
-  // Format clean caption with hashtags
-  const cleanTags = (tags || [])
-    .map((t) => `#${t.replace(/[^a-zA-Z0-9_]/g, '')}`)
-    .filter((t) => t.length > 1)
-    .slice(0, 25)
-    .join(' ');
+  // Format clean caption with trending hashtags (removing any generic "Video by ..." or channel credits)
+  const cleanDescription = sanitizeCaptionAndAttribution(description);
+  const trendingTags = getSlotTrendingHashtags(slot, tags);
+  const formattedHashtags = trendingTags.map((t) => `#${t}`).join(' ');
 
-  const caption = customCaption || `${title}\n\n${description ? description.slice(0, 300) : ''}\n\n${cleanTags} #reels #viral #shorts #trending`.trim();
+  const caption = customCaption || [
+    title,
+    cleanDescription ? cleanDescription.slice(0, 350) : '',
+    formattedHashtags,
+  ].filter(Boolean).join('\n\n').trim();
 
   const results = { published: true };
 

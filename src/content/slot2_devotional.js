@@ -265,12 +265,20 @@ Return JSON with this exact schema:
   // Background devotional music
   const bgMusicPath = path.join(config.assetsDir, 'audio', 'devotional.mp3');
 
+  const description = `${chosenData.title}\n\n` +
+    `🕉️ Sacred Sanatan Dharma & Vedic Wisdom:\n` +
+    `• Deity / Theme: ${chosenData.deity}\n` +
+    `• Katha: ${chosenData.hookEnglish || chosenData.title}\n` +
+    `• Devotional Hindi narration with burned-in English subtitles.\n\n` +
+    `#SanatanDharma #Devotional #Bhakti #Hinduism #Mahadev #SpiritualShorts`;
+
   return {
     slot: 'slot2',
     slotName: 'Devotional (Sanatan Dharma Katha)',
     title: chosenData.title.slice(0, 95),
     headline: chosenData.title.slice(0, 50),
     deity: chosenData.deity,
+    description,
     voiceScript,
     subtitleText,
     englishSubtitles: subtitleText,

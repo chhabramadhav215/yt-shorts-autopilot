@@ -206,8 +206,7 @@ Return ONLY a valid JSON object matching this schema:
     `📜 SCRIPTURE REFERENCE & CONTEXT:\n` +
     `• Source: ${chosenData.epic || 'Sacred Indian Epics'}\n` +
     `• Narration in Hindi with burned-in English subtitles, set to sacred instrumental music.\n\n` +
-    `⚖️ SECTION 107 FAIR USE & ATTRIBUTION DISCLAIMER:\n` +
-    `Copyright Disclaimer under Section 107 of the Copyright Act 1976: Allowance is made for "fair use" for purposes such as criticism, comment, teaching, scholarship, education, and research. Non-profit spiritual and cultural education tips the balance in favor of fair use. All reverence to original sacred traditions.`;
+    `#Mahabharata #Ramayana #BhagavadGita #HinduScriptures #Dharma #VedicWisdom`;
 
   return {
     slot: 'slot4',

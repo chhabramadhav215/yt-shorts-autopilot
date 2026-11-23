@@ -81,6 +81,7 @@ async function run() {
       tags: generated.tags,
       categoryId: generated.categoryId,
       privacyStatus: privacyStatus || config.youtube.privacyStatus,
+      slot: generated.slot || slot,
     });
   } catch (err) {
     if (isUploadLimitExceeded(err)) {
@@ -136,6 +137,7 @@ async function run() {
       title: result.title,
       description: result.description,
       tags: result.tags,
+      slot: result.slot || slot,
     });
 
     // Explicitly print status for each platform so no failures or skips are silent
