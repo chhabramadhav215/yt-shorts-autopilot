@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-23T14:54:09.379Z",
+  "lastUpdated": "2026-11-23T16:30:03.939Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -529,6 +529,22 @@
       "headline": "Explained: West Bengal Sir: Supreme Court Orders Eci, Calcutta 🚨",
       "url": "https://youtube.com/shorts/1yJ3d3Jz6JY",
       "publishedAt": "2026-11-23T14:54:09.379Z"
+    },
+    {
+      "hash": "10ed77866d8dd67b7ea7094db2180b5f",
+      "slot": "slot5",
+      "title": "Iit, Cricket, Kandla Port Access 5 Balen Shah Wishes 🏏🔥",
+      "headline": "Iit, Cricket, Kandla Port Access 5 Balen Shah Wishes",
+      "url": "",
+      "publishedAt": "2026-11-23T16:30:02.651Z"
+    },
+    {
+      "hash": "11a4892914836a617a06b89d636bbcca",
+      "slot": "slot5",
+      "title": "Iit, Cricket, Kandla Port Access 5 Balen Shah Wishes 🏏🔥",
+      "headline": "Iit, Cricket, Kandla Port Access 5 Balen Shah Wishes 🏏🔥",
+      "url": "https://youtube.com/shorts/cpprPMw3Fw8",
+      "publishedAt": "2026-11-23T16:30:03.939Z"
     }
   ],
   "usedVideoClips": [
@@ -1435,6 +1451,30 @@
       "slot": "slot3",
       "type": "video",
       "usedAt": "2026-11-23T14:52:58.273Z"
+    },
+    {
+      "id": "cricket_hardik_allrounder.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-23T16:28:54.011Z"
+    },
+    {
+      "id": "cricket_dhoni_legend.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-23T16:28:54.195Z"
+    },
+    {
+      "id": "cricket_bumrah_action.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-23T16:28:54.373Z"
+    },
+    {
+      "id": "cricket_ground_action.mp4",
+      "slot": "slot5",
+      "type": "video",
+      "usedAt": "2026-11-23T16:28:54.540Z"
     }
   ],
   "usedScriptures": [],
