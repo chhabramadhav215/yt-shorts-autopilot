@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-23T09:54:47.168Z",
+  "lastUpdated": "2026-11-23T12:24:53.628Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -497,6 +497,22 @@
       "headline": "Lord Vishnu & Child Dhruva: Divine Grace & Sacred Wisdom 🕉️",
       "url": "https://youtube.com/shorts/y1gioS33f_0",
       "publishedAt": "2026-11-23T09:54:47.168Z"
+    },
+    {
+      "hash": "3db69c40c54a764dbaf77236e037a494",
+      "slot": "slot4",
+      "title": "Bharata Devotion & Rama Padukas 🕉️ Epic Wisdom | Valmiki",
+      "headline": "Bharata Devotion & Rama Padukas ️ Epic Wisdom | Va",
+      "url": "",
+      "publishedAt": "2026-11-23T12:24:52.176Z"
+    },
+    {
+      "hash": "e6c79850d4979498f233f78917d1cf27",
+      "slot": "slot4",
+      "title": "Bharata Devotion & Rama Padukas 🕉️ Epic Wisdom | Valmiki",
+      "headline": "Bharata Devotion & Rama Padukas 🕉️ Epic Wisdom | Valmiki",
+      "url": "https://youtube.com/shorts/es5ecMXdBLY",
+      "publishedAt": "2026-11-23T12:24:53.628Z"
     }
   ],
   "usedVideoClips": [
@@ -1355,6 +1371,30 @@
       "slot": "slot2",
       "type": "video",
       "usedAt": "2026-11-23T09:53:45.260Z"
+    },
+    {
+      "id": "ramayana_rama.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-23T12:24:03.328Z"
+    },
+    {
+      "id": "ramayana_lanka_vijay.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-23T12:24:03.526Z"
+    },
+    {
+      "id": "ganga_haridwar_aarti.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-23T12:24:03.738Z"
+    },
+    {
+      "id": "ram_mandir_divine_jyoti.mp4",
+      "slot": "slot4",
+      "type": "video",
+      "usedAt": "2026-11-23T12:24:03.934Z"
     }
   ],
   "usedScriptures": [],
@@ -1418,6 +1458,12 @@
       "slot": "slot2",
       "title": "Lord Vishnu & Child Dhruva: Divine Grace & Sacred Wisdom 🕉️",
       "usedAt": "2026-11-23T09:53:30.519Z"
+    },
+    {
+      "id": "bharata_paduka_ruling",
+      "slot": "slot4",
+      "title": "Bharata Devotion & Rama Padukas 🕉️ Epic Wisdom | Valmiki",
+      "usedAt": "2026-11-23T12:23:53.971Z"
     }
   ]
 }
