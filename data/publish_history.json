@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-23T04:42:03.111Z",
+  "lastUpdated": "2026-11-23T09:54:47.168Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -481,6 +481,22 @@
       "headline": "Papa vs Baby! 👶💥 The TV Remote Heist",
       "url": "https://youtube.com/shorts/zZMqrSKTVAw",
       "publishedAt": "2026-11-23T04:42:03.111Z"
+    },
+    {
+      "hash": "f77fa943c348ae14aa0113fce0d58457",
+      "slot": "slot2",
+      "title": "Lord Vishnu & Child Dhruva: Divine Grace & Sacred Wisdom 🕉️",
+      "headline": "Lord Vishnu & Child Dhruva: Divine Grace & Sacred ",
+      "url": "",
+      "publishedAt": "2026-11-23T09:54:44.305Z"
+    },
+    {
+      "hash": "5a28ec617908ee9956ff773067f7356e",
+      "slot": "slot2",
+      "title": "Lord Vishnu & Child Dhruva: Divine Grace & Sacred Wisdom 🕉️",
+      "headline": "Lord Vishnu & Child Dhruva: Divine Grace & Sacred Wisdom 🕉️",
+      "url": "https://youtube.com/shorts/y1gioS33f_0",
+      "publishedAt": "2026-11-23T09:54:47.168Z"
     }
   ],
   "usedVideoClips": [
@@ -1315,6 +1331,30 @@
       "slot": "slot1",
       "type": "video",
       "usedAt": "2026-11-23T04:42:01.529Z"
+    },
+    {
+      "id": "vishnu_vaikuntha_darshan.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-23T09:53:44.514Z"
+    },
+    {
+      "id": "ganga_haridwar_aarti.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-23T09:53:44.763Z"
+    },
+    {
+      "id": "temple_sacred_aarti.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-23T09:53:45.011Z"
+    },
+    {
+      "id": "sudarshana_chakra_divine.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-23T09:53:45.260Z"
     }
   ],
   "usedScriptures": [],
@@ -1372,6 +1412,12 @@
       "slot": "slot1",
       "title": "Papa vs Baby! 👶💥 The TV Remote Heist",
       "usedAt": "2026-11-23T04:41:17.958Z"
+    },
+    {
+      "id": "dhruva_unwavering_tapasya",
+      "slot": "slot2",
+      "title": "Lord Vishnu & Child Dhruva: Divine Grace & Sacred Wisdom 🕉️",
+      "usedAt": "2026-11-23T09:53:30.519Z"
     }
   ]
 }
