@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-24T04:31:27.915Z",
+  "lastUpdated": "2026-11-24T09:43:37.401Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -561,6 +561,22 @@
       "headline": "Mummy vs Baby! 👶💥 Mirror Twin Encounter",
       "url": "https://youtube.com/shorts/zfOvMFs28EA",
       "publishedAt": "2026-11-24T04:31:27.915Z"
+    },
+    {
+      "hash": "b233e2d53fb08fe254e83e0b80759f10",
+      "slot": "slot2",
+      "title": "Lord Vishnu & Gajendra: Divine Grace & Sacred Wisdom 🕉️",
+      "headline": "Lord Vishnu & Gajendra: Divine Grace & Sacred Wisd",
+      "url": "",
+      "publishedAt": "2026-11-24T09:43:36.478Z"
+    },
+    {
+      "hash": "e83f892822ed17d60d77502247252bd7",
+      "slot": "slot2",
+      "title": "Lord Vishnu & Gajendra: Divine Grace & Sacred Wisdom 🕉️",
+      "headline": "Lord Vishnu & Gajendra: Divine Grace & Sacred Wisdom 🕉️",
+      "url": "https://youtube.com/shorts/ewu-wNn2wAY",
+      "publishedAt": "2026-11-24T09:43:37.401Z"
     }
   ],
   "usedVideoClips": [
@@ -1515,6 +1531,30 @@
       "slot": "slot1",
       "type": "video",
       "usedAt": "2026-11-24T04:31:26.700Z"
+    },
+    {
+      "id": "vishnu_vaikuntha_darshan.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-24T09:42:58.913Z"
+    },
+    {
+      "id": "ganga_haridwar_aarti.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-24T09:42:59.097Z"
+    },
+    {
+      "id": "temple_sacred_aarti.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-24T09:42:59.282Z"
+    },
+    {
+      "id": "sudarshana_chakra_divine.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-24T09:42:59.472Z"
     }
   ],
   "usedScriptures": [],
@@ -1590,6 +1630,12 @@
       "slot": "slot1",
       "title": "Mummy vs Baby! 👶💥 Mirror Twin Encounter",
       "usedAt": "2026-11-24T04:30:41.755Z"
+    },
+    {
+      "id": "gajendra_moksha_prayer",
+      "slot": "slot2",
+      "title": "Lord Vishnu & Gajendra: Divine Grace & Sacred Wisdom 🕉️",
+      "usedAt": "2026-11-24T09:42:48.117Z"
     }
   ]
 }
