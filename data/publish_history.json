@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-23T16:30:03.939Z",
+  "lastUpdated": "2026-11-24T04:31:27.915Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -545,6 +545,22 @@
       "headline": "Iit, Cricket, Kandla Port Access 5 Balen Shah Wishes 🏏🔥",
       "url": "https://youtube.com/shorts/cpprPMw3Fw8",
       "publishedAt": "2026-11-23T16:30:03.939Z"
+    },
+    {
+      "hash": "8d42c9c18a059152bed5813d775af4cb",
+      "slot": "slot1",
+      "title": "Mummy vs Baby! 👶💥 Mirror Twin Encounter",
+      "headline": "MIRROR TWIN SHOWDOWN 🪞👶",
+      "url": "",
+      "publishedAt": "2026-11-24T04:31:26.699Z"
+    },
+    {
+      "hash": "d8a04858e86c8bf92ff813f4b407b852",
+      "slot": "slot1",
+      "title": "Mummy vs Baby! 👶💥 Mirror Twin Encounter",
+      "headline": "Mummy vs Baby! 👶💥 Mirror Twin Encounter",
+      "url": "https://youtube.com/shorts/zfOvMFs28EA",
+      "publishedAt": "2026-11-24T04:31:27.915Z"
     }
   ],
   "usedVideoClips": [
@@ -1475,6 +1491,30 @@
       "slot": "slot5",
       "type": "video",
       "usedAt": "2026-11-23T16:28:54.540Z"
+    },
+    {
+      "id": "01_baby_classic.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-24T04:30:48.212Z"
+    },
+    {
+      "id": "06_baby_curiosity.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-24T04:30:48.399Z"
+    },
+    {
+      "id": "03_baby_mischief.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-24T04:30:48.595Z"
+    },
+    {
+      "id": "07_happy_bounce.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-24T04:31:26.700Z"
     }
   ],
   "usedScriptures": [],
@@ -1544,6 +1584,12 @@
       "slot": "slot4",
       "title": "Bharata Devotion & Rama Padukas 🕉️ Epic Wisdom | Valmiki",
       "usedAt": "2026-11-23T12:23:53.971Z"
+    },
+    {
+      "id": "mirror_twin_standoff",
+      "slot": "slot1",
+      "title": "Mummy vs Baby! 👶💥 Mirror Twin Encounter",
+      "usedAt": "2026-11-24T04:30:41.755Z"
     }
   ]
 }
