@@ -26,7 +26,6 @@
   ],
   "byCategory": {
     "baby": [
-      "04_baby_laughing.mp4",
       "03_baby_mischief.mp4",
       "02_baby_dance.mp4",
       "01_baby_classic.mp4",
@@ -35,7 +34,8 @@
       "06_baby_curiosity.mp4",
       "10_playful_celebration.mp4",
       "08_naughty_smile.mp4",
-      "07_happy_bounce.mp4"
+      "07_happy_bounce.mp4",
+      "04_baby_laughing.mp4"
     ],
     "devotional": [
       "shiva_mahadev_darshan.mp4",
@@ -220,6 +220,12 @@
       "file": "07_happy_bounce.mp4",
       "category": "baby",
       "timestamp": "2026-11-24T04:30:41.749Z"
+    },
+    {
+      "type": "fallback_video",
+      "file": "04_baby_laughing.mp4",
+      "category": "baby",
+      "timestamp": "2026-11-25T04:37:04.856Z"
     }
   ]
 }

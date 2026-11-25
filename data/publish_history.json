@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-24T16:38:23.008Z",
+  "lastUpdated": "2026-11-25T04:37:48.578Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -625,6 +625,22 @@
       "headline": "Vaibhav Sooryavanshi Scores Fastest Double Century 🏏🔥",
       "url": "https://youtube.com/shorts/6c6jKWZ4XSI",
       "publishedAt": "2026-11-24T16:38:23.008Z"
+    },
+    {
+      "hash": "e40f42fd0a1e35292d2aabab8825b2b8",
+      "slot": "slot1",
+      "title": "Mummy vs Baby! 👶💥 Midnight Cookie Mission",
+      "headline": "COOKIE STEALTH MISSION 🍪🕵️",
+      "url": "",
+      "publishedAt": "2026-11-25T04:37:47.043Z"
+    },
+    {
+      "hash": "f36de5e6e2e79950ea8247e1c0eb6109",
+      "slot": "slot1",
+      "title": "Mummy vs Baby! 👶💥 Midnight Cookie Mission",
+      "headline": "Mummy vs Baby! 👶💥 Midnight Cookie Mission",
+      "url": "https://youtube.com/shorts/G9BXuMICqtA",
+      "publishedAt": "2026-11-25T04:37:48.578Z"
     }
   ],
   "usedVideoClips": [
@@ -1675,6 +1691,30 @@
       "slot": "slot5",
       "type": "video",
       "usedAt": "2026-11-24T16:37:27.693Z"
+    },
+    {
+      "id": "10_playful_celebration.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-25T04:37:10.152Z"
+    },
+    {
+      "id": "05_toddler_wobble.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-25T04:37:10.302Z"
+    },
+    {
+      "id": "09_toy_adventure.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-25T04:37:10.433Z"
+    },
+    {
+      "id": "04_baby_laughing.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-25T04:37:47.044Z"
     }
   ],
   "usedScriptures": [],
@@ -1762,6 +1802,12 @@
       "slot": "slot4",
       "title": "King Shibi: Supreme Sacrifice for Refuge 🕉️ Epic Wisdom | Mahabharata",
       "usedAt": "2026-11-24T12:24:50.225Z"
+    },
+    {
+      "id": "cookie_stealth_crawl",
+      "slot": "slot1",
+      "title": "Mummy vs Baby! 👶💥 Midnight Cookie Mission",
+      "usedAt": "2026-11-25T04:37:04.862Z"
     }
   ]
 }
