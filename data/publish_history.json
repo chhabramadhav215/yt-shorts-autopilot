@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-25T12:30:32.558Z",
+  "lastUpdated": "2026-11-25T14:54:30.521Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -673,6 +673,22 @@
       "headline": "Yaksha Prashna: The Ultimate Questions of Life 🕉️ Epic Wisdom | Mahabharata",
       "url": "https://youtube.com/shorts/PzyI25aYm40",
       "publishedAt": "2026-11-25T12:30:32.558Z"
+    },
+    {
+      "hash": "fbda7ce5820ff70433e8c58bdd873dd2",
+      "slot": "slot3",
+      "title": "Explained: Latest News, India News, Breaking News, Business 🚨",
+      "headline": "Latest News, India News, Breaking News, Business",
+      "url": "",
+      "publishedAt": "2026-11-25T14:54:29.216Z"
+    },
+    {
+      "hash": "a40708488f452f9e96b13953cb0187d3",
+      "slot": "slot3",
+      "title": "Explained: Latest News, India News, Breaking News, Business 🚨",
+      "headline": "Explained: Latest News, India News, Breaking News, Business 🚨",
+      "url": "https://youtube.com/shorts/AdfoHgv4Vig",
+      "publishedAt": "2026-11-25T14:54:30.521Z"
     }
   ],
   "usedVideoClips": [
@@ -1795,6 +1811,30 @@
       "slot": "slot4",
       "type": "video",
       "usedAt": "2026-11-25T12:29:43.860Z"
+    },
+    {
+      "id": "breaking_news_anchor.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-25T14:53:41.571Z"
+    },
+    {
+      "id": "global_geopolitics_network.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-25T14:53:41.704Z"
+    },
+    {
+      "id": "financial_markets_radar.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-25T14:53:41.844Z"
+    },
+    {
+      "id": "city_traffic.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-25T14:53:41.995Z"
     }
   ],
   "usedScriptures": [],
