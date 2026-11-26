@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-25T16:38:33.752Z",
+  "lastUpdated": "2026-11-26T04:36:20.579Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -705,6 +705,22 @@
       "headline": "Cricket Photos - Ind-A vs UAE, 12th Match, Group B 🏏🔥",
       "url": "https://youtube.com/shorts/hg1TD90rqV8",
       "publishedAt": "2026-11-25T16:38:33.752Z"
+    },
+    {
+      "hash": "329b75a3645fe7d6c9e2d9a5a60e6d47",
+      "slot": "slot1",
+      "title": "Papa vs Baby! 👶💥 Forbidden Lemon Heist",
+      "headline": "LEMON SHOCK TEST 🍋😖",
+      "url": "",
+      "publishedAt": "2026-11-26T04:36:18.478Z"
+    },
+    {
+      "hash": "571b30537790f76e727073cfaa27e4c5",
+      "slot": "slot1",
+      "title": "Papa vs Baby! 👶💥 Forbidden Lemon Heist",
+      "headline": "Papa vs Baby! 👶💥 Forbidden Lemon Heist",
+      "url": "https://youtube.com/shorts/G99V7KDaIfw",
+      "publishedAt": "2026-11-26T04:36:20.579Z"
     }
   ],
   "usedVideoClips": [
@@ -1875,6 +1891,30 @@
       "slot": "slot5",
       "type": "video",
       "usedAt": "2026-11-25T16:37:39.402Z"
+    },
+    {
+      "id": "02_baby_dance.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-26T04:35:39.753Z"
+    },
+    {
+      "id": "08_naughty_smile.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-26T04:35:39.918Z"
+    },
+    {
+      "id": "01_baby_classic.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-26T04:35:40.076Z"
+    },
+    {
+      "id": "03_baby_mischief.mp4",
+      "slot": "slot1",
+      "type": "video",
+      "usedAt": "2026-11-26T04:36:18.564Z"
     }
   ],
   "usedScriptures": [],
@@ -1980,6 +2020,12 @@
       "slot": "slot4",
       "title": "Yaksha Prashna: The Ultimate Questions of Life 🕉️ Epic Wisdom | Mahabharata",
       "usedAt": "2026-11-25T12:29:32.183Z"
+    },
+    {
+      "id": "lemon_sour_shock",
+      "slot": "slot1",
+      "title": "Papa vs Baby! 👶💥 Forbidden Lemon Heist",
+      "usedAt": "2026-11-26T04:35:35.916Z"
     }
   ]
 }
