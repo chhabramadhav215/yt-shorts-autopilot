@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-26T12:29:24.259Z",
+  "lastUpdated": "2026-11-26T14:50:25.106Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -753,6 +753,22 @@
       "headline": "Dronacharya Eye of the Bird Focus 🕉️ Epic Wisdom | Mahabharata",
       "url": "https://youtube.com/shorts/K5zovoxg2CU",
       "publishedAt": "2026-11-26T12:29:24.259Z"
+    },
+    {
+      "hash": "bc1472dbb0338c6711afedd0b2b145ad",
+      "slot": "slot3",
+      "title": "Explained: Make in India Faces Heat 🚨",
+      "headline": "Make in India Faces Heat",
+      "url": "",
+      "publishedAt": "2026-11-26T14:50:23.539Z"
+    },
+    {
+      "hash": "0ebdfc6ec8543046db2543a97baf04ff",
+      "slot": "slot3",
+      "title": "Explained: Make in India Faces Heat 🚨",
+      "headline": "Explained: Make in India Faces Heat 🚨",
+      "url": "https://youtube.com/shorts/QDl1f-i1Lr4",
+      "publishedAt": "2026-11-26T14:50:25.106Z"
     }
   ],
   "usedVideoClips": [
@@ -1995,6 +2011,30 @@
       "slot": "slot4",
       "type": "video",
       "usedAt": "2026-11-26T12:28:25.000Z"
+    },
+    {
+      "id": "tech_digital_globe.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-26T14:49:43.567Z"
+    },
+    {
+      "id": "newsroom_studio.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-26T14:49:43.700Z"
+    },
+    {
+      "id": "breaking_news_anchor.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-26T14:49:43.841Z"
+    },
+    {
+      "id": "global_geopolitics_network.mp4",
+      "slot": "slot3",
+      "type": "video",
+      "usedAt": "2026-11-26T14:49:43.970Z"
     }
   ],
   "usedScriptures": [],
