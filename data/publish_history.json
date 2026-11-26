@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-11-26T04:36:20.579Z",
+  "lastUpdated": "2026-11-26T09:44:04.114Z",
   "publishedTopics": [
     {
       "hash": "db622f8691f867816be2fce231dce821",
@@ -721,6 +721,22 @@
       "headline": "Papa vs Baby! 👶💥 Forbidden Lemon Heist",
       "url": "https://youtube.com/shorts/G99V7KDaIfw",
       "publishedAt": "2026-11-26T04:36:20.579Z"
+    },
+    {
+      "hash": "ae1851bca3d7665624770f8cb9da8efa",
+      "slot": "slot2",
+      "title": "Lord Krishna & Karna: Divine Grace & Sacred Wisdom 🕉️",
+      "headline": "Lord Krishna & Karna: Divine Grace & Sacred Wisdom",
+      "url": "",
+      "publishedAt": "2026-11-26T09:44:02.658Z"
+    },
+    {
+      "hash": "a04ebfa58f8f123b42d3bafc44939955",
+      "slot": "slot2",
+      "title": "Lord Krishna & Karna: Divine Grace & Sacred Wisdom 🕉️",
+      "headline": "Lord Krishna & Karna: Divine Grace & Sacred Wisdom 🕉️",
+      "url": "https://youtube.com/shorts/Vfk__hhbxR0",
+      "publishedAt": "2026-11-26T09:44:04.114Z"
     }
   ],
   "usedVideoClips": [
@@ -1915,6 +1931,30 @@
       "slot": "slot1",
       "type": "video",
       "usedAt": "2026-11-26T04:36:18.564Z"
+    },
+    {
+      "id": "krishna_vrindavan_darshan.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-26T09:43:02.056Z"
+    },
+    {
+      "id": "krishna_flute_divine.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-26T09:43:02.303Z"
+    },
+    {
+      "id": "ganga_haridwar_aarti.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-26T09:43:02.555Z"
+    },
+    {
+      "id": "temple_sacred_aarti.mp4",
+      "slot": "slot2",
+      "type": "video",
+      "usedAt": "2026-11-26T09:43:02.800Z"
     }
   ],
   "usedScriptures": [],
@@ -2026,6 +2066,12 @@
       "slot": "slot1",
       "title": "Papa vs Baby! 👶💥 Forbidden Lemon Heist",
       "usedAt": "2026-11-26T04:35:35.916Z"
+    },
+    {
+      "id": "karna_golden_tooth_test",
+      "slot": "slot2",
+      "title": "Lord Krishna & Karna: Divine Grace & Sacred Wisdom 🕉️",
+      "usedAt": "2026-11-26T09:42:50.061Z"
     }
   ]
 }
